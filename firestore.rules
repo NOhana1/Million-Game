@@ -1,0 +1,17 @@
+rules_version = '2';
+
+// Clients may read only their own player and orders, and can never write.
+// All writes go through the API, which ignores these rules. Anything not listed is denied.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /players/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+
+      match /orders/{orderId} {
+        allow read: if request.auth != null && request.auth.uid == uid;
+        allow write: if false;
+      }
+    }
+  }
+}

@@ -4,9 +4,15 @@
   "private": true,
   "type": "module",
   "scripts": {
+    "dev": "node --env-file-if-exists=.env --watch src/adapters/local.ts",
+    "test": "node --test \"src/**/*.test.ts\"",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@portfolio-league/engine": "*"
+    "@hono/node-server": "^2.1.6",
+    "@portfolio-league/engine": "*",
+    "firebase-admin": "^14.5.0",
+    "hono": "^4.13.16",
+    "zod": "^4.6.7"
   }
 }
