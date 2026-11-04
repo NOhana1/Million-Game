@@ -12,6 +12,9 @@ export default function LeagueScreen() {
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <Text style={styles.title}>This week’s table</Text>
       <Text style={styles.subtitle}>Score: 85% return rank, 15% stability rank.</Text>
+      {rows.some((row) => row.isMe) ? null : (
+        <Text style={styles.subtitle}>You’ll join the table once you hold a security this week.</Text>
+      )}
       <Card style={styles.table}>
         <View style={styles.row}>
           <Text style={[styles.head, styles.rank]}>#</Text>

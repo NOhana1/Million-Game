@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { displayPrice, maxOrderAmount, orderProblem, Side } from '@/game/sim';
+import { canSellAll, displayPrice, maxOrderAmount, orderProblem, Side } from '@/game/sim';
 import { useGame } from '@/game/store';
 import { isMarketOpen, MARKET_LABEL, Security } from '@/game/world';
 
@@ -23,6 +23,11 @@ export function OrderTicket({ security, onClose }: { security: Security; onClose
     setTried(true);
     if (problem) return;
     dispatch({ type: 'placeOrder', securityId: security.id, side, amount });
+    onClose();
+  };
+
+  const sellEverything = () => {
+    dispatch({ type: 'placeOrder', securityId: security.id, side: 'sell', amount: 'all' });
     onClose();
   };
 
@@ -84,6 +89,9 @@ export function OrderTicket({ security, onClose }: { security: Security; onClose
 
           {tried && problem ? <Text style={styles.error}>{problem}</Text> : null}
           <Button label={side === 'buy' ? 'Place buy order' : 'Place sell order'} onPress={submit} />
+          {side === 'sell' && canSellAll(state, security.id) ? (
+            <Button variant="quiet" label="Sell everything" onPress={sellEverything} />
+          ) : null}
         </View>
       </View>
     </Modal>

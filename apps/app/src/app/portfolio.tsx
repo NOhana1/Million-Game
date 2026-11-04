@@ -8,6 +8,7 @@ import {
   holdingValue,
   Order,
   orderAmount,
+  orderRefund,
   portfolioValue,
   reservedCash,
   START_SHEKELS,
@@ -16,6 +17,11 @@ import {
 import { useGame } from '@/game/store';
 import { formatWorldTime, Security, SECURITY_BY_ID } from '@/game/world';
 
+const refundText = (order: Order) => {
+  const refund = orderRefund(order);
+  return refund > 0 ? ` · ${ils(refund)} returned (20% limit)` : '';
+};
+
 function OrderRow({ order }: { order: Order }) {
   const security = SECURITY_BY_ID[order.securityId];
   const pending = order.status === 'pending';
@@ -23,7 +29,7 @@ function OrderRow({ order }: { order: Order }) {
     ? order.execution.kind === 'close'
       ? 'Waiting for the close'
       : 'Waiting for the next open'
-    : `Filled ${formatWorldTime(order.fill?.at ?? 0)} · ${toUnits(order.fill?.units ?? 0).toFixed(3)} units`;
+    : `Filled ${formatWorldTime(order.fill?.at ?? 0)} · ${toUnits(order.fill?.units ?? 0).toFixed(3)} units${refundText(order)}`;
   return (
     <View style={styles.row}>
       <View style={styles.flex}>
