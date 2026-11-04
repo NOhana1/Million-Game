@@ -7,7 +7,9 @@ import {
   fillOrder,
   FX_SCALE,
   holdingValue,
+  holdsSecurity,
   maxOrderAmount,
+  MIN_ORDER,
   newAccount,
   orderProblem,
   type OrderRequest,
@@ -45,7 +47,7 @@ function place(account: Account, req: OrderRequest, quotes = tenEach) {
 
 function holdingOf(amount: number) {
   const { account, order } = place(newAccount(), request('buy', amount));
-  return fillOrder(account, order.id, TEN);
+  return fillOrder(account, order.id, tenEach);
 }
 
 describe('rule 1: starting cash', () => {
@@ -57,8 +59,8 @@ describe('rule 1: starting cash', () => {
 
 describe('rule 2: orders by shekel amount, fractional units', () => {
   it('buys a fraction of a unit', () => {
-    const account = holdingOf(1_500); // ₪15 at ₪10
-    assert.equal(account.holdings.TASE1, 1_500_000);
+    const account = holdingOf(15_500); // ₪155 at ₪10
+    assert.equal(account.holdings.TASE1, 15_500_000);
   });
 
   it('rejects amounts that are not a positive whole number of agorot', () => {
@@ -88,14 +90,14 @@ describe('rule 3: execution timing', () => {
 
   it('fills at the price given at execution, not the price at submission', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const filled = fillOrder(account, order.id, { price: 200_000, fx: FX_SCALE });
+    const filled = fillOrder(account, order.id, () => ({ price: 200_000, fx: FX_SCALE }));
     assert.equal(filled.holdings.TASE1, 50_000_000); // ₪1,000 at ₪20
     assert.equal(filled.orders[0]?.fill?.price, 200_000);
   });
 
   it('stamps the fill with the execution time', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const filled = fillOrder(account, order.id, TEN);
+    const filled = fillOrder(account, order.id, tenEach);
     assert.equal(filled.orders[0]?.fill?.at, order.execution.at);
   });
 
@@ -108,13 +110,13 @@ describe('rule 3: execution timing', () => {
 describe('settleDueOrders', () => {
   it('leaves orders that are not due', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const settled = settleDueOrders(account, order.execution.at - 1, () => TEN);
+    const settled = settleDueOrders(account, order.execution.at - 1, () => tenEach);
     assert.equal(settled, account);
   });
 
   it('fills an order exactly at its execution time', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const settled = settleDueOrders(account, order.execution.at, () => TEN);
+    const settled = settleDueOrders(account, order.execution.at, () => tenEach);
     assert.equal(settled.orders[0]?.status, 'filled');
   });
 
@@ -125,7 +127,7 @@ describe('settleDueOrders', () => {
     const seen: string[] = [];
     const settled = settleDueOrders(second.account, utc('2026-11-20T00:00:00'), (o) => {
       seen.push(o.id);
-      return o.securityId === 'US1' ? { price: 100_000, fx: 30_000 } : TEN;
+      return (id) => (id === 'US1' ? { price: 100_000, fx: 30_000 } : TEN);
     });
     assert.deepEqual(seen, [order[0]?.id, order[1]?.id]);
     assert.equal(settled.holdings.US1, 33_333_333); // ₪1,000 at $10 x 3.0
@@ -136,7 +138,7 @@ describe('settleDueOrders', () => {
     const start = holdingOf(100_000);
     const a = place(start, request('sell', 70_000));
     const b = place(a.account, request('sell', 30_000));
-    const settled = settleDueOrders(b.account, utc('2026-11-10T00:00:00'), () => ({
+    const settled = settleDueOrders(b.account, utc('2026-11-10T00:00:00'), () => () => ({
       price: 50_000,
       fx: FX_SCALE,
     }));
@@ -147,8 +149,8 @@ describe('settleDueOrders', () => {
 
   it('is safe to run twice', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const once = settleDueOrders(account, order.execution.at, () => TEN);
-    const twice = settleDueOrders(once, order.execution.at, () => ({ price: 1, fx: 1 }));
+    const once = settleDueOrders(account, order.execution.at, () => tenEach);
+    const twice = settleDueOrders(once, order.execution.at, () => () => ({ price: 1, fx: 1 }));
     assert.deepEqual(twice, once);
   });
 });
@@ -156,18 +158,18 @@ describe('settleDueOrders', () => {
 describe('fillOrder', () => {
   it('changes nothing for an order that is already filled', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const filled = fillOrder(account, order.id, TEN);
-    assert.equal(fillOrder(filled, order.id, { price: 1, fx: 1 }), filled);
+    const filled = fillOrder(account, order.id, tenEach);
+    assert.equal(fillOrder(filled, order.id, () => ({ price: 1, fx: 1 })), filled);
   });
 
   it('throws for an unknown order', () => {
-    assert.throws(() => fillOrder(newAccount(), 'missing', TEN));
+    assert.throws(() => fillOrder(newAccount(), 'missing', tenEach));
   });
 
   it('never changes the account it receives', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
     const before = structuredClone(account);
-    fillOrder(account, order.id, TEN);
+    fillOrder(account, order.id, tenEach);
     assert.deepEqual(account, before);
   });
 });
@@ -181,34 +183,35 @@ describe('rule 4: no leverage', () => {
 
   it('spends exactly the order amount, whatever the fill price', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
-    const filled = fillOrder(account, order.id, { price: 7_777, fx: FX_SCALE });
+    const filled = fillOrder(account, order.id, () => ({ price: 7_777, fx: FX_SCALE }));
     assert.equal(filled.cash, START_CASH - 100_000);
     assert.equal(reservedCash(filled), 0);
     assert.equal(filled.orders[0]?.fill?.value, 100_000);
   });
 
   it('rejects a buy above available cash', () => {
-    const poor: Account = { cash: 1_000, holdings: {}, orders: [] };
-    const result = placeOrder(poor, request('buy', 1_001), tenEach);
+    const poor: Account = { cash: 10_000, holdings: {}, orders: [] };
+    const result = placeOrder(poor, request('buy', 10_001), tenEach);
     assert.deepEqual(result, { ok: false, problem: 'INSUFFICIENT_CASH' });
   });
 
   it('counts cash already held by pending buys', () => {
     const { account } = place(newAccount(), request('buy', 20_000_000));
-    const spent = { ...account, cash: 500 };
-    assert.equal(orderProblem(spent, 'OTHER', 'buy', 501, tenEach), 'INSUFFICIENT_CASH');
+    const spent = { ...account, cash: 10_000 };
+    assert.equal(orderProblem(spent, 'OTHER', 'buy', 10_001, tenEach), 'INSUFFICIENT_CASH');
   });
 
   it('does not let pending sale proceeds fund a buy', () => {
-    const account: Account = { cash: 0, holdings: { TASE1: 5_000_000 }, orders: [] };
-    const selling = place(account, request('sell', 5_000));
-    assert.equal(orderProblem(selling.account, 'OTHER', 'buy', 100, tenEach), 'INSUFFICIENT_CASH');
+    const account: Account = { cash: 0, holdings: { TASE1: 50_000_000 }, orders: [] };
+    const selling = place(account, request('sell', 50_000));
+    const problem = orderProblem(selling.account, 'OTHER', 'buy', 10_000, tenEach);
+    assert.equal(problem, 'INSUFFICIENT_CASH');
   });
 });
 
 describe('rule 4: no short selling', () => {
   it('rejects a sale with no holding', () => {
-    const result = placeOrder(newAccount(), request('sell', 100), tenEach);
+    const result = placeOrder(newAccount(), request('sell', 10_000), tenEach);
     assert.deepEqual(result, { ok: false, problem: 'INSUFFICIENT_HOLDING' });
   });
 
@@ -226,14 +229,14 @@ describe('rule 4: no short selling', () => {
 
   it('does not sell pending buys that have not filled', () => {
     const { account } = place(newAccount(), request('buy', 100_000));
-    assert.equal(orderProblem(account, 'TASE1', 'sell', 1, tenEach), 'INSUFFICIENT_HOLDING');
+    assert.equal(orderProblem(account, 'TASE1', 'sell', 10_000, tenEach), 'INSUFFICIENT_HOLDING');
   });
 
   it('adds sale proceeds to cash only when the order fills', () => {
     const start = holdingOf(100_000);
     const { account, order } = place(start, request('sell', 40_000));
     assert.equal(account.cash, start.cash);
-    const filled = fillOrder(account, order.id, TEN);
+    const filled = fillOrder(account, order.id, tenEach);
     assert.equal(filled.cash, start.cash + 40_000);
     assert.equal(filled.holdings.TASE1, 60_000_000);
   });
@@ -241,7 +244,7 @@ describe('rule 4: no short selling', () => {
   it('sells the holding at most when the price has fallen', () => {
     const start = holdingOf(100_000); // 100 units
     const { account, order } = place(start, request('sell', 100_000));
-    const filled = fillOrder(account, order.id, { price: 50_000, fx: FX_SCALE });
+    const filled = fillOrder(account, order.id, () => ({ price: 50_000, fx: FX_SCALE }));
     assert.equal(filled.orders[1]?.fill?.units, 100_000_000);
     assert.equal(filled.orders[1]?.fill?.value, 50_000);
     assert.equal(filled.holdings.TASE1, undefined);
@@ -250,7 +253,7 @@ describe('rule 4: no short selling', () => {
   it('sells fewer units when the price has risen', () => {
     const start = holdingOf(100_000);
     const { account, order } = place(start, request('sell', 100_000));
-    const filled = fillOrder(account, order.id, { price: 200_000, fx: FX_SCALE });
+    const filled = fillOrder(account, order.id, () => ({ price: 200_000, fx: FX_SCALE }));
     assert.equal(filled.holdings.TASE1, 50_000_000);
     assert.equal(filled.orders[1]?.fill?.value, 100_000);
   });
@@ -258,7 +261,7 @@ describe('rule 4: no short selling', () => {
   it('removes a holding that reaches zero', () => {
     const start = holdingOf(100_000);
     const { account, order } = place(start, request('sell', 100_000));
-    assert.deepEqual(fillOrder(account, order.id, TEN).holdings, {});
+    assert.deepEqual(fillOrder(account, order.id, tenEach).holdings, {});
   });
 });
 
@@ -280,7 +283,7 @@ describe('rule 4: 20% position limit at submission', () => {
 
   it('counts pending buys, so several orders can’t pass it one by one', () => {
     const { account } = place(newAccount(), request('buy', limit));
-    assert.equal(orderProblem(account, 'TASE1', 'buy', 1, tenEach), 'POSITION_LIMIT');
+    assert.equal(orderProblem(account, 'TASE1', 'buy', 10_000, tenEach), 'POSITION_LIMIT');
   });
 
   it('applies to each security separately', () => {
@@ -315,18 +318,18 @@ describe('rule 5: US securities', () => {
   });
 
   it('converts a buy at the rate at execution', () => {
-    const { account, order } = place(newAccount(), request('buy', 3_420, us));
-    const filled = fillOrder(account, order.id, { price: 100_000, fx: 34_200 });
-    assert.equal(filled.holdings.US1, 1_000_000);
+    const { account, order } = place(newAccount(), request('buy', 34_200, us));
+    const filled = fillOrder(account, order.id, () => ({ price: 100_000, fx: 34_200 }));
+    assert.equal(filled.holdings.US1, 10_000_000);
     assert.equal(filled.orders[0]?.fill?.fx, 34_200);
   });
 
   it('converts a sale back to shekels at the rate at execution', () => {
-    const start: Account = { cash: 0, holdings: { US1: 1_000_000 }, orders: [] };
+    const start: Account = { cash: 0, holdings: { US1: 10_000_000 }, orders: [] };
     const quotes: QuoteSource = () => ({ price: 100_000, fx: 34_200 });
-    const { account, order } = place(start, request('sell', 3_000, us), quotes);
-    const filled = fillOrder(account, order.id, { price: 100_000, fx: 30_000 });
-    assert.equal(filled.cash, 3_000);
+    const { account, order } = place(start, request('sell', 30_000, us), quotes);
+    const filled = fillOrder(account, order.id, () => ({ price: 100_000, fx: 30_000 }));
+    assert.equal(filled.cash, 30_000);
     assert.equal(filled.holdings.US1, undefined);
   });
 
@@ -366,6 +369,151 @@ describe('placeOrder', () => {
   });
 });
 
+describe('rule 4: 20% limit at the moment of purchase', () => {
+  const limit = 20_000_000;
+
+  it('fills in full when the order still fits', () => {
+    const { account, order } = place(newAccount(), request('buy', limit));
+    const filled = fillOrder(account, order.id, tenEach);
+    assert.equal(filled.orders[0]?.fill?.value, limit);
+    assert.equal(filled.orders[0]?.fill?.refund, 0);
+  });
+
+  it('fills up to the limit and returns the rest when the portfolio fell', () => {
+    // ₪200,000 of A is pending, and B has dropped from ₪800,000 to ₪700,000.
+    const start: Account = { cash: 20_000_000, holdings: { B: 80_000_000_000 }, orders: [] };
+    const quotes: QuoteSource = (id) => (id === 'B' ? { price: 100_000, fx: FX_SCALE } : TEN);
+    const { account, order } = place(start, request('buy', 20_000_000), quotes);
+    const dropped: QuoteSource = (id) => (id === 'B' ? { price: 87_500, fx: FX_SCALE } : TEN);
+
+    const filled = fillOrder(account, order.id, dropped);
+
+    assert.equal(filled.orders[0]?.fill?.value, 18_000_000); // 20% of ₪900,000
+    assert.equal(filled.orders[0]?.fill?.refund, 2_000_000);
+    assert.equal(filled.cash, 2_000_000);
+    assert.equal(filled.holdings.TASE1, 18_000_000_000); // ₪180,000 at ₪10
+    assert.equal(reservedCash(filled), 0);
+  });
+
+  it('counts the holding at the execution price', () => {
+    const start = holdingOf(15_000_000); // ₪150,000 at ₪10
+    const { account, order } = place(start, request('buy', 5_000_000));
+    const risen: QuoteSource = () => ({ price: 120_000, fx: FX_SCALE });
+    const filled = fillOrder(account, order.id, risen);
+    // Worth ₪1,030,000 at fill, so the limit is ₪206,000. The holding is ₪180,000.
+    assert.equal(filled.orders[1]?.fill?.value, 2_600_000);
+    assert.equal(filled.orders[1]?.fill?.refund, 2_400_000);
+  });
+
+  it('returns everything, with 0 units, when there is no room left', () => {
+    const start = holdingOf(15_000_000);
+    const { account, order } = place(start, request('buy', 5_000_000));
+    const surged: QuoteSource = () => ({ price: 300_000, fx: FX_SCALE });
+    const filled = fillOrder(account, order.id, surged);
+    assert.equal(filled.orders[1]?.fill?.units, 0);
+    assert.equal(filled.orders[1]?.fill?.refund, 5_000_000);
+    assert.equal(filled.cash, START_CASH - 15_000_000);
+  });
+
+  it('applies to orders filling together, one after the other', () => {
+    const first = place(newAccount(), request('buy', 12_000_000));
+    const second = place(first.account, request('buy', 8_000_000));
+    const third: Account = { ...second.account, cash: 0 };
+    const settled = settleDueOrders(third, utc('2026-11-10T00:00:00'), () => () => ({
+      price: 100_000,
+      fx: FX_SCALE,
+    }));
+    // Removing the free cash shrinks the portfolio to ₪200,000, so the limit is ₪40,000.
+    assert.equal(settled.orders[0]?.fill?.value, 4_000_000);
+    assert.equal(settled.orders[1]?.fill?.value, 0);
+    assert.equal(settled.orders[0]?.fill?.refund, 8_000_000);
+    assert.equal(settled.orders[1]?.fill?.refund, 8_000_000);
+  });
+
+  it('does not apply to sales', () => {
+    const start = holdingOf(20_000_000);
+    const { account, order } = place(start, request('sell', 10_000_000));
+    const surged: QuoteSource = () => ({ price: 300_000, fx: FX_SCALE });
+    assert.equal(fillOrder(account, order.id, surged).orders[1]?.fill?.refund, 0);
+  });
+});
+
+describe('sell everything', () => {
+  const sellAll = () => ({ ...request('sell', 0), amount: 'all' as const });
+
+  it('sells every unit whatever the price', () => {
+    const start = holdingOf(100_000);
+    const { account, order } = place(start, sellAll());
+    assert.equal(order.sellAll, true);
+    assert.equal(order.amount, 100_000);
+    const filled = fillOrder(account, order.id, () => ({ price: 123_456, fx: FX_SCALE }));
+    assert.deepEqual(filled.holdings, {});
+    assert.equal(filled.orders[1]?.fill?.units, 100_000_000);
+    assert.equal(filled.orders[1]?.fill?.value, 123_456);
+  });
+
+  it('clears a remainder below the minimum order', () => {
+    const start: Account = { cash: 0, holdings: { TASE1: 1_234 }, orders: [] };
+    const { account, order } = place(start, sellAll());
+    assert.deepEqual(fillOrder(account, order.id, tenEach).holdings, {});
+  });
+
+  it('sells only what is left after an earlier pending sale', () => {
+    const start = holdingOf(100_000);
+    const first = place(start, request('sell', 40_000));
+    const second = place(first.account, sellAll());
+    assert.equal(second.order.amount, 60_000);
+    const settled = settleDueOrders(second.account, utc('2026-11-10T00:00:00'), () => tenEach);
+    assert.deepEqual(settled.holdings, {});
+    assert.equal(settled.cash, start.cash + 100_000);
+  });
+
+  it('rejects it with no holding', () => {
+    const result = placeOrder(newAccount(), sellAll(), tenEach);
+    assert.deepEqual(result, { ok: false, problem: 'INSUFFICIENT_HOLDING' });
+  });
+
+  it('rejects a second one while the first is pending', () => {
+    const { account } = place(holdingOf(100_000), sellAll());
+    const result = placeOrder(account, sellAll(), tenEach);
+    assert.deepEqual(result, { ok: false, problem: 'INSUFFICIENT_HOLDING' });
+  });
+
+  it('counts against the amount left to sell', () => {
+    const { account } = place(holdingOf(100_000), sellAll());
+    assert.equal(maxOrderAmount(account, 'TASE1', 'sell', tenEach), 0);
+  });
+
+  it('can’t be used to buy', () => {
+    const req = { ...request('buy', 0), amount: 'all' as const };
+    assert.deepEqual(placeOrder(newAccount(), req, tenEach), {
+      ok: false,
+      problem: 'INVALID_AMOUNT',
+    });
+  });
+});
+
+describe('minimum order', () => {
+  it('accepts exactly ₪100', () => {
+    assert.equal(orderProblem(newAccount(), 'A', 'buy', MIN_ORDER, tenEach), null);
+    assert.equal(MIN_ORDER, 10_000);
+  });
+
+  it('rejects one agora less, for buys and sales', () => {
+    assert.equal(orderProblem(newAccount(), 'A', 'buy', 9_999, tenEach), 'BELOW_MINIMUM');
+    const account = holdingOf(100_000);
+    assert.equal(orderProblem(account, 'TASE1', 'sell', 9_999, tenEach), 'BELOW_MINIMUM');
+  });
+});
+
+describe('holdsSecurity', () => {
+  it('is true only once a position has filled', () => {
+    const { account, order } = place(newAccount(), request('buy', 100_000));
+    assert.equal(holdsSecurity(account), false);
+    assert.equal(holdsSecurity(fillOrder(account, order.id, tenEach)), true);
+  });
+});
+
 describe('invariants across random play', () => {
   it('never allows negative cash or holdings, and conserves money at constant prices', () => {
     let seed = 42;
@@ -382,7 +530,7 @@ describe('invariants across random play', () => {
     for (let step = 0; step < 2_000; step += 1) {
       const id = ids[random(ids.length)] ?? 'TASE1';
       const side: Side = random(2) === 0 ? 'buy' : 'sell';
-      const amount = 1 + random(30_000_000);
+      const amount = 10_000 + random(30_000_000);
       const result = placeOrder(
         account,
         { id: `random-${step}`, security: security(id), side, amount, placedAt: now },
@@ -392,7 +540,7 @@ describe('invariants across random play', () => {
 
       now += 3_600_000;
       const before = portfolioValue(account, quotes);
-      account = settleDueOrders(account, now, (o) => quotes(o.securityId));
+      account = settleDueOrders(account, now, () => quotes);
       const after = portfolioValue(account, quotes);
 
       assert.ok(account.cash >= 0);

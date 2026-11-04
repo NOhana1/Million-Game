@@ -5,12 +5,12 @@
 import {
   type Account,
   AGOROT_PER_SHEKEL,
-  type Drawdown,
   FX_SCALE,
   holdingValue as engineHoldingValue,
+  holdsSecurity,
   maxOrderAmount as engineMaxOrderAmount,
   newAccount,
-  newDrawdown,
+  nextWeek,
   type Order,
   orderProblem as engineOrderProblem,
   type OrderProblem,
@@ -20,15 +20,16 @@ import {
   PRICE_SCALE,
   quoteFor,
   type QuoteSource,
-  rankPlayers,
+  recordValue,
   reservedCash as engineReservedCash,
-  returnPpm,
   settleDueOrders,
   shekelsToAgorot,
   type Side,
   START_CASH,
-  trackDrawdown,
+  startWeek,
   UNIT_SCALE,
+  weeklyTable,
+  type WeekRecord,
 } from '@portfolio-league/engine';
 
 import { isMarketOpen, nextMarketEvent, SECURITIES, SECURITY_BY_ID, Security } from './world';
@@ -40,7 +41,7 @@ const WORLD_START = Date.UTC(2026, 10, 9, 7, 45); // Mon 9 Nov 2026, 09:45 Israe
 export const WORLD_MS_PER_TICK = 5 * 60 * 1000; // one real second = five world minutes
 const SESSION_MINUTES = 450;
 
-type Rival = { name: string; vol: number; value: number; drawdown: Drawdown };
+type Rival = { name: string; vol: number; value: number; week: WeekRecord };
 
 export type GameState = {
   player: string | null;
@@ -51,7 +52,7 @@ export type GameState = {
   prices: Record<string, number>;
   dayStart: Record<string, number>;
   account: Account;
-  drawdown: Drawdown;
+  week: WeekRecord;
   rivals: Rival[];
 };
 
@@ -59,7 +60,7 @@ const rival = (name: string, vol: number): Rival => ({
   name,
   vol,
   value: START_CASH,
-  drawdown: newDrawdown(START_CASH),
+  week: startWeek(WORLD_START, START_CASH, vol > 0),
 });
 
 const startPrices = Object.fromEntries(
@@ -75,7 +76,7 @@ export const initialState: GameState = {
   prices: startPrices,
   dayStart: startPrices,
   account: newAccount(),
-  drawdown: newDrawdown(START_CASH),
+  week: startWeek(WORLD_START, START_CASH, false),
   rivals: [
     rival('Index Holder (bot)', 0.008),
     rival('All-In Gambler (bot)', 0.04),
@@ -108,17 +109,23 @@ export const displayPrice = (state: GameState, id: string) => state.prices[id] /
 export const displayFx = (state: GameState) => state.fx / FX_SCALE;
 export const cash = (state: GameState) => toShekels(state.account.cash);
 export const orderAmount = (order: Order) => toShekels(order.fill?.value ?? order.amount);
+export const orderRefund = (order: Order) => toShekels(order.fill?.refund ?? 0);
 export const reservedCash = (state: GameState) => toShekels(engineReservedCash(state.account));
 export const portfolioValue = (state: GameState) =>
   toShekels(enginePortfolioValue(state.account, quotes(state)));
 export const holdingValue = (state: GameState, id: string) =>
   toShekels(engineHoldingValue(state.account, id, quotes(state)));
 
+export const canSellAll = (state: GameState, id: string) =>
+  Boolean(state.account.holdings[id]) &&
+  !state.account.orders.some((o) => o.status === 'pending' && o.securityId === id && o.sellAll);
+
 export const maxOrderAmount = (state: GameState, security: Security, side: Side) =>
   Math.floor(toShekels(engineMaxOrderAmount(state.account, security.id, side, quotes(state))));
 
 const PROBLEM_TEXT: Partial<Record<OrderProblem, string>> = {
   INVALID_AMOUNT: 'Enter an amount.',
+  BELOW_MINIMUM: 'The minimum order is ₪100.',
   INSUFFICIENT_HOLDING: 'You can’t sell more than you hold.',
   INSUFFICIENT_CASH: 'You don’t have enough cash.',
   POSITION_LIMIT: 'This would put more than 20% of your portfolio in one security.',
@@ -173,14 +180,21 @@ function moveTo(state: GameState, targetMs: number): GameState {
   const fx = anyOpen ? Math.round(state.fx * (1 + 0.004 * stepScale * noise())) : state.fx;
   const rivals = state.rivals.map((r) => {
     const value = anyOpen ? Math.round(r.value * (1 + r.vol * stepScale * noise())) : r.value;
-    return { ...r, value, drawdown: trackDrawdown(r.drawdown, value) };
+    const week = recordValue(r.week, value, r.vol > 0);
+    return { ...r, value, week: targetMs >= week.endsAt ? nextWeek(week, value, r.vol > 0) : week };
   });
 
   const next: GameState = { ...state, worldMs: targetMs, seed, prices, dayStart, fx, rivals };
   const current = quotes(next);
-  const account = settleDueOrders(next.account, targetMs, (order) => current(order.securityId));
+  const account = settleDueOrders(next.account, targetMs, () => current);
   const value = enginePortfolioValue(account, current);
-  return { ...next, account, drawdown: trackDrawdown(next.drawdown, value) };
+  const holding = holdsSecurity(account);
+  const week = recordValue(next.week, value, holding);
+  return {
+    ...next,
+    account,
+    week: targetMs >= week.endsAt ? nextWeek(week, value, holding) : week,
+  };
 }
 
 export type Action =
@@ -188,7 +202,7 @@ export type Action =
   | { type: 'tick' }
   | { type: 'togglePause' }
   | { type: 'skipToNextEvent' }
-  | { type: 'placeOrder'; securityId: string; side: Side; amount: number };
+  | { type: 'placeOrder'; securityId: string; side: Side; amount: number | 'all' };
 
 export function reducer(state: GameState, action: Action): GameState {
   switch (action.type) {
@@ -209,7 +223,7 @@ export function reducer(state: GameState, action: Action): GameState {
           id: String(state.account.orders.length + 1),
           security: SECURITY_BY_ID[action.securityId],
           side: action.side,
-          amount: shekelsToAgorot(action.amount),
+          amount: action.amount === 'all' ? 'all' : shekelsToAgorot(action.amount),
           placedAt: state.worldMs,
         },
         quotes(state),
@@ -233,21 +247,11 @@ const ppmToPercent = (ppm: number) => (ppm / PPM_SCALE) * 100;
 export function leagueTable(state: GameState): LeagueRow[] {
   const me = state.player ?? 'You';
   const players = [
-    {
-      name: me,
-      value: enginePortfolioValue(state.account, quotes(state)),
-      drawdown: state.drawdown,
-    },
-    ...state.rivals,
+    { id: me, value: enginePortfolioValue(state.account, quotes(state)), week: state.week },
+    ...state.rivals.map((r) => ({ id: r.name, value: r.value, week: r.week })),
   ];
-  const valueOf = Object.fromEntries(players.map((p) => [p.name, p.value]));
-  return rankPlayers(
-    players.map((p) => ({
-      id: p.name,
-      returnPpm: returnPpm(START_CASH, p.value),
-      maxFallPpm: p.drawdown.maxFallPpm,
-    })),
-  ).map((p) => ({
+  const valueOf = Object.fromEntries(players.map((p) => [p.id, p.value]));
+  return weeklyTable(players).map((p) => ({
     name: p.id,
     isMe: p.id === me,
     value: toShekels(valueOf[p.id]),

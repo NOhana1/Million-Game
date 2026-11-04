@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
-import { executionFor, isMarketOpen, nextMarketEvent, nextSessionChange } from './index.ts';
+import {
+  executionFor,
+  isMarketOpen,
+  nextMarketEvent,
+  nextSessionChange,
+  weekEndFor,
+  weekStartFor,
+} from './index.ts';
 
 const utc = (iso: string) => Date.parse(`${iso}Z`);
 
@@ -143,5 +150,33 @@ describe('next events', () => {
       utc('2026-11-09T15:30:00'),
       utc('2026-11-09T21:00:00'),
     ]);
+  });
+});
+
+describe('the game week', () => {
+  const friday = utc('2026-11-13T21:00:00'); // 16:00 in New York
+
+  it('ends at the Friday US close, after Tel Aviv has closed', () => {
+    assert.equal(weekEndFor(utc('2026-11-09T08:00:00')), friday);
+    assert.equal(weekEndFor(utc('2026-11-13T12:00:00')), friday);
+  });
+
+  it('includes the closing moment in the ending week', () => {
+    assert.equal(weekEndFor(friday), friday);
+  });
+
+  it('moves to the next week straight after the close', () => {
+    assert.equal(weekEndFor(friday + 1), utc('2026-11-20T21:00:00'));
+    assert.equal(weekEndFor(utc('2026-11-14T12:00:00')), utc('2026-11-20T21:00:00'));
+  });
+
+  it('starts at the previous Friday US close', () => {
+    assert.equal(weekStartFor(utc('2026-11-11T12:00:00')), utc('2026-11-06T21:00:00'));
+    assert.equal(weekStartFor(friday), utc('2026-11-06T21:00:00'));
+  });
+
+  it('follows daylight saving', () => {
+    assert.equal(weekEndFor(utc('2026-10-28T12:00:00')), utc('2026-10-30T20:00:00'));
+    assert.equal(weekStartFor(utc('2026-11-04T12:00:00')), utc('2026-10-30T20:00:00'));
   });
 });

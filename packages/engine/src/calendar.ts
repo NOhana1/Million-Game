@@ -35,14 +35,17 @@ function session(market: Market, day: string): [number, number] | null {
   return [minutes(10, 0), day === 'Fri' ? minutes(13, 50) : minutes(17, 30)];
 }
 
-/** Open is inclusive and close is exclusive. */
-export function isMarketOpen(market: Market, ms: number): boolean {
+function localTime(market: Market, ms: number) {
   const parts = CLOCKS[market].formatToParts(ms);
   const part = (type: string) => parts.find((p) => p.type === type)?.value ?? '';
-  const hours = session(market, part('weekday'));
-  if (!hours) return false;
-  const now = minutes(Number(part('hour')), Number(part('minute')));
-  return now >= hours[0] && now < hours[1];
+  return { day: part('weekday'), now: minutes(Number(part('hour')), Number(part('minute'))) };
+}
+
+/** Open is inclusive and close is exclusive. */
+export function isMarketOpen(market: Market, ms: number): boolean {
+  const { day, now } = localTime(market, ms);
+  const hours = session(market, day);
+  return hours !== null && now >= hours[0] && now < hours[1];
 }
 
 // Every open and close falls on a 10 minute boundary, so scanning in 10 minute steps is exact.
@@ -70,3 +73,21 @@ export function executionFor(market: Market, placedAt: number): Execution {
     at: nextSessionChange(market, placedAt),
   };
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MINUTE_MS = 60 * 1000;
+
+function isWeekClose(ms: number): boolean {
+  const { day, now } = localTime('US', ms);
+  return day === 'Fri' && now === session('US', day)?.[1] && ms % MINUTE_MS === 0;
+}
+
+/** The game week ends at the Friday US close. That exact moment belongs to the ending week. */
+export function weekEndFor(ms: number): number {
+  let t = ms;
+  while (!isWeekClose(t)) t = nextSessionChange('US', t);
+  return t;
+}
+
+/** The previous Friday US close. Eight days back always lands in the week before. */
+export const weekStartFor = (ms: number) => weekEndFor(weekEndFor(ms) - 8 * DAY_MS);
