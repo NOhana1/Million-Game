@@ -1,0 +1,22 @@
+# Private notes and task material. Never commit these: the repo is public.
+context/
+
+# Secrets. Real values live in Vercel and GitHub settings, never in git.
+.env
+.env.*
+!.env.example
+*service-account*.json
+*firebase-adminsdk*.json
+*.pem
+*.key
+
+# Dependencies and build output
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# Tooling and machine files
+.vercel/
+.claude/
+.DS_Store
