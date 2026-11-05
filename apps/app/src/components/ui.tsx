@@ -21,7 +21,11 @@ export const ils = (n: number) =>
 export const money = (n: number, currency: '₪' | '$') =>
   `${currency}${n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-export const percent = (n: number) => `${n > 0 ? '+' : ''}${n.toFixed(2)}%`;
+export const percent = (n: number) => {
+  const shown = n.toFixed(2);
+  if (Number(shown) === 0) return '0.00%';
+  return `${n > 0 ? '+' : ''}${shown}%`;
+};
 
 export const changeColor = (n: number) =>
   n > 0.004 ? colors.up : n < -0.004 ? colors.down : colors.muted;
