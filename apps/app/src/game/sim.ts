@@ -1,16 +1,20 @@
-// FAKE GAME running in the browser, so we can judge the screens before the backend exists.
-// The rules come from the engine. Only the fake prices, fake rivals and the clock speed live here.
+// PREVIEW GAME running in the browser, so we can judge the screens before they use the backend.
+// Rules and prices come from the engine. Only the fake rivals and the clock speed live here.
 // Reloading the page resets everything.
 
 import {
   type Account,
   AGOROT_PER_SHEKEL,
+  createWorld,
   FX_SCALE,
   holdingValue as engineHoldingValue,
   holdsSecurity,
   maxOrderAmount as engineMaxOrderAmount,
+  type Market,
+  MARKETS,
   newAccount,
   nextWeek,
+  normalFrom,
   type Order,
   orderProblem as engineOrderProblem,
   type OrderProblem,
@@ -27,19 +31,25 @@ import {
   type Side,
   START_CASH,
   startWeek,
+  STEP_MS,
   UNIT_SCALE,
   weeklyTable,
   type WeekRecord,
+  WORLD_START,
+  type WorldState,
 } from '@portfolio-league/engine';
 
+import { demoNoise } from './demo-noise';
 import { isMarketOpen, nextMarketEvent, SECURITIES, SECURITY_BY_ID, Security } from './world';
 
 export type { Order, Side };
 
 export const START_SHEKELS = START_CASH / AGOROT_PER_SHEKEL;
-const WORLD_START = Date.UTC(2026, 10, 9, 7, 45); // Mon 9 Nov 2026, 09:45 Israel
-export const WORLD_MS_PER_TICK = 5 * 60 * 1000; // one real second = five world minutes
-const SESSION_MINUTES = 450;
+export const WORLD_MS_PER_TICK = STEP_MS; // one real second = one five minute price step
+const RIVAL_STEP_SCALE = 1 / 13; // about one daily move over a trading day
+
+const world = createWorld(demoNoise);
+const firstState = world.stateAt(WORLD_START);
 
 type Rival = { name: string; vol: number; value: number; week: WeekRecord };
 
@@ -47,7 +57,6 @@ export type GameState = {
   player: string | null;
   paused: boolean;
   worldMs: number;
-  seed: number;
   fx: number;
   prices: Record<string, number>;
   dayStart: Record<string, number>;
@@ -63,18 +72,13 @@ const rival = (name: string, vol: number): Rival => ({
   week: startWeek(WORLD_START, START_CASH, vol > 0),
 });
 
-const startPrices = Object.fromEntries(
-  SECURITIES.map((x) => [x.id, Math.round(x.startPrice * PRICE_SCALE)]),
-);
-
 export const initialState: GameState = {
   player: null,
   paused: false,
   worldMs: WORLD_START,
-  seed: 20261109,
-  fx: 3.42 * FX_SCALE,
-  prices: startPrices,
-  dayStart: startPrices,
+  fx: firstState.fx,
+  prices: firstState.prices,
+  dayStart: firstState.prices,
   account: newAccount(),
   week: startWeek(WORLD_START, START_CASH, false),
   rivals: [
@@ -88,14 +92,6 @@ export const initialState: GameState = {
     rival('Contrarian (bot)', 0.018),
   ],
 };
-
-// Small seeded generator, so the reducer stays pure.
-function nextRandom(seed: number): [number, number] {
-  const next = (seed + 0x6d2b79f5) | 0;
-  let t = Math.imul(next ^ (next >>> 15), 1 | next);
-  t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
-  return [((t ^ (t >>> 14)) >>> 0) / 4294967296, next];
-}
 
 const quotes =
   (state: GameState): QuoteSource =>
@@ -147,54 +143,49 @@ export function orderProblem(
   return problem && (PROBLEM_TEXT[problem] ?? null);
 }
 
-function moveTo(state: GameState, targetMs: number): GameState {
-  const minutes = (targetMs - state.worldMs) / 60000;
-  const stepScale = Math.sqrt(Math.min(minutes, SESSION_MINUTES) / SESSION_MINUTES);
-  const wasOpen = {
-    TASE: isMarketOpen('TASE', state.worldMs),
-    US: isMarketOpen('US', state.worldMs),
-  };
-  const nowOpen = { TASE: isMarketOpen('TASE', targetMs), US: isMarketOpen('US', targetMs) };
+function moveRival(rival: Rival, at: number, trading: boolean): Rival {
+  const move = rival.vol * RIVAL_STEP_SCALE * normalFrom(demoNoise(`rival|${rival.name}|${at}`));
+  const value = trading ? Math.round(rival.value * (1 + move)) : rival.value;
+  const week = recordValue(rival.week, value, rival.vol > 0);
+  return { ...rival, value, week: at >= week.endsAt ? nextWeek(week, value, rival.vol > 0) : week };
+}
 
-  let seed = state.seed;
-  const noise = () => {
-    const [value, next] = nextRandom(seed);
-    seed = next;
-    return (value - 0.5) * 3.4; // roughly unit variance
-  };
+/** One price step: new prices, then any orders due, then the weekly records. */
+function applyStep(state: GameState, step: WorldState): GameState {
+  const previous = step.at - STEP_MS;
+  const openedNow = (market: Market) =>
+    !isMarketOpen(market, previous) && isMarketOpen(market, step.at);
 
-  const prices = { ...state.prices };
   const dayStart = { ...state.dayStart };
   for (const security of SECURITIES) {
-    if (!wasOpen[security.market]) continue;
-    const moved = prices[security.id] * (1 + security.dailyVol * stepScale * noise());
-    prices[security.id] = Math.max(1, Math.round(moved));
-  }
-  for (const security of SECURITIES) {
-    if (!wasOpen[security.market] && nowOpen[security.market]) {
-      dayStart[security.id] = prices[security.id];
-    }
+    if (openedNow(security.market)) dayStart[security.id] = step.prices[security.id];
   }
 
-  const anyOpen = wasOpen.TASE || wasOpen.US;
-  const fx = anyOpen ? Math.round(state.fx * (1 + 0.004 * stepScale * noise())) : state.fx;
-  const rivals = state.rivals.map((r) => {
-    const value = anyOpen ? Math.round(r.value * (1 + r.vol * stepScale * noise())) : r.value;
-    const week = recordValue(r.week, value, r.vol > 0);
-    return { ...r, value, week: targetMs >= week.endsAt ? nextWeek(week, value, r.vol > 0) : week };
-  });
+  const trading = MARKETS.some((market) => isMarketOpen(market, previous));
+  const next: GameState = {
+    ...state,
+    worldMs: step.at,
+    prices: step.prices,
+    dayStart,
+    fx: step.fx,
+    rivals: state.rivals.map((r) => moveRival(r, step.at, trading)),
+  };
 
-  const next: GameState = { ...state, worldMs: targetMs, seed, prices, dayStart, fx, rivals };
   const current = quotes(next);
-  const account = settleDueOrders(next.account, targetMs, () => current);
+  const account = settleDueOrders(next.account, step.at, () => current);
   const value = enginePortfolioValue(account, current);
   const holding = holdsSecurity(account);
   const week = recordValue(next.week, value, holding);
   return {
     ...next,
     account,
-    week: targetMs >= week.endsAt ? nextWeek(week, value, holding) : week,
+    week: step.at >= week.endsAt ? nextWeek(week, value, holding) : week,
   };
+}
+
+function moveTo(state: GameState, targetMs: number): GameState {
+  const moved = world.stepsBetween(state.worldMs, targetMs).reduce(applyStep, state);
+  return { ...moved, worldMs: targetMs };
 }
 
 export type Action =
