@@ -1,7 +1,13 @@
 // The only code that reads the price feed, and it never looks past the time it's given.
 // Every route passes the current world time, so nothing later can reach a player.
 
-import { isMarketOpen, nextSessionChange, type QuoteSource, quoteFor } from '@portfolio-league/engine';
+import {
+  isMarketOpen,
+  nextSessionChange,
+  type QuoteSource,
+  quoteFor,
+  WORLD_START,
+} from '@portfolio-league/engine';
 
 import type { Listing, PriceFeed } from './feed.ts';
 
@@ -41,7 +47,7 @@ export const marketSnapshot = (feed: PriceFeed, world: number) => ({
 /** Prices for a chart: the last few days of trading, ending exactly at the given time. */
 export function priceHistory(feed: PriceFeed, listing: Listing, world: number) {
   const points: { at: number; price: number }[] = [];
-  const start = world - HISTORY_DAYS * DAY_MS;
+  const start = Math.max(world - HISTORY_DAYS * DAY_MS, WORLD_START); // no days before the world
   const first = Math.ceil(start / HISTORY_STEP_MS) * HISTORY_STEP_MS;
   for (let at = first; at < world; at += HISTORY_STEP_MS) {
     if (isMarketOpen(listing.market, at)) points.push({ at, price: feed.priceAt(listing.id, at) });

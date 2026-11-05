@@ -7,7 +7,7 @@ import { getFirestore } from 'firebase-admin/firestore';
 import { createApp } from './app.ts';
 import type { TokenVerifier } from './auth.ts';
 import { readConfig } from './config.ts';
-import { temporaryFeed } from './market/temporary-feed.ts';
+import { worldFeed } from './market/world-feed.ts';
 import { firestoreStore } from './store/firestore.ts';
 
 export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
@@ -31,7 +31,7 @@ export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
   return createApp({
     version,
     store: firestoreStore(getFirestore(firebase)),
-    feed: temporaryFeed(config.WORLD_SEED),
+    feed: worldFeed(config.WORLD_SEED),
     verifyToken,
     now: Date.now,
   });

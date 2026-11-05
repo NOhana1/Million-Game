@@ -1,6 +1,8 @@
 // The shared world clock. One stored anchor, so time passes with nothing ticking.
 // Moving the clock by hand comes with the admin tools. This file only reads it.
 
+import { WORLD_START } from '@portfolio-league/engine';
+
 export type Clock = {
   anchorWorld: number;
   anchorReal: number;
@@ -8,7 +10,6 @@ export type Clock = {
   paused: boolean;
 };
 
-const WORLD_START = Date.UTC(2026, 10, 9, 7, 45); // Mon 9 Nov 2026, 09:45 Israel
 const DEFAULT_SPEED = 7; // one world week per real day
 
 export const firstClock = (realNow: number): Clock => ({
