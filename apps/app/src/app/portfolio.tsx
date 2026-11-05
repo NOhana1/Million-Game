@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { OrderTicket } from '@/components/order-ticket';
-import { Card, changeColor, colors, ils, percent, SectionTitle } from '@/components/ui';
+import { Button, Card, changeColor, colors, ils, percent, SectionTitle } from '@/components/ui';
 import { useGame } from '@/game/store';
 import {
   findRow,
@@ -43,7 +43,7 @@ function OrderRow({ order }: { order: Order }) {
 }
 
 export default function PortfolioScreen() {
-  const { me, market, orders } = useGame();
+  const { me, market, orders, signOut } = useGame();
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (!me || !market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
@@ -119,6 +119,10 @@ export default function PortfolioScreen() {
         </>
       ) : null}
 
+      <View style={styles.signOut}>
+        <Button variant="quiet" label="Sign out" onPress={signOut} />
+      </View>
+
       {selected ? <OrderTicket security={selected} onClose={() => setSelectedId(null)} /> : null}
     </ScrollView>
   );
@@ -143,4 +147,5 @@ const styles = StyleSheet.create({
   meta: { color: colors.muted, fontSize: 13, marginTop: 2 },
   number: { color: colors.ink, fontSize: 15, fontVariant: ['tabular-nums'], fontWeight: '600' },
   empty: { color: colors.muted, fontSize: 14, paddingVertical: 10 },
+  signOut: { marginTop: 24 },
 });

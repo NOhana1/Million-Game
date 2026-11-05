@@ -26,7 +26,7 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
 function Game() {
   const { status } = useGame();
   if (status === 'loading') return <ActivityIndicator style={styles.flex} color={colors.brand} />;
-  if (status === 'signedOut') return <SignIn />;
+  if (status !== 'signedIn') return <SignIn />;
 
   return (
     <View style={styles.column}>
