@@ -30,9 +30,12 @@ export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
 
   return createApp({
     version,
+    environment: env.VERCEL_ENV ?? 'local',
     store: firestoreStore(getFirestore(firebase)),
     feed: worldFeed(config.WORLD_SEED),
     verifyToken,
     now: Date.now,
+    tickSecret: config.TICK_SECRET,
+    clockSecret: config.CLOCK_SECRET,
   });
 }

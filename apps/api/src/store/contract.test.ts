@@ -8,12 +8,13 @@ import { describe, it } from 'node:test';
 import { newAccount, type Order } from '@portfolio-league/engine';
 
 import { ApiError } from '../errors.ts';
+import { withPending } from '../player.ts';
 import { memoryStore } from './memory.ts';
 import type { Decision, Player, Store } from './types.ts';
 
 const player = (uid: string): Player => {
   const { cash, holdings } = newAccount();
-  return { uid, name: 'Noa', createdAt: 1, cash, holdings, pendingOrders: [] };
+  return { uid, name: 'Noa', createdAt: 1, cash, holdings, pendingOrders: [], nextDueAt: null, changedAt: 3 };
 };
 
 const order = (id: string, placedAt = 5): Order => ({
@@ -31,13 +32,14 @@ const buy = (id: string, placedAt?: number) => (current: Player | null): Decisio
   const placed = order(id, placedAt);
   return {
     order: placed,
-    player: {
-      ...current,
-      cash: current.cash - placed.amount,
-      pendingOrders: [...current.pendingOrders, placed],
-    },
+    player: withPending({ ...current, cash: current.cash - placed.amount }, [
+      ...current.pendingOrders,
+      placed,
+    ]),
   };
 };
+
+const NOTHING = { shards: [], table: null };
 
 function storeContract(name: string, makeStore: () => Store) {
   describe(`${name} store`, () => {
@@ -124,6 +126,103 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.equal(first.length, 2);
       assert.equal(rest.length, 1);
       assert.deepEqual([...first, ...rest].map((o) => o.id).sort(), [...ids].sort());
+    });
+
+    it('finds players by due time, and only those', async () => {
+      const uid = newUid();
+      await store.createPlayer(player(uid));
+      const id = randomUUID();
+      await store.placeOrder({ uid, orderId: id, realNow: 0, decide: buy(id) });
+      assert.ok((await store.duePlayers(10, 1000)).includes(uid));
+      assert.ok(!(await store.duePlayers(9, 1000)).includes(uid));
+    });
+
+    it('fills an order once when two runs settle at the same moment', async () => {
+      const uid = newUid();
+      await store.createPlayer(player(uid));
+      const id = randomUUID();
+      await store.placeOrder({ uid, orderId: id, realNow: 0, decide: buy(id) });
+      const start = (await store.getPlayer(uid))?.cash ?? 0;
+      const settle = (current: Player) => {
+        const filled = current.pendingOrders.map((o) => ({ ...o, status: 'filled' as const }));
+        return {
+          filled,
+          player: withPending({ ...current, cash: current.cash + 1000 * filled.length }, []),
+        };
+      };
+      const counts = await Promise.all([store.settlePlayer(uid, settle), store.settlePlayer(uid, settle)]);
+      assert.deepEqual(counts.sort(), [0, 1]);
+      const saved = await store.getPlayer(uid);
+      assert.equal(saved?.cash, start + 1000);
+      assert.equal(saved?.nextDueAt, null);
+      assert.equal((await store.listOrders(uid, { limit: 10 }))[0]?.status, 'filled');
+    });
+  });
+
+  describe(`${name} store settlement`, () => {
+    const lease = (owner: string, realNow = 1000) => ({ owner, realNow, ttlMs: 60_000 });
+
+    it('lets one run in, then the next once it ends', async () => {
+      const store = makeStore();
+      const a = randomUUID();
+      const b = randomUUID();
+      assert.notEqual(await store.startSettlement(lease(a)), null);
+      assert.equal(await store.startSettlement(lease(b)), null);
+      await store.endSettlement(a);
+      assert.notEqual(await store.startSettlement(lease(b)), null);
+      await store.endSettlement(b);
+    });
+
+    it('frees a lease that expired, and the old run can no longer save', async () => {
+      const store = makeStore();
+      const crashed = randomUUID();
+      const next = randomUUID();
+      const start = (await store.startSettlement(lease(crashed))) ?? 0;
+      assert.notEqual(await store.startSettlement(lease(next, 1_000_000_000_000_000)), null);
+      assert.equal(await store.saveSlot(crashed, start + 1, NOTHING), false);
+      await store.endSettlement(crashed);
+      assert.equal(await store.saveSlot(next, start + 2, NOTHING), true);
+      assert.equal(await store.getCursor(), start + 2);
+      await store.endSettlement(next);
+    });
+
+    it('saves the league with the cursor, or not at all', async () => {
+      const store = makeStore();
+      const owner = randomUUID();
+      const start = (await store.startSettlement(lease(owner, 3_000_000_000_000_000))) ?? 0;
+      const table = { updatedAt: 1, weekEndsAt: start, previousWeekEndsAt: null, total: 0, rows: [] };
+      const shard = { id: 'contract-test', members: {} };
+      assert.equal(await store.saveSlot('someone-else', start + 1, { shards: [shard], table }), false);
+      assert.ok(!(await store.getShards()).some((s) => s.id === 'contract-test'));
+
+      assert.equal(
+        await store.saveSlot(owner, start + 1, { shards: [shard], table, finishedWeek: table }),
+        true,
+      );
+      assert.ok((await store.getShards()).some((s) => s.id === 'contract-test'));
+      assert.deepEqual(await store.getTable(), table);
+      assert.deepEqual(await store.getFinishedWeek(start), table);
+      await store.endSettlement(owner);
+    });
+
+    it('finds players who changed', async () => {
+      const store = makeStore();
+      const uid = randomUUID();
+      await store.createPlayer(player(uid));
+      const found = async (since: number) =>
+        (await store.playersChangedSince(since)).some((p) => p.uid === uid);
+      assert.equal(await found(3), true);
+      assert.equal(await found(4), false);
+    });
+
+    it('never moves the cursor backwards', async () => {
+      const store = makeStore();
+      const owner = randomUUID();
+      const start = (await store.startSettlement(lease(owner, 2_000_000_000_000_000))) ?? 0;
+      await store.saveSlot(owner, start + 10, NOTHING);
+      await store.saveSlot(owner, start + 5, NOTHING);
+      assert.equal(await store.getCursor(), start + 10);
+      await store.endSettlement(owner);
     });
   });
 }

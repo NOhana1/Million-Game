@@ -204,6 +204,8 @@ describe('order rules', () => {
       cash: 0,
       holdings: { TAIX: 100_000_000 }, // 100 units, well above ₪10,000
       pendingOrders: [],
+      nextDueAt: null,
+      changedAt: 0,
     });
     const app = testApp({ store });
     const position = (await me(app)).positions[0].value;
@@ -227,6 +229,8 @@ describe('order rules', () => {
       cash: 0,
       holdings: { TAIX: 100_000_000 },
       pendingOrders: [],
+      nextDueAt: null,
+      changedAt: 0,
     });
     const app = testApp({ store });
     const position = (await me(app)).positions[0].value;

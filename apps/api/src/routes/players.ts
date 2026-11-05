@@ -1,5 +1,4 @@
 import {
-  type Account,
   holdingValue,
   newAccount,
   portfolioValue,
@@ -14,6 +13,7 @@ import { readBody } from '../body.ts';
 import { worldTime } from '../clock.ts';
 import { ApiError } from '../errors.ts';
 import { quotesAt } from '../market/quotes.ts';
+import { toAccount } from '../player.ts';
 import type { Player } from '../store/types.ts';
 
 const NewPlayer = z.object({
@@ -21,16 +21,19 @@ const NewPlayer = z.object({
   name: z.string().trim().min(2).max(24).regex(/^[^\p{Cc}]+$/u),
 });
 
-const newPlayer = (uid: string, name: string, now: number): Player => {
+const newPlayer = (uid: string, name: string, now: number, world: number): Player => {
   const { cash, holdings } = newAccount();
-  return { uid, name, createdAt: now, cash, holdings, pendingOrders: [] };
+  return {
+    uid,
+    name,
+    createdAt: now,
+    cash,
+    holdings,
+    pendingOrders: [],
+    nextDueAt: null,
+    changedAt: world,
+  };
 };
-
-export const toAccount = (player: Player): Account => ({
-  cash: player.cash,
-  holdings: player.holdings,
-  orders: player.pendingOrders,
-});
 
 export function playerRoutes(deps: Deps) {
   const routes = new Hono<AuthEnv>();
@@ -38,8 +41,10 @@ export function playerRoutes(deps: Deps) {
 
   routes.post('/players', signedIn, async (c) => {
     const { name } = await readBody(c, NewPlayer);
+    const realNow = deps.now();
+    const world = worldTime(await deps.store.getClock(realNow), realNow);
     const { player, created } = await deps.store.createPlayer(
-      newPlayer(c.get('uid'), name, deps.now()),
+      newPlayer(c.get('uid'), name, realNow, world),
     );
     return c.json(player, created ? 201 : 200);
   });

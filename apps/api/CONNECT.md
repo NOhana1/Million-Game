@@ -2,7 +2,7 @@
 
 The code is ready. Only these settings are missing.
 
-## 1. Create the two settings
+## 1. Create the four settings
 
 Do this once for staging and once for production. Never paste them into a chat or commit them.
 
@@ -10,10 +10,12 @@ Do this once for staging and once for production. Never paste them into a chat o
 |---|---|
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase console, Project settings, Service accounts, **Generate new private key**. Use the whole file, on one line |
 | `WORLD_SEED` | Run `openssl rand -hex 32`. Use a different one per project |
+| `TICK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. The cron sends it to `/api/tick` |
+| `CLOCK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. It can only move the clock |
 
 ## 2. Put them in Vercel
 
-Add both to the project's environment variables, with staging values for Preview and production values for Production.
+Add all four to the project's environment variables, with staging values for Preview and production values for Production.
 
 ## 3. Deploy the rules
 
@@ -29,6 +31,8 @@ npx firebase-tools deploy --only firestore:rules --project <project id>
 | `GET /api/market` | 20 securities. A `world/clock` document now exists |
 | Sign up in the app, then `GET /api/me` | ₪1,000,000 |
 | Place an order twice with the same id | One order, charged once |
+| `POST /api/tick` with the wrong secret | 401 |
+| `POST /api/tick` with `Authorization: Bearer <TICK_SECRET>` | `{ "status": "idle" }`, or `"finished"` if work was waiting |
 
 ## Running against real Firebase locally
 
