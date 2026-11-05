@@ -15,6 +15,7 @@ import {
 
 export const START_CASH: Agorot = 100_000_000; // ₪1,000,000
 export const MAX_POSITION_PERCENT = 20;
+export const MIN_ORDER: Agorot = 10_000; // ₪100
 
 export type Side = 'buy' | 'sell';
 export type Security = { id: string; market: Market };
@@ -23,13 +24,21 @@ export type Security = { id: string; market: Market };
 export type Quote = { price: Price; fx: FxRate };
 export type QuoteSource = (securityId: string) => Quote;
 
-export type Fill = { units: Units; price: Price; fx: FxRate; value: Agorot; at: number };
+export type Fill = {
+  units: Units;
+  price: Price;
+  fx: FxRate;
+  value: Agorot; // cash spent on a buy, or received from a sale
+  refund: Agorot; // part of a buy returned because of the 20% limit
+  at: number;
+};
 
 export type Order = {
   id: string;
   securityId: string;
   side: Side;
-  amount: Agorot;
+  amount: Agorot; // for a sell-everything order, the estimate at submission
+  sellAll?: true;
   placedAt: number;
   execution: Execution;
   status: 'pending' | 'filled';
@@ -44,6 +53,7 @@ export type Account = {
 
 export type OrderProblem =
   | 'INVALID_AMOUNT'
+  | 'BELOW_MINIMUM'
   | 'DUPLICATE_ORDER'
   | 'INSUFFICIENT_CASH'
   | 'POSITION_LIMIT'
@@ -53,7 +63,7 @@ export type OrderRequest = {
   id: string;
   security: Security;
   side: Side;
-  amount: Agorot;
+  amount: Agorot | 'all'; // 'all' sells the whole holding
   placedAt: number;
 };
 
@@ -78,6 +88,8 @@ const pendingAmount = (account: Account, side: Side, securityId?: string): Agoro
         (securityId === undefined || o.securityId === securityId),
     )
     .reduce((sum, o) => sum + o.amount, 0);
+
+export const holdsSecurity = (account: Account) => Object.keys(account.holdings).length > 0;
 
 export const reservedCash = (account: Account): Agorot => pendingAmount(account, 'buy');
 
@@ -128,11 +140,21 @@ export function orderProblem(
   quotes: QuoteSource,
 ): OrderProblem | null {
   if (!Number.isSafeInteger(amount) || amount <= 0) return 'INVALID_AMOUNT';
+  if (amount < MIN_ORDER) return 'BELOW_MINIMUM';
   if (side === 'sell') {
     return amount > sellableValue(account, securityId, quotes) ? 'INSUFFICIENT_HOLDING' : null;
   }
   if (amount > account.cash) return 'INSUFFICIENT_CASH';
   return amount > positionRoom(account, securityId, quotes) ? 'POSITION_LIMIT' : null;
+}
+
+/** Selling everything has no minimum, so a small remainder can always be cleared. */
+function sellAllProblem(account: Account, securityId: string, side: Side): OrderProblem | null {
+  if (side !== 'sell') return 'INVALID_AMOUNT';
+  const alreadySelling = account.orders.some(
+    (o) => o.status === 'pending' && o.securityId === securityId && o.sellAll,
+  );
+  return !account.holdings[securityId] || alreadySelling ? 'INSUFFICIENT_HOLDING' : null;
 }
 
 /** Accepts an order. A buy takes its cash now, and the price is only known when it fills. */
@@ -144,14 +166,19 @@ export function placeOrder(
   const { id, security, side, amount, placedAt } = request;
   if (account.orders.some((o) => o.id === id)) return { ok: false, problem: 'DUPLICATE_ORDER' };
 
-  const problem = orderProblem(account, security.id, side, amount, quotes);
+  const sellAll = amount === 'all';
+  const problem = sellAll
+    ? sellAllProblem(account, security.id, side)
+    : orderProblem(account, security.id, side, amount, quotes);
   if (problem) return { ok: false, problem };
 
+  const value = sellAll ? sellableValue(account, security.id, quotes) : amount;
   const order: Order = {
     id,
     securityId: security.id,
     side,
-    amount,
+    amount: value,
+    ...(sellAll ? { sellAll } : {}),
     placedAt,
     execution: executionFor(security.market, placedAt),
     status: 'pending',
@@ -161,7 +188,7 @@ export function placeOrder(
     order,
     account: {
       ...account,
-      cash: side === 'buy' ? account.cash - amount : account.cash,
+      cash: side === 'buy' ? account.cash - value : account.cash,
       orders: [...account.orders, order],
     },
   };
@@ -172,30 +199,37 @@ function withHolding(holdings: Account['holdings'], securityId: string, units: U
   return units > 0 ? { ...others, [securityId]: units } : others;
 }
 
-/** Fills one order. Filling an order that is already filled changes nothing. */
-export function fillOrder(account: Account, orderId: string, quote: Quote): Account {
+/** Rule 4 at the moment of purchase: how much of a buy fits under the limit at these prices. */
+function buyBudget(account: Account, order: Order, quotes: QuoteSource): Agorot {
+  const limit = percentOf(portfolioValue(account, quotes), MAX_POSITION_PERCENT);
+  const room = limit - holdingValue(account, order.securityId, quotes);
+  return Math.max(0, Math.min(order.amount, room));
+}
+
+/** Fills one order at the given quotes. Filling an order already filled changes nothing. */
+export function fillOrder(account: Account, orderId: string, quotes: QuoteSource): Account {
   const order = account.orders.find((o) => o.id === orderId);
   if (!order) throw new Error(`Unknown order ${orderId}`);
   if (order.status === 'filled') return account;
 
-  const { price, fx } = quote;
+  const { price, fx } = quotes(order.securityId);
   const held = account.holdings[order.securityId] ?? 0;
-  const wanted = unitsFor(order.amount, price, fx);
-  const units = order.side === 'buy' ? wanted : Math.min(held, wanted);
-  const value = order.side === 'buy' ? order.amount : valueOf(units, price, fx);
+  const buying = order.side === 'buy';
+
+  const spent = buying ? buyBudget(account, order, quotes) : 0;
+  const wanted = order.sellAll ? held : unitsFor(buying ? spent : order.amount, price, fx);
+  const units = buying ? wanted : Math.min(held, wanted);
+  const value = buying ? spent : valueOf(units, price, fx);
+  const refund = buying ? order.amount - spent : 0;
   const filled: Order = {
     ...order,
     status: 'filled',
-    fill: { units, price, fx, value, at: order.execution.at },
+    fill: { units, price, fx, value, refund, at: order.execution.at },
   };
 
   return {
-    cash: order.side === 'sell' ? account.cash + value : account.cash,
-    holdings: withHolding(
-      account.holdings,
-      order.securityId,
-      order.side === 'buy' ? held + units : held - units,
-    ),
+    cash: account.cash + (buying ? refund : value),
+    holdings: withHolding(account.holdings, order.securityId, buying ? held + units : held - units),
     orders: account.orders.map((o) => (o.id === orderId ? filled : o)),
   };
 }
@@ -204,10 +238,10 @@ export function fillOrder(account: Account, orderId: string, quote: Quote): Acco
 export function settleDueOrders(
   account: Account,
   now: number,
-  quoteAtExecution: (order: Order) => Quote,
+  quotesAtExecution: (order: Order) => QuoteSource,
 ): Account {
   return account.orders
     .filter((o) => o.status === 'pending' && o.execution.at <= now)
     .sort((a, b) => a.execution.at - b.execution.at)
-    .reduce((current, order) => fillOrder(current, order.id, quoteAtExecution(order)), account);
+    .reduce((current, order) => fillOrder(current, order.id, quotesAtExecution(order)), account);
 }

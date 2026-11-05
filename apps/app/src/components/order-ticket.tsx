@@ -1,30 +1,67 @@
+import { shekelsToAgorot, type Side } from '@portfolio-league/engine';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { displayPrice, maxOrderAmount, orderProblem, Side } from '@/game/sim';
+import { ApiProblem, MarketRow, NewOrder } from '@/api/client';
+import { newId } from '@/api/session';
 import { useGame } from '@/game/store';
-import { isMarketOpen, MARKET_LABEL, Security } from '@/game/world';
+import {
+  canSellAll,
+  displayPrice,
+  MARKET_LABEL,
+  maxOrderAmount,
+  orderProblem,
+  problemText,
+} from '@/game/view';
 
 import { Button, colors, ils, money, Segments } from './ui';
 
-export function OrderTicket({ security, onClose }: { security: Security; onClose: () => void }) {
-  const { state, dispatch } = useGame();
+export function OrderTicket({ security, onClose }: { security: MarketRow; onClose: () => void }) {
+  const { me, market, world, placeOrder } = useGame();
   const [side, setSide] = useState<Side>('buy');
   const [text, setText] = useState('');
   const [tried, setTried] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [serverProblem, setServerProblem] = useState<string | null>(null);
+  // One id per order: a retry of the same order reuses it, so it can't be charged twice.
+  const [orderId, setOrderId] = useState(newId);
+
+  if (!me || !market || !world) return null;
 
   const amount = Number(text.replace(/,/g, ''));
-  const limit = maxOrderAmount(state, security, side);
-  const problem = orderProblem(state, security, side, amount);
-  const open = isMarketOpen(security.market, state.worldMs);
+  const limit = maxOrderAmount(me, market, security, side);
+  const problem = orderProblem(me, market, security, side, amount);
+  const open = world.markets[security.market].open;
   const currency = security.market === 'US' ? '$' : '₪';
+
+  const changeOrder = () => {
+    setOrderId(newId());
+    setServerProblem(null);
+  };
+
+  const send = async (order: NewOrder) => {
+    setSending(true);
+    setServerProblem(null);
+    try {
+      await placeOrder(order);
+      onClose();
+    } catch (error) {
+      const code = error instanceof ApiProblem ? error.code : 'NETWORK';
+      setServerProblem(
+        code === 'NETWORK' ? 'Can’t reach the server. Please try again.' : problemText(code),
+      );
+      setSending(false);
+    }
+  };
 
   const submit = () => {
     setTried(true);
     if (problem) return;
-    dispatch({ type: 'placeOrder', securityId: security.id, side, amount });
-    onClose();
+    send({ id: orderId, securityId: security.id, side, amount: shekelsToAgorot(amount) });
   };
+
+  const sellEverything = () =>
+    send({ id: orderId, securityId: security.id, side: 'sell', amount: 'all' });
 
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onClose}>
@@ -36,7 +73,7 @@ export function OrderTicket({ security, onClose }: { security: Security; onClose
               <Text style={styles.title}>{security.name}</Text>
               <Text style={styles.muted}>
                 {security.id} · {MARKET_LABEL[security.market]} · last{' '}
-                {money(displayPrice(state, security.id), currency)}
+                {money(displayPrice(security.price), currency)}
               </Text>
             </View>
             <Pressable accessibilityRole="button" onPress={onClose} hitSlop={10}>
@@ -49,6 +86,7 @@ export function OrderTicket({ security, onClose }: { security: Security; onClose
             onChange={(value) => {
               setSide(value);
               setTried(false);
+              changeOrder();
             }}
             options={[
               { value: 'buy', label: 'Buy' },
@@ -61,13 +99,21 @@ export function OrderTicket({ security, onClose }: { security: Security; onClose
             accessibilityLabel="Amount in shekels"
             autoFocus
             inputMode="decimal"
-            onChangeText={setText}
+            onChangeText={(value) => {
+              setText(value);
+              changeOrder();
+            }}
             placeholder="0"
             placeholderTextColor="#9AA39E"
             style={styles.input}
             value={text}
           />
-          <Pressable accessibilityRole="button" onPress={() => setText(String(limit))}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => {
+              setText(String(limit));
+              changeOrder();
+            }}>
             <Text style={styles.limit}>
               {side === 'buy' ? 'Most you can buy' : 'Most you can sell'}: {ils(limit)}
             </Text>
@@ -83,7 +129,20 @@ export function OrderTicket({ security, onClose }: { security: Security; onClose
           </View>
 
           {tried && problem ? <Text style={styles.error}>{problem}</Text> : null}
-          <Button label={side === 'buy' ? 'Place buy order' : 'Place sell order'} onPress={submit} />
+          {serverProblem ? <Text style={styles.error}>{serverProblem}</Text> : null}
+          <Button
+            label={side === 'buy' ? 'Place buy order' : 'Place sell order'}
+            onPress={submit}
+            disabled={sending}
+          />
+          {side === 'sell' && canSellAll(me, security.id) ? (
+            <Button
+              variant="quiet"
+              label="Sell everything"
+              onPress={sellEverything}
+              disabled={sending}
+            />
+          ) : null}
         </View>
       </View>
     </Modal>

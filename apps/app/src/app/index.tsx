@@ -1,45 +1,55 @@
+import type { Market } from '@portfolio-league/engine';
 import { useState } from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { MarketRow } from '@/api/client';
 import { OrderTicket } from '@/components/order-ticket';
+import { RecapCard } from '@/components/recap-card';
 import { changeColor, colors, money, percent, Segments } from '@/components/ui';
-import { displayPrice } from '@/game/sim';
 import { useGame } from '@/game/store';
-import { Market, SECURITIES, Security } from '@/game/world';
+import { displayPrice } from '@/game/view';
 
 type Filter = 'all' | Market;
 
 export default function MarketScreen() {
-  const { state } = useGame();
+  const { market } = useGame();
   const [filter, setFilter] = useState<Filter>('all');
-  const [selected, setSelected] = useState<Security | null>(null);
-  const shown = SECURITIES.filter((x) => filter === 'all' || x.market === filter);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  if (!market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
+
+  const shown = market.securities.filter((x) => filter === 'all' || x.market === filter);
+  const selected = market.securities.find((x) => x.id === selectedId);
 
   return (
     <View style={styles.page}>
-      <View style={styles.filter}>
-        <Segments
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'TASE', label: 'Tel Aviv' },
-            { value: 'US', label: 'US' },
-          ]}
-        />
-      </View>
       <FlatList
         data={shown}
-        extraData={state.worldMs}
+        ListHeaderComponent={
+          <View>
+            <RecapCard />
+            <View style={styles.filter}>
+              <Segments
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'TASE', label: 'Tel Aviv' },
+                  { value: 'US', label: 'US' },
+                ]}
+              />
+            </View>
+          </View>
+        }
         keyExtractor={(x) => x.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
-        renderItem={({ item }) => {
-          const price = displayPrice(state, item.id);
-          const change = (state.prices[item.id] / state.dayStart[item.id] - 1) * 100;
+        renderItem={({ item }: { item: MarketRow }) => {
+          const price = displayPrice(item.price);
+          const change = (item.price / item.priceDayAgo - 1) * 100;
           return (
             <Pressable
               accessibilityRole="button"
-              onPress={() => setSelected(item)}
+              onPress={() => setSelectedId(item.id)}
               style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
               <View style={styles.names}>
                 <Text style={styles.name} numberOfLines={1}>
@@ -59,7 +69,7 @@ export default function MarketScreen() {
           );
         }}
       />
-      {selected ? <OrderTicket security={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? <OrderTicket security={selected} onClose={() => setSelectedId(null)} /> : null}
     </View>
   );
 }

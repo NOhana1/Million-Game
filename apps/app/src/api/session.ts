@@ -1,0 +1,71 @@
+// Who is signed in. With Firebase settings it uses real accounts. Without them, as in local
+// development, the token is a random id kept in this browser, which the local API accepts.
+
+import { FirebaseError, initializeApp } from 'firebase/app';
+import {
+  createUserWithEmailAndPassword,
+  getAuth,
+  signInWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
+
+const KEY = 'portfolio-league-token';
+
+// Expo replaces these while building the site, so each has to be written out in full.
+const apiKey = process.env.EXPO_PUBLIC_FIREBASE_API_KEY;
+const firebase = apiKey
+  ? getAuth(
+      initializeApp({
+        apiKey,
+        authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+        appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+      }),
+    )
+  : null;
+
+export const usesAccounts = firebase !== null;
+
+export const newId = () => globalThis.crypto.randomUUID();
+
+function storage(): Storage | null {
+  try {
+    return globalThis.localStorage ?? null;
+  } catch {
+    return null; // private windows can refuse access
+  }
+}
+
+/** The token for API calls, or null when signed out. Firebase renews it when needed. */
+export async function currentToken(): Promise<string | null> {
+  if (!firebase) return storage()?.getItem(KEY) ?? null;
+  await firebase.authStateReady();
+  return (await firebase.currentUser?.getIdToken()) ?? null;
+}
+
+export async function createAccount(email: string, password: string) {
+  if (firebase) await createUserWithEmailAndPassword(firebase, email, password);
+  else storage()?.setItem(KEY, newId());
+}
+
+export async function logIn(email: string, password: string) {
+  if (firebase) await signInWithEmailAndPassword(firebase, email, password);
+}
+
+export async function logOut() {
+  if (firebase) await signOut(firebase);
+  else storage()?.removeItem(KEY);
+}
+
+const SIGN_IN_PROBLEMS: Record<string, string> = {
+  'auth/email-already-in-use': 'That email already has an account. Try signing in.',
+  'auth/invalid-email': 'That email doesn’t look right.',
+  'auth/weak-password': 'Use a password of at least 6 characters.',
+  'auth/invalid-credential': 'That email or password isn’t right.',
+  'auth/too-many-requests': 'Too many attempts. Please wait a little and try again.',
+  'auth/network-request-failed': 'Can’t reach the server. Please try again.',
+};
+
+export const signInProblem = (error: unknown) =>
+  (error instanceof FirebaseError && SIGN_IN_PROBLEMS[error.code]) ||
+  'Couldn’t sign you in. Please try again.';

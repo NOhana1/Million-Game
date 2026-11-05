@@ -16,7 +16,8 @@ export function trackDrawdown(drawdown: Drawdown, value: Agorot): Drawdown {
   return { peak, maxFallPpm: Math.max(drawdown.maxFallPpm, fall) };
 }
 
-export const returnPpm = (start: Agorot, value: Agorot) => partsPerMillion(value - start, start);
+export const returnPpm = (start: Agorot, value: Agorot) =>
+  start === 0 ? 0 : partsPerMillion(value - start, start);
 
 /** Percentile from 0 to 100, where 100 is the highest. Ties share the average. */
 export function percentile(values: readonly number[], value: number): number {

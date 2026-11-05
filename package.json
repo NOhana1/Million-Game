@@ -11,10 +11,12 @@
   "scripts": {
     "web": "npm run web --workspace app",
     "test": "npm test --workspace @portfolio-league/engine",
-    "typecheck": "npm run typecheck --workspaces --if-present"
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "build:vercel": "node scripts/build-vercel.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",
+    "esbuild": "^0.28.2",
     "typescript": "~6.0.3"
   }
 }

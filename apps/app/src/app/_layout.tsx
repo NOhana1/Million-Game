@@ -1,5 +1,12 @@
 import { Tabs, TabList, TabSlot, TabTrigger, TabTriggerSlotProps } from 'expo-router/ui';
-import { Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  PressableProps,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { SignIn } from '@/components/sign-in';
@@ -17,8 +24,9 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
 }
 
 function Game() {
-  const { state } = useGame();
-  if (!state.player) return <SignIn />;
+  const { status } = useGame();
+  if (status === 'loading') return <ActivityIndicator style={styles.flex} color={colors.brand} />;
+  if (status !== 'signedIn') return <SignIn />;
 
   return (
     <View style={styles.column}>
@@ -35,6 +43,8 @@ function Game() {
           <TabTrigger name="league" href="/league" asChild>
             <TabButton>League</TabButton>
           </TabTrigger>
+          {/* Reached from a link on the League screen, so it needs no button here. */}
+          <TabTrigger name="admin" href="/admin" style={styles.hidden} />
         </TabList>
       </Tabs>
     </View>
@@ -68,4 +78,5 @@ const styles = StyleSheet.create({
   tabTextActive: { color: colors.brand },
   tabMark: { backgroundColor: 'transparent', height: 3, width: 40 },
   tabMarkActive: { backgroundColor: colors.brand },
+  hidden: { display: 'none' },
 });
