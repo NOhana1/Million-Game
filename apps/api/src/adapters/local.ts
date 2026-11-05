@@ -5,7 +5,7 @@
 import { serve } from '@hono/node-server';
 
 import { createApp } from '../app.ts';
-import { temporaryFeed } from '../market/temporary-feed.ts';
+import { worldFeed } from '../market/world-feed.ts';
 import { memoryStore } from '../store/memory.ts';
 
 const port = Number(process.env.PORT ?? 8787);
@@ -16,7 +16,7 @@ const app = useFirebase
   : createApp({
       version: 'local',
       store: memoryStore(),
-      feed: temporaryFeed('local'),
+      feed: worldFeed('local'),
       verifyToken: async (token) => token,
       now: Date.now,
     });

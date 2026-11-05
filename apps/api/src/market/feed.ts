@@ -3,8 +3,7 @@ import type { FxRate, Price, Security } from '@portfolio-league/engine';
 export type Listing = Security & { name: string; sector: string };
 
 /**
- * Where prices come from. The engine's world generator replaces the temporary feed
- * behind this same shape. Only src/market/quotes.ts may call it, because the feed can
+ * Where prices come from. Only src/market/quotes.ts may call it, because the feed can
  * answer for any time, including the future.
  */
 export type PriceFeed = {

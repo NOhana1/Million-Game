@@ -87,12 +87,38 @@ Run the tests with `npm test` from the repo root.
 |---|---|---|
 | A22 | No holidays or half days beyond the Friday hours | The world is synthetic |
 
+## The price world
+
+The brief asks for 20 securities, prices over time and a dollar rate, and leaves the method to us. All of this is our choice.
+
+| # | Choice | Why |
+|---|---|---|
+| W1 | 20 fictional securities: 10 in Tel Aviv, 10 in the US | Invented prices shouldn't sit next to real company names |
+| W2 | Prices move in 5 game minute steps, the same for everyone, and only while their market is open | Gives drawdown a fixed definition (A25) |
+| W3 | Each move combines the market, the sector and the security itself, at about 50%, 20% and 30% of the variance | Stocks fall together, so diversification has limits, as in real markets |
+| W4 | Riskier securities have a larger daily move. Measured close to close, moves run about 1.2 times the stated size, because gaps and news add to it | Set per security in `securities.ts` |
+| W5 | A market can open away from its last close, by about half a daily move | Orders placed while closed carry real overnight risk |
+| W6 | Stocks get rare news jumps, a few times a year, worth 2 to 5 daily moves. Funds don't | Fat tails are what make a real market feel risky |
+| W7 | The dollar moves only while a market is trading, and tends to rise when Tel Aviv falls | US holdings partly protect a portfolio. It stays frozen at the weekend (A17b) |
+| W8 | Prices have no long-term growth | Keeps the model simple. It barely matters over one week |
+| W9 | The two markets move independently, so one can't predict the other | Avoids an accidental way to read the next open |
+
+### Keeping the future secret
+
+The repo is public, so the generator's code can be read by anyone. The secret is the seed.
+
+- **The server must use `secureNoise`** from `@portfolio-league/engine/secure-noise`, with `WORLD_SEED` as the secret. It uses HMAC-SHA256, so past prices can't reveal the seed. A simple random generator could be worked out from watching prices.
+- **`createWorld` can answer for the future,** so it must only be called with times up to the world clock.
+- **The browser preview uses `demoNoise`,** which isn't secret. That's fine only until the site reads prices from the API.
+- **History is pinned.** A test fixes the exact prices of the first week. Changing the generator would rewrite history, so it fails that test on purpose and needs a new `WORLD_VERSION`.
+
+Prices are worked out step by step from the start of the world and kept in memory. A year took about 10 seconds to generate on this Mac, so a server starting cold pays roughly 0.2 seconds per game week.
+
 ## Worth raising in the README
 
 - All-cash scores perfectly on stability. A26 only removes players who held nothing all week, so banking a win and sitting in cash still works.
 
 ## Not in the engine yet
 
-- **Prices and the dollar rate (Stage 3).** The engine receives them, and never generates them.
 - **The shared clock (Stage 6).** The engine receives times, and never reads the clock.
 - **Running the batches (backend).** At each market open and close: run `replaySteps` for the steps since the last check, then `settleDueOrders`, then `recordValue` with the value after fills. At the week's end, run `nextWeek`.

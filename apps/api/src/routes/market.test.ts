@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 
+import { WORLD_START } from '@portfolio-league/engine';
+
 import { type Clock, worldTime } from '../clock.ts';
-import { temporaryFeed } from '../market/temporary-feed.ts';
+import { worldFeed } from '../market/world-feed.ts';
 import { memoryStore } from '../store/memory.ts';
 import { pausedAt, testApp, TEST_WORLD } from '../testing.ts';
 
@@ -67,14 +69,29 @@ describe('market', () => {
     const history = await json(await app.request('/api/market/TAIX/history'));
     const market = await json(await app.request('/api/market'));
     const taix = market.securities.find((s: any) => s.id === 'TAIX');
-    assert.ok(history.points.length > 10);
+    assert.ok(history.points.length > 1);
     assert.deepEqual(history.points.at(-1), { at: TEST_WORLD, price: taix.price });
+  });
+});
+
+describe('charts', () => {
+  it('start no earlier than the world does', async () => {
+    const history = await json(await testApp().request('/api/market/TAIX/history'));
+    assert.ok(history.points.every((point: { at: number }) => point.at >= WORLD_START));
+  });
+
+  it('cover at most five world days', async () => {
+    const world = WORLD_START + 14 * 24 * 60 * 60 * 1000;
+    const app = testApp({ store: memoryStore(pausedAt(world)) });
+    const history = await json(await app.request('/api/market/TAIX/history'));
+    assert.ok(history.points[0].at >= world - 5 * 24 * 60 * 60 * 1000);
+    assert.ok(history.points.length > 20);
   });
 });
 
 describe('the future stays secret', () => {
   it('never asks the feed for a time later than world time', async () => {
-    const real = temporaryFeed('test');
+    const real = worldFeed('test');
     let latest = 0;
     const seen = (ms: number) => {
       latest = Math.max(latest, ms);
@@ -103,15 +120,19 @@ describe('the future stays secret', () => {
   });
 });
 
-describe('temporary feed', () => {
-  const feed = temporaryFeed('seed');
+describe('price feed', () => {
+  const feed = worldFeed('seed');
 
   it('gives the same price for the same seed and time', () => {
-    assert.equal(temporaryFeed('seed').priceAt('TAIX', TEST_WORLD), feed.priceAt('TAIX', TEST_WORLD));
+    assert.equal(worldFeed('seed').priceAt('TAIX', TEST_WORLD), feed.priceAt('TAIX', TEST_WORLD));
   });
 
   it('gives different prices for a different seed', () => {
-    assert.notEqual(temporaryFeed('other').priceAt('TAIX', TEST_WORLD), feed.priceAt('TAIX', TEST_WORLD));
+    assert.notEqual(worldFeed('other').priceAt('TAIX', TEST_WORLD), feed.priceAt('TAIX', TEST_WORLD));
+  });
+
+  it('sends only what the app needs for each listing', () => {
+    assert.deepEqual(Object.keys(feed.listings[0] ?? {}).sort(), ['id', 'market', 'name', 'sector']);
   });
 
   it('holds prices still while a market is closed', () => {
@@ -141,7 +162,7 @@ describe('portfolio value', () => {
       holdings: { USIX: 1_000_000 },
       pendingOrders: [],
     });
-    const feed = temporaryFeed('test');
+    const feed = worldFeed('test');
     const app = testApp({ store, feed });
     const me = await json(await app.request('/api/me', { headers: { Authorization: 'Bearer noa' } }));
     const expected = Math.floor(

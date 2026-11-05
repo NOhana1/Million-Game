@@ -2,7 +2,7 @@
 
 import { createApp, type Deps } from './app.ts';
 import type { Clock } from './clock.ts';
-import { temporaryFeed } from './market/temporary-feed.ts';
+import { worldFeed } from './market/world-feed.ts';
 import { memoryStore } from './store/memory.ts';
 
 /** Mon 9 Nov 2026, 12:00 in Israel: Tel Aviv is open and the US is closed. */
@@ -19,7 +19,7 @@ export const testApp = (overrides: Partial<Deps> = {}) =>
   createApp({
     version: 'test',
     store: memoryStore(pausedAt(TEST_WORLD)),
-    feed: temporaryFeed('test'),
+    feed: worldFeed('test'),
     verifyToken: async (token) => (token === 'invalid' ? null : token),
     now: () => 0,
     ...overrides,
