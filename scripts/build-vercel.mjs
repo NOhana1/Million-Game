@@ -6,13 +6,35 @@ import { execSync } from 'node:child_process';
 import { cpSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { build } from 'esbuild';
 
+// Public web settings, sent to every visitor's browser anyway, so they are not secrets.
+// The real game gets prod. Everything else, including previews, gets dev.
+const FIREBASE_WEB = {
+  production: {
+    EXPO_PUBLIC_FIREBASE_API_KEY: 'AIzaSyAWmzODB9MWGokSk1XgOSjv0oBMNQsHBlU',
+    EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'portfolio-league-prod.firebaseapp.com',
+    EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'portfolio-league-prod',
+    EXPO_PUBLIC_FIREBASE_APP_ID: '1:731697200006:web:9b20adde5dfd736a050a07',
+  },
+  dev: {
+    EXPO_PUBLIC_FIREBASE_API_KEY: 'AIzaSyDFiMHgZfaOnzOURLEsFONcvNZjc6NuZ6A',
+    EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN: 'portfolio-league-dev.firebaseapp.com',
+    EXPO_PUBLIC_FIREBASE_PROJECT_ID: 'portfolio-league-dev',
+    EXPO_PUBLIC_FIREBASE_APP_ID: '1:469407098904:web:310420937e25864af07b6d',
+  },
+};
+const firebaseWeb = process.env.VERCEL_ENV === 'production' ? FIREBASE_WEB.production : FIREBASE_WEB.dev;
+
 const output = '.vercel/output';
 const fn = `${output}/functions/api.func`;
 
 rmSync(output, { recursive: true, force: true });
 mkdirSync(fn, { recursive: true });
 
-execSync('npx expo export --platform web --output-dir dist', { cwd: 'apps/app', stdio: 'inherit' });
+execSync('npx expo export --platform web --output-dir dist', {
+  cwd: 'apps/app',
+  stdio: 'inherit',
+  env: { ...process.env, ...firebaseWeb },
+});
 cpSync('apps/app/dist', `${output}/static`, { recursive: true });
 
 await build({
