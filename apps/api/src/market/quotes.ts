@@ -48,6 +48,7 @@ export const worldStatus = (world: number) => ({
 export const marketSnapshot = (feed: PriceFeed, world: number) => ({
   worldTime: world,
   usdIls: feed.usdIlsAt(world),
+  usdIlsDayAgo: feed.usdIlsAt(world - DAY_MS),
   securities: feed.listings.map((listing) => ({
     ...listing,
     price: feed.priceAt(listing.id, world),
