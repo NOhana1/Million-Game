@@ -40,6 +40,7 @@ describe('market', () => {
     }
     assert.ok(body.securities.every((s: any) => Number.isSafeInteger(s.price) && s.price > 0));
     assert.ok(Number.isSafeInteger(body.usdIls));
+    assert.ok(Number.isSafeInteger(body.usdIlsDayAgo));
   });
 
   it('reports which markets are open', async () => {
