@@ -1,13 +1,12 @@
+import type { Market } from '@portfolio-league/engine';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { displayFx } from '@/game/sim';
 import { useGame } from '@/game/store';
-import { formatWorldTime, isMarketOpen, Market, MARKET_LABEL } from '@/game/world';
+import { displayFx, formatWorldTime, MARKET_LABEL } from '@/game/view';
 
-import { Button, colors } from './ui';
+import { colors } from './ui';
 
-function MarketStatus({ market, worldMs }: { market: Market; worldMs: number }) {
-  const open = isMarketOpen(market, worldMs);
+function MarketStatus({ market, open }: { market: Market; open: boolean }) {
   return (
     <View style={styles.status}>
       <View style={[styles.dot, { backgroundColor: open ? colors.up : '#A4ADA7' }]} />
@@ -19,35 +18,23 @@ function MarketStatus({ market, worldMs }: { market: Market; worldMs: number }) 
 }
 
 export function WorldBar() {
-  const { state, dispatch } = useGame();
+  const { world, market, offline } = useGame();
   return (
     <View style={styles.bar}>
       <View style={styles.row}>
         <Text style={styles.brand}>Portfolio League</Text>
-        <Text style={styles.time}>{formatWorldTime(state.worldMs)}</Text>
+        {world ? <Text style={styles.time}>{formatWorldTime(world.worldTime)}</Text> : null}
       </View>
-      <View style={styles.row}>
+      {world ? (
         <View style={styles.statuses}>
-          <MarketStatus market="TASE" worldMs={state.worldMs} />
-          <MarketStatus market="US" worldMs={state.worldMs} />
-          <Text style={styles.statusText}>$1 = ₪{displayFx(state).toFixed(3)}</Text>
+          <MarketStatus market="TASE" open={world.markets.TASE.open} />
+          <MarketStatus market="US" open={world.markets.US.open} />
+          {market ? (
+            <Text style={styles.statusText}>$1 = ₪{displayFx(market.usdIls).toFixed(3)}</Text>
+          ) : null}
         </View>
-      </View>
-      <View style={styles.adminRow}>
-        <Text style={styles.adminLabel}>Admin clock</Text>
-        <View style={styles.adminButtons}>
-          <Button
-            variant="quiet"
-            label={state.paused ? 'Resume' : 'Pause'}
-            onPress={() => dispatch({ type: 'togglePause' })}
-          />
-          <Button
-            variant="quiet"
-            label="Next open/close"
-            onPress={() => dispatch({ type: 'skipToNextEvent' })}
-          />
-        </View>
-      </View>
+      ) : null}
+      {offline ? <Text style={styles.offline}>Can’t reach the server. Retrying…</Text> : null}
     </View>
   );
 }
@@ -68,12 +55,5 @@ const styles = StyleSheet.create({
   status: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   dot: { borderRadius: 4, height: 8, width: 8 },
   statusText: { color: colors.muted, fontSize: 13 },
-  adminRow: {
-    alignItems: 'center',
-    flexDirection: 'row',
-    gap: 8,
-    justifyContent: 'space-between',
-  },
-  adminLabel: { color: colors.muted, fontSize: 13 },
-  adminButtons: { flexDirection: 'row', gap: 8 },
+  offline: { color: colors.down, fontSize: 13, fontWeight: '600' },
 });

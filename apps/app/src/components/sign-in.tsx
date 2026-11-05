@@ -6,11 +6,23 @@ import { useGame } from '@/game/store';
 import { Button, Card, colors } from './ui';
 
 export function SignIn() {
-  const { dispatch } = useGame();
+  const { join } = useGame();
   const [name, setName] = useState('');
+  const [sending, setSending] = useState(false);
+  const [problem, setProblem] = useState<string | null>(null);
   const trimmed = name.trim();
-  const join = () => {
-    if (trimmed) dispatch({ type: 'join', name: trimmed });
+  const ready = trimmed.length >= 2 && !sending;
+
+  const submit = async () => {
+    if (!ready) return;
+    setSending(true);
+    setProblem(null);
+    try {
+      await join(trimmed);
+    } catch {
+      setProblem('Couldn’t join. Check your name and try again.');
+      setSending(false);
+    }
   };
 
   return (
@@ -26,13 +38,15 @@ export function SignIn() {
             accessibilityLabel="Your player name"
             autoFocus
             onChangeText={setName}
-            onSubmitEditing={join}
+            maxLength={24}
+            onSubmitEditing={submit}
             placeholder="For example, Noa"
             placeholderTextColor="#9AA39E"
             style={styles.input}
             value={name}
           />
-          <Button label="Join the league" onPress={join} disabled={!trimmed} />
+          {problem ? <Text style={styles.error}>{problem}</Text> : null}
+          <Button label="Join the league" onPress={submit} disabled={!ready} />
         </Card>
       </View>
     </View>
@@ -52,6 +66,7 @@ const styles = StyleSheet.create({
   lead: { color: colors.muted, fontSize: 16, lineHeight: 24 },
   card: { gap: 12, marginTop: 8 },
   label: { color: colors.ink, fontSize: 14, fontWeight: '600' },
+  error: { color: colors.down, fontSize: 14, fontWeight: '600' },
   input: {
     borderColor: colors.line,
     borderRadius: 10,

@@ -1,0 +1,74 @@
+// The only file that talks to the server. Shapes follow apps/api/CONTRACT.md.
+
+import type { Market, Order, Side, WorldSecurity } from '@portfolio-league/engine';
+
+export type MarketRow = WorldSecurity & { price: number; priceDayAgo: number };
+export type MarketData = { worldTime: number; usdIls: number; securities: MarketRow[] };
+
+export type WorldData = {
+  worldTime: number;
+  markets: Record<Market, { open: boolean; nextChange: number }>;
+};
+
+export type Position = { securityId: string; units: number; value: number };
+
+export type Me = {
+  uid: string;
+  name: string;
+  cash: number;
+  holdings: Record<string, number>;
+  pendingOrders: Order[];
+  worldTime: number;
+  reserved: number;
+  value: number;
+  positions: Position[];
+};
+
+export type NewOrder = {
+  id: string;
+  securityId: string;
+  side: Side;
+  amount: number | 'all';
+};
+
+export class ApiProblem extends Error {
+  readonly code: string;
+  readonly status: number;
+
+  constructor(code: string, status: number, message: string) {
+    super(message);
+    this.code = code;
+    this.status = status;
+  }
+}
+
+type Options = { token?: string; body?: unknown };
+
+async function call<T>(method: string, path: string, { token, body }: Options = {}): Promise<T> {
+  const response = await fetch(`/api${path}`, {
+    method,
+    headers: {
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...(body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    body: body ? JSON.stringify(body) : undefined,
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok) {
+    const { code = 'SERVER_ERROR', message = 'Something went wrong.' } = data?.error ?? {};
+    throw new ApiProblem(code, response.status, message);
+  }
+  return data as T;
+}
+
+export const api = {
+  world: () => call<WorldData>('GET', '/world'),
+  market: () => call<MarketData>('GET', '/market'),
+  me: (token: string) => call<Me>('GET', '/me', { token }),
+  orders: (token: string) =>
+    call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
+  createPlayer: (token: string, name: string) =>
+    call<unknown>('POST', '/players', { token, body: { name } }),
+  placeOrder: (token: string, order: NewOrder) =>
+    call<Order>('POST', '/orders', { token, body: order }),
+};

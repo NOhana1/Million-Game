@@ -1,21 +1,19 @@
+import type { Order } from '@portfolio-league/engine';
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { OrderTicket } from '@/components/order-ticket';
 import { Card, changeColor, colors, ils, percent, SectionTitle } from '@/components/ui';
+import { useGame } from '@/game/store';
 import {
-  cash,
-  holdingValue,
-  Order,
+  findRow,
+  formatWorldTime,
   orderAmount,
   orderRefund,
-  portfolioValue,
-  reservedCash,
   START_SHEKELS,
+  toShekels,
   toUnits,
-} from '@/game/sim';
-import { useGame } from '@/game/store';
-import { formatWorldTime, Security, SECURITY_BY_ID } from '@/game/world';
+} from '@/game/view';
 
 const refundText = (order: Order) => {
   const refund = orderRefund(order);
@@ -23,7 +21,8 @@ const refundText = (order: Order) => {
 };
 
 function OrderRow({ order }: { order: Order }) {
-  const security = SECURITY_BY_ID[order.securityId];
+  const { market } = useGame();
+  const name = market ? findRow(market, order.securityId)?.name : order.securityId;
   const pending = order.status === 'pending';
   const detail = pending
     ? order.execution.kind === 'close'
@@ -34,7 +33,7 @@ function OrderRow({ order }: { order: Order }) {
     <View style={styles.row}>
       <View style={styles.flex}>
         <Text style={styles.name}>
-          {order.side === 'buy' ? 'Buy' : 'Sell'} {security.name}
+          {order.side === 'buy' ? 'Buy' : 'Sell'} {name}
         </Text>
         <Text style={styles.meta}>{detail}</Text>
       </View>
@@ -44,15 +43,16 @@ function OrderRow({ order }: { order: Order }) {
 }
 
 export default function PortfolioScreen() {
-  const { state } = useGame();
-  const [selected, setSelected] = useState<Security | null>(null);
+  const { me, market, orders } = useGame();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  const total = portfolioValue(state);
+  if (!me || !market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
+
+  const total = toShekels(me.value);
   const change = (total / START_SHEKELS - 1) * 100;
-  const held = Object.keys(state.account.holdings);
-  const newestFirst = [...state.account.orders].reverse();
-  const pending = newestFirst.filter((o) => o.status === 'pending');
-  const filled = newestFirst.filter((o) => o.status === 'filled');
+  const pending = orders.filter((o) => o.status === 'pending');
+  const filled = orders.filter((o) => o.status === 'filled');
+  const selected = selectedId ? findRow(market, selectedId) : undefined;
 
   return (
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
@@ -63,32 +63,32 @@ export default function PortfolioScreen() {
         <View style={styles.split}>
           <View>
             <Text style={styles.meta}>Available cash</Text>
-            <Text style={styles.number}>{ils(cash(state))}</Text>
+            <Text style={styles.number}>{ils(toShekels(me.cash))}</Text>
           </View>
           <View>
             <Text style={styles.meta}>Held for pending buys</Text>
-            <Text style={styles.number}>{ils(reservedCash(state))}</Text>
+            <Text style={styles.number}>{ils(toShekels(me.reserved))}</Text>
           </View>
         </View>
       </Card>
 
       <SectionTitle>Holdings</SectionTitle>
       <Card style={styles.list}>
-        {held.length === 0 ? (
+        {me.positions.length === 0 ? (
           <Text style={styles.empty}>No holdings yet. Buy something from the Market tab.</Text>
         ) : (
-          held.map((id) => {
-            const value = holdingValue(state, id);
+          me.positions.map(({ securityId, units, value: agorot }) => {
+            const value = toShekels(agorot);
             return (
               <Pressable
-                key={id}
+                key={securityId}
                 accessibilityRole="button"
-                onPress={() => setSelected(SECURITY_BY_ID[id])}
+                onPress={() => setSelectedId(securityId)}
                 style={styles.row}>
                 <View style={styles.flex}>
-                  <Text style={styles.name}>{SECURITY_BY_ID[id].name}</Text>
+                  <Text style={styles.name}>{findRow(market, securityId)?.name}</Text>
                   <Text style={styles.meta}>
-                    {toUnits(state.account.holdings[id]).toFixed(3)} units · {((value / total) * 100).toFixed(1)}% of
+                    {toUnits(units).toFixed(3)} units · {((value / total) * 100).toFixed(1)}% of
                     portfolio
                   </Text>
                 </View>
@@ -119,7 +119,7 @@ export default function PortfolioScreen() {
         </>
       ) : null}
 
-      {selected ? <OrderTicket security={selected} onClose={() => setSelected(null)} /> : null}
+      {selected ? <OrderTicket security={selected} onClose={() => setSelectedId(null)} /> : null}
     </ScrollView>
   );
 }

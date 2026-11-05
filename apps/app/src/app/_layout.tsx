@@ -1,5 +1,12 @@
 import { Tabs, TabList, TabSlot, TabTrigger, TabTriggerSlotProps } from 'expo-router/ui';
-import { Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  PressableProps,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { SignIn } from '@/components/sign-in';
@@ -17,8 +24,9 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
 }
 
 function Game() {
-  const { state } = useGame();
-  if (!state.player) return <SignIn />;
+  const { status } = useGame();
+  if (status === 'loading') return <ActivityIndicator style={styles.flex} color={colors.brand} />;
+  if (status === 'signedOut') return <SignIn />;
 
   return (
     <View style={styles.column}>
