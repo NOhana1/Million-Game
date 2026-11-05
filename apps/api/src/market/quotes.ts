@@ -26,6 +26,17 @@ export function quotesAt(feed: PriceFeed, world: number): QuoteSource {
   };
 }
 
+/** Each price step in a period, as quotes the engine can replay. */
+export function priceSteps(feed: PriceFeed, from: number, to: number): QuoteSource[] {
+  const markets = new Map(feed.listings.map((listing) => [listing.id, listing.market]));
+  return feed.stepsBetween(from, to).map((step) => (securityId) => {
+    const market = markets.get(securityId);
+    const price = step.prices[securityId];
+    if (!market || price === undefined) throw new Error(`Unknown security ${securityId}`);
+    return quoteFor(market, price, step.fx);
+  });
+}
+
 export const worldStatus = (world: number) => ({
   worldTime: world,
   markets: {

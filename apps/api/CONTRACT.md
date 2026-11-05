@@ -45,6 +45,22 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `INVALID_BODY` | 400 | The request is malformed |
 | `UNAUTHENTICATED` | 401 | Sign in again |
 
+## League
+
+| Method and path | Sign-in | Cached | Purpose |
+|---|---|---|---|
+| `GET /league` | No | 30s | This week's table, updated at each market open and close |
+| `GET /league/weeks/:endsAt` | No | 5min | A finished week's final table. 404 `UNKNOWN_WEEK` if there's none |
+
+Both return `{ updatedAt, weekEndsAt, previousWeekEndsAt, total, rows }`. Before the first market event, `rows` is empty and the times are null.
+
+Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, stabilityRank, score }`.
+
+- **Is the signed-in player on the table?** Compare `id` with their Firebase user id.
+- **Rows stop at 500.** `total` is the full count.
+- **Only players who held a security that week appear.** A player who has stayed in cash won't be listed.
+- **To show last week,** use `previousWeekEndsAt` with `/league/weeks/:endsAt`.
+
 ## Filled orders
 
 - `GET /me/orders` includes both pending and filled orders. Filled ones have `status: "filled"` and a `fill` object: `units`, `price`, `fx`, `value`, `refund` and `at`.
@@ -66,3 +82,13 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | Method and path | Sign-in | Purpose |
 |---|---|---|
 | `POST /tick` | `Bearer <TICK_SECRET>` | Fills due orders. Called by the cron, never by the app |
+| `POST /admin/clock` | `Bearer <CLOCK_SECRET>` | Moves the clock, then fills what became due. Returns `{ worldTime, clock, settlement }` |
+
+Bodies for `POST /admin/clock`:
+
+| Body | Effect |
+|---|---|
+| `{ "action": "advance", "to": <world ms> }` | Jumps forward. A time already passed changes nothing, so a double click is safe |
+| `{ "action": "advance", "to": "next" }` | Jumps to the next market open or close. Each call moves on again |
+| `{ "action": "pause" }`, `{ "action": "resume" }` | Stops or restarts time |
+| `{ "action": "speed", "speed": 7 }` | World time per real time, from 1 to 60 |

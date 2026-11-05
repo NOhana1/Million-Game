@@ -3,7 +3,7 @@
 import { type Order, WORLD_START } from '@portfolio-league/engine';
 
 import { type Clock, firstClock } from '../clock.ts';
-import type { Player, Store } from './types.ts';
+import type { LeagueTable, Player, Shard, Store } from './types.ts';
 
 export type MemoryStore = Store & { setClock(next: Clock): void };
 
@@ -13,6 +13,9 @@ export function memoryStore(startClock?: Clock): MemoryStore {
   let clock = startClock;
   let cursor = WORLD_START;
   let lease: { owner: string; until: number } | null = null;
+  let shards: Shard[] = [];
+  let table: LeagueTable | null = null;
+  const finishedWeeks = new Map<number, LeagueTable>();
 
   return {
     setClock(next) {
@@ -21,6 +24,11 @@ export function memoryStore(startClock?: Clock): MemoryStore {
 
     async getClock(realNow) {
       clock ??= firstClock(realNow);
+      return { ...clock };
+    },
+
+    async updateClock(realNow, change) {
+      clock = change(clock ?? firstClock(realNow));
       return { ...clock };
     },
 
@@ -66,14 +74,35 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       return cursor;
     },
 
-    async saveCursor(owner, next) {
+    async saveSlot(owner, next, save) {
       if (lease?.owner !== owner) return false;
       cursor = Math.max(cursor, next);
+      if (save.shards.length) shards = structuredClone(save.shards);
+      if (save.table) table = structuredClone(save.table);
+      if (save.finishedWeek) {
+        finishedWeeks.set(save.finishedWeek.weekEndsAt, structuredClone(save.finishedWeek));
+      }
       return true;
     },
 
     async endSettlement(owner) {
       if (lease?.owner === owner) lease = null;
+    },
+
+    async getShards() {
+      return structuredClone(shards);
+    },
+
+    async getTable() {
+      return structuredClone(table);
+    },
+
+    async getFinishedWeek(endsAt) {
+      return structuredClone(finishedWeeks.get(endsAt) ?? null);
+    },
+
+    async playersChangedSince(since) {
+      return structuredClone([...players.values()].filter((p) => p.changedAt >= since));
     },
 
     async duePlayers(upTo, limit) {

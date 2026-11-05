@@ -14,7 +14,7 @@ import type { Decision, Player, Store } from './types.ts';
 
 const player = (uid: string): Player => {
   const { cash, holdings } = newAccount();
-  return { uid, name: 'Noa', createdAt: 1, cash, holdings, pendingOrders: [], nextDueAt: null };
+  return { uid, name: 'Noa', createdAt: 1, cash, holdings, pendingOrders: [], nextDueAt: null, changedAt: 3 };
 };
 
 const order = (id: string, placedAt = 5): Order => ({
@@ -38,6 +38,8 @@ const buy = (id: string, placedAt?: number) => (current: Player | null): Decisio
     ]),
   };
 };
+
+const NOTHING = { shards: [], table: null };
 
 function storeContract(name: string, makeStore: () => Store) {
   describe(`${name} store`, () => {
@@ -177,19 +179,48 @@ function storeContract(name: string, makeStore: () => Store) {
       const next = randomUUID();
       const start = (await store.startSettlement(lease(crashed))) ?? 0;
       assert.notEqual(await store.startSettlement(lease(next, 1_000_000_000_000_000)), null);
-      assert.equal(await store.saveCursor(crashed, start + 1), false);
+      assert.equal(await store.saveSlot(crashed, start + 1, NOTHING), false);
       await store.endSettlement(crashed);
-      assert.equal(await store.saveCursor(next, start + 2), true);
+      assert.equal(await store.saveSlot(next, start + 2, NOTHING), true);
       assert.equal(await store.getCursor(), start + 2);
       await store.endSettlement(next);
+    });
+
+    it('saves the league with the cursor, or not at all', async () => {
+      const store = makeStore();
+      const owner = randomUUID();
+      const start = (await store.startSettlement(lease(owner, 3_000_000_000_000_000))) ?? 0;
+      const table = { updatedAt: 1, weekEndsAt: start, previousWeekEndsAt: null, total: 0, rows: [] };
+      const shard = { id: 'contract-test', members: {} };
+      assert.equal(await store.saveSlot('someone-else', start + 1, { shards: [shard], table }), false);
+      assert.ok(!(await store.getShards()).some((s) => s.id === 'contract-test'));
+
+      assert.equal(
+        await store.saveSlot(owner, start + 1, { shards: [shard], table, finishedWeek: table }),
+        true,
+      );
+      assert.ok((await store.getShards()).some((s) => s.id === 'contract-test'));
+      assert.deepEqual(await store.getTable(), table);
+      assert.deepEqual(await store.getFinishedWeek(start), table);
+      await store.endSettlement(owner);
+    });
+
+    it('finds players who changed', async () => {
+      const store = makeStore();
+      const uid = randomUUID();
+      await store.createPlayer(player(uid));
+      const found = async (since: number) =>
+        (await store.playersChangedSince(since)).some((p) => p.uid === uid);
+      assert.equal(await found(3), true);
+      assert.equal(await found(4), false);
     });
 
     it('never moves the cursor backwards', async () => {
       const store = makeStore();
       const owner = randomUUID();
       const start = (await store.startSettlement(lease(owner, 2_000_000_000_000_000))) ?? 0;
-      await store.saveCursor(owner, start + 10);
-      await store.saveCursor(owner, start + 5);
+      await store.saveSlot(owner, start + 10, NOTHING);
+      await store.saveSlot(owner, start + 5, NOTHING);
       assert.equal(await store.getCursor(), start + 10);
       await store.endSettlement(owner);
     });

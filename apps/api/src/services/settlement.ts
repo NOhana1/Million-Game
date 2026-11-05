@@ -8,6 +8,7 @@ import { randomUUID } from 'node:crypto';
 import type { Deps } from '../app.ts';
 import { worldTime } from '../clock.ts';
 import { quotesAt } from '../market/quotes.ts';
+import { firstShards, finishSlot, replayToSlot } from './league.ts';
 import { toAccount, withPending } from '../player.ts';
 import type { Player, Settled } from '../store/types.ts';
 
@@ -30,9 +31,14 @@ export function settlePlayerUpTo(deps: Pick<Deps, 'feed'>, player: Player, upTo:
     quotesAt(deps.feed, order.execution.at),
   );
   const pending = account.orders.filter((order) => order.status === 'pending');
+  const filled = account.orders.filter((order) => order.status === 'filled');
+  const changedAt = filled.length > 0 ? upTo : player.changedAt;
   return {
-    filled: account.orders.filter((order) => order.status === 'filled'),
-    player: withPending({ ...player, cash: account.cash, holdings: account.holdings }, pending),
+    filled,
+    player: withPending(
+      { ...player, cash: account.cash, holdings: account.holdings, changedAt },
+      pending,
+    ),
   };
 }
 
@@ -64,17 +70,17 @@ export async function settle(deps: Deps, budgetMs = BUDGET_MS): Promise<Settleme
   const { store } = deps;
   const startedAt = deps.now();
   const world = worldTime(await store.getClock(startedAt), startedAt);
-  const stored = await store.getCursor();
+  const saved = await store.getCursor();
 
   // Most runs find nothing to do, and this check keeps those from costing any writes.
-  const slotDue = nextMarketEvent(stored) <= world;
-  if (!slotDue && (await store.duePlayers(stored, 1)).length === 0) {
-    return { status: 'idle', cursor: stored, filled: 0, failed: 0 };
+  const slotDue = nextMarketEvent(saved) <= world;
+  if (!slotDue && (await store.duePlayers(saved, 1)).length === 0) {
+    return { status: 'idle', cursor: saved, filled: 0, failed: 0 };
   }
 
   const owner = randomUUID();
   const start = await store.startSettlement({ owner, realNow: startedAt, ttlMs: LEASE_MS });
-  if (start === null) return { status: 'busy', cursor: stored, filled: 0, failed: 0 };
+  if (start === null) return { status: 'busy', cursor: saved, filled: 0, failed: 0 };
 
   const run: Run = { deps, deadline: startedAt + budgetMs, filled: 0, failed: new Set() };
   let cursor = start;
@@ -82,10 +88,23 @@ export async function settle(deps: Deps, budgetMs = BUDGET_MS): Promise<Settleme
   try {
     // Orders that arrived just as their slot was being processed.
     finished = await fillDue(run, cursor);
+
+    const stored = await store.getShards();
+    const shards = stored.length > 0 ? stored : firstShards(start);
+    let previousWeek = (await store.getTable())?.previousWeekEndsAt ?? null;
+
     while (finished) {
       const slot = nextMarketEvent(cursor);
       if (slot > world) break;
-      finished = (await fillDue(run, slot)) && (await store.saveCursor(owner, slot));
+
+      replayToSlot(deps.feed, shards, cursor, slot);
+      finished = await fillDue(run, slot);
+      if (!finished) break; // nothing was saved, so the next run repeats this slot exactly
+
+      const changed = await store.playersChangedSince(cursor);
+      const save = finishSlot(deps.feed, shards, changed, slot, previousWeek);
+      previousWeek = save.table?.previousWeekEndsAt ?? null;
+      finished = await store.saveSlot(owner, slot, save);
       if (finished) cursor = slot;
     }
   } finally {

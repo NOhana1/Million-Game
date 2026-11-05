@@ -2,7 +2,7 @@
 
 The code is ready. Only these settings are missing.
 
-## 1. Create the three settings
+## 1. Create the four settings
 
 Do this once for staging and once for production. Never paste them into a chat or commit them.
 
@@ -11,10 +11,11 @@ Do this once for staging and once for production. Never paste them into a chat o
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase console, Project settings, Service accounts, **Generate new private key**. Use the whole file, on one line |
 | `WORLD_SEED` | Run `openssl rand -hex 32`. Use a different one per project |
 | `TICK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. The cron sends it to `/api/tick` |
+| `CLOCK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. It can only move the clock |
 
 ## 2. Put them in Vercel
 
-Add all three to the project's environment variables, with staging values for Preview and production values for Production.
+Add all four to the project's environment variables, with staging values for Preview and production values for Production.
 
 ## 3. Deploy the rules
 

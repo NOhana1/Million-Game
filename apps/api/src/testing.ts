@@ -18,11 +18,13 @@ export const pausedAt = (world: number): Clock => ({
 export const testApp = (overrides: Partial<Deps> = {}) =>
   createApp({
     version: 'test',
+    environment: 'test',
     store: memoryStore(pausedAt(TEST_WORLD)),
     feed: worldFeed('test'),
     verifyToken: async (token) => (token === 'invalid' ? null : token),
     now: () => 0,
     tickSecret: 'test-secret',
+    clockSecret: 'clock-secret',
     ...overrides,
   });
 

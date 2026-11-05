@@ -4,7 +4,7 @@ import { type Order, WORLD_START } from '@portfolio-league/engine';
 import { FieldPath, type Firestore } from 'firebase-admin/firestore';
 
 import { type Clock, firstClock } from '../clock.ts';
-import type { Player, Store } from './types.ts';
+import type { LeagueTable, Player, Shard, Store } from './types.ts';
 
 const ALREADY_EXISTS = 6; // gRPC status code
 
@@ -13,6 +13,9 @@ type Settlement = { cursor?: number; leaseOwner?: string | null; leaseUntil?: nu
 export function firestoreStore(db: Firestore): Store {
   const clockDoc = db.doc('world/clock');
   const settlementDoc = db.doc('world/settlement');
+  const tableDoc = db.doc('world/table');
+  const shardDocs = db.collection('leagueShards');
+  const weekDocs = db.collection('leagueWeeks');
   const playerDoc = (uid: string) => db.collection('players').doc(uid);
   const orderDocs = (uid: string) => playerDoc(uid).collection('orders');
 
@@ -25,6 +28,15 @@ export function firestoreStore(db: Firestore): Store {
         if (current.exists) return current.data() as Clock;
         const clock = firstClock(realNow);
         tx.create(clockDoc, clock);
+        return clock;
+      });
+    },
+
+    updateClock(realNow, change) {
+      return db.runTransaction(async (tx) => {
+        const stored = await tx.get(clockDoc);
+        const clock = change(stored.exists ? (stored.data() as Clock) : firstClock(realNow));
+        tx.set(clockDoc, clock);
         return clock;
       });
     },
@@ -92,11 +104,16 @@ export function firestoreStore(db: Firestore): Store {
       });
     },
 
-    saveCursor(owner, next) {
+    saveSlot(owner, next, save) {
       return db.runTransaction(async (tx) => {
         const stored = (await tx.get(settlementDoc)).data() as Settlement | undefined;
         if (stored?.leaseOwner !== owner) return false;
         tx.update(settlementDoc, { cursor: Math.max(stored.cursor ?? WORLD_START, next) });
+        for (const shard of save.shards) tx.set(shardDocs.doc(shard.id), shard);
+        if (save.table) tx.set(tableDoc, save.table);
+        if (save.finishedWeek) {
+          tx.set(weekDocs.doc(String(save.finishedWeek.weekEndsAt)), save.finishedWeek);
+        }
         return true;
       });
     },
@@ -106,6 +123,24 @@ export function firestoreStore(db: Firestore): Store {
         const stored = (await tx.get(settlementDoc)).data() as Settlement | undefined;
         if (stored?.leaseOwner === owner) tx.update(settlementDoc, { leaseOwner: null });
       });
+    },
+
+    async getShards() {
+      return (await shardDocs.get()).docs.map((doc) => doc.data() as Shard);
+    },
+
+    async getTable() {
+      return ((await tableDoc.get()).data() as LeagueTable | undefined) ?? null;
+    },
+
+    async getFinishedWeek(endsAt) {
+      const stored = await weekDocs.doc(String(endsAt)).get();
+      return (stored.data() as LeagueTable | undefined) ?? null;
+    },
+
+    async playersChangedSince(since) {
+      const changed = await db.collection('players').where('changedAt', '>=', since).get();
+      return changed.docs.map((doc) => doc.data() as Player);
     },
 
     async duePlayers(upTo, limit) {

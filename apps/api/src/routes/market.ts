@@ -6,7 +6,7 @@ import { ApiError } from '../errors.ts';
 import { findListing, marketSnapshot, priceHistory, worldStatus } from '../market/quotes.ts';
 
 // The CDN answers repeat requests, so a rush of players doesn't reach the database.
-const cachedFor = (seconds: number) =>
+export const cachedFor = (seconds: number) =>
   `public, max-age=0, s-maxage=${seconds}, stale-while-revalidate=${seconds}`;
 
 export function marketRoutes(deps: Deps) {

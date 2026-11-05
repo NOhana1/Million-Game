@@ -9,7 +9,7 @@ describe('skeleton', () => {
   it('answers the health check', async () => {
     const response = await app.request('/api/health');
     assert.equal(response.status, 200);
-    assert.deepEqual(await response.json(), { ok: true, version: 'test' });
+    assert.deepEqual(await response.json(), { ok: true, version: 'test', environment: 'test' });
   });
 
   it('answers unknown routes with a JSON error', async () => {

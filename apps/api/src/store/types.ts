@@ -1,7 +1,7 @@
 // Everything the API needs from a database. Routes never touch Firestore directly,
 // so tests and local runs can use the in-memory store.
 
-import type { Agorot, Order, Units } from '@portfolio-league/engine';
+import type { Agorot, Order, Ranked, Units, WeekRecord } from '@portfolio-league/engine';
 
 import type { Clock } from '../clock.ts';
 
@@ -13,7 +13,34 @@ export type Player = {
   holdings: Record<string, Units>;
   pendingOrders: Order[]; // filled orders live in the player's order history
   nextDueAt: number | null; // earliest pending execution, so settlement can find this player
+  changedAt: number; // world time of the last change the league must pick up
 };
+
+/** A competitor in a league shard: a real player's position, or a whole bot. */
+export type Member = {
+  id: string;
+  name: string;
+  bot: boolean;
+  cash: Agorot; // for real players, this includes cash held for pending buys
+  holdings: Record<string, Units>;
+  orders: Order[]; // only bots keep orders here
+  week: WeekRecord;
+};
+
+export type Shard = { id: string; members: Record<string, Member> };
+
+export type TableRow = Ranked & { rank: number; name: string; bot: boolean; value: Agorot };
+
+export type LeagueTable = {
+  updatedAt: number;
+  weekEndsAt: number;
+  previousWeekEndsAt: number | null;
+  total: number;
+  rows: TableRow[];
+};
+
+/** Everything one market open or close changes, saved together with the cursor. */
+export type SlotSave = { shards: Shard[]; table: LeagueTable | null; finishedWeek?: LeagueTable };
 
 export type Decision = { player: Player; order: Order };
 
@@ -34,6 +61,8 @@ export type OrderCursor = { placedAt: number; id: string };
 export type Store = {
   /** The world clock. The first ever call starts it at `realNow`. */
   getClock(realNow: number): Promise<Clock>;
+  /** All or nothing, on the latest stored clock. */
+  updateClock(realNow: number, change: (clock: Clock) => Clock): Promise<Clock>;
   getPlayer(uid: string): Promise<Player | null>;
   /** Creates the player unless one exists, and returns whichever is stored. */
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
@@ -49,9 +78,14 @@ export type Store = {
   getCursor(): Promise<number>;
   /** Takes the settlement lease and returns the cursor, or null if another run holds it. */
   startSettlement(lease: Lease): Promise<number | null>;
-  /** Moves the cursor forward. False means this run lost the lease and must stop. */
-  saveCursor(owner: string, cursor: number): Promise<boolean>;
+  /** All or nothing, with the cursor. False means this run lost the lease and must stop. */
+  saveSlot(owner: string, cursor: number, save: SlotSave): Promise<boolean>;
   endSettlement(owner: string): Promise<void>;
+  getShards(): Promise<Shard[]>;
+  getTable(): Promise<LeagueTable | null>;
+  getFinishedWeek(endsAt: number): Promise<LeagueTable | null>;
+  /** Players who changed at or after this world time. */
+  playersChangedSince(cursor: number): Promise<Player[]>;
   /** Players with an order due by `upTo`. */
   duePlayers(upTo: number, limit: number): Promise<string[]>;
   /**

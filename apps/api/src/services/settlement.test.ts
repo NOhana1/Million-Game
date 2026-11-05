@@ -26,11 +26,13 @@ function world(startAt = TEST_WORLD): World {
   const store = memoryStore(pausedAt(startAt));
   const deps: Deps = {
     version: 'test',
+    environment: 'test',
     store,
     feed,
     verifyToken: async (token) => token,
     now: () => 0,
     tickSecret: 'test-secret',
+    clockSecret: 'clock-secret',
   };
   return {
     store,
@@ -123,6 +125,7 @@ describe('filling orders', () => {
       listings: feed.listings,
       priceAt: (id, ms) => (seen.push(ms), feed.priceAt(id, ms)),
       usdIlsAt: (ms) => (seen.push(ms), feed.usdIlsAt(ms)),
+      stepsBetween: (from, to) => (seen.push(to), feed.stepsBetween(from, to)),
     };
     await join(w);
     await order(w, {});
