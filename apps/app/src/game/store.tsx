@@ -28,6 +28,7 @@ type Game = {
   orders: Order[];
   join(name: string): Promise<void>;
   placeOrder(order: NewOrder): Promise<void>;
+  refresh(): Promise<void>;
 };
 
 const GameContext = createContext<Game | null>(null);
@@ -107,9 +108,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [refreshOwn],
   );
 
+  const refresh = useCallback(async () => {
+    await Promise.all([refreshShared(), refreshOwn()]);
+  }, [refreshShared, refreshOwn]);
+
   const game = useMemo(
-    () => ({ status, offline, world, market, me, orders, join, placeOrder }),
-    [status, offline, world, market, me, orders, join, placeOrder],
+    () => ({ status, offline, world, market, me, orders, join, placeOrder, refresh }),
+    [status, offline, world, market, me, orders, join, placeOrder, refresh],
   );
 
   return <GameContext.Provider value={game}>{children}</GameContext.Provider>;

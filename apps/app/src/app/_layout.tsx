@@ -43,6 +43,8 @@ function Game() {
           <TabTrigger name="league" href="/league" asChild>
             <TabButton>League</TabButton>
           </TabTrigger>
+          {/* Reached from a link on the League screen, so it needs no button here. */}
+          <TabTrigger name="admin" href="/admin" style={styles.hidden} />
         </TabList>
       </Tabs>
     </View>
@@ -76,4 +78,5 @@ const styles = StyleSheet.create({
   tabTextActive: { color: colors.brand },
   tabMark: { backgroundColor: 'transparent', height: 3, width: 40 },
   tabMarkActive: { backgroundColor: colors.brand },
+  hidden: { display: 'none' },
 });

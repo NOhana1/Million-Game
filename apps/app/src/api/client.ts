@@ -24,6 +24,32 @@ export type Me = {
   positions: Position[];
 };
 
+export type LeagueRow = {
+  rank: number;
+  id: string;
+  name: string;
+  bot: boolean;
+  value: number;
+  returnPpm: number;
+  maxFallPpm: number;
+  score: number;
+};
+
+export type LeagueTable = {
+  updatedAt: number | null;
+  weekEndsAt: number | null;
+  previousWeekEndsAt: number | null;
+  total: number;
+  rows: LeagueRow[];
+};
+
+export type ClockChange =
+  | { action: 'advance'; to: 'next' }
+  | { action: 'pause' }
+  | { action: 'resume' };
+
+export type ClockResult = { worldTime: number; clock: { paused: boolean } };
+
 export type NewOrder = {
   id: string;
   securityId: string;
@@ -71,4 +97,8 @@ export const api = {
     call<unknown>('POST', '/players', { token, body: { name } }),
   placeOrder: (token: string, order: NewOrder) =>
     call<Order>('POST', '/orders', { token, body: order }),
+  league: () => call<LeagueTable>('GET', '/league'),
+  finishedWeek: (endsAt: number) => call<LeagueTable>('GET', `/league/weeks/${endsAt}`),
+  moveClock: (code: string, change: ClockChange) =>
+    call<ClockResult>('POST', '/admin/clock', { token: code, body: change }),
 };
