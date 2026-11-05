@@ -11,5 +11,6 @@ export function worldFeed(seed: string): PriceFeed {
     listings: SECURITIES.map(({ id, name, sector, market }) => ({ id, name, sector, market })),
     priceAt: world.priceAt,
     usdIlsAt: world.usdIlsAt,
+    stepsBetween: world.stepsBetween,
   };
 }

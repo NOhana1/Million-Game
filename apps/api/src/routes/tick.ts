@@ -12,14 +12,19 @@ const digest = (text: string) => createHash('sha256').update(text).digest();
 export const secretMatches = (given: string, secret: string) =>
   timingSafeEqual(digest(given), digest(secret));
 
+/** Throws unless the request carries this exact secret. */
+export function requireSecret(authorization: string | undefined, secret: string) {
+  const given = authorization?.match(/^Bearer (.+)$/)?.[1];
+  if (!given || !secretMatches(given, secret)) {
+    throw new ApiError(401, 'UNAUTHENTICATED', 'Not allowed.');
+  }
+}
+
 export function tickRoutes(deps: Deps) {
   const routes = new Hono();
 
   routes.post('/tick', async (c) => {
-    const given = c.req.header('Authorization')?.match(/^Bearer (.+)$/)?.[1];
-    if (!given || !secretMatches(given, deps.tickSecret)) {
-      throw new ApiError(401, 'UNAUTHENTICATED', 'Not allowed.');
-    }
+    requireSecret(c.req.header('Authorization'), deps.tickSecret);
     return c.json(await settle(deps));
   });
 

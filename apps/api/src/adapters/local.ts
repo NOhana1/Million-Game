@@ -6,7 +6,7 @@ import { serve } from '@hono/node-server';
 import { nextMarketEvent } from '@portfolio-league/engine';
 
 import { createApp, type Deps } from '../app.ts';
-import { worldTime } from '../clock.ts';
+import { advancedTo, worldTime } from '../clock.ts';
 import { worldFeed } from '../market/world-feed.ts';
 import { settle } from '../services/settlement.ts';
 import { memoryStore } from '../store/memory.ts';
@@ -19,11 +19,13 @@ function memoryApp() {
   const store = memoryStore();
   const deps: Deps = {
     version: 'local',
+    environment: 'local',
     store,
     feed: worldFeed('local'),
     verifyToken: async (token) => token,
     now: Date.now,
     tickSecret: 'local',
+    clockSecret: 'local',
   };
   const app = createApp(deps);
 
@@ -34,11 +36,10 @@ function memoryApp() {
   app.post('/dev/advance', async (c) => {
     const body = (await c.req.json().catch(() => ({}))) as { to?: unknown };
     const realNow = Date.now();
-    const clock = await store.getClock(realNow);
-    const world = worldTime(clock, realNow);
+    const world = worldTime(await store.getClock(realNow), realNow);
     const target = typeof body.to === 'number' ? body.to : nextMarketEvent(world);
     if (target < world) return c.json({ error: { code: 'CLOCK_BACKWARDS', message: 'Forward only.' } }, 400);
-    store.setClock({ ...clock, anchorWorld: target, anchorReal: realNow });
+    await store.updateClock(realNow, (clock) => advancedTo(clock, target, realNow));
     return c.json({ worldTime: target, settlement: await settle(deps) });
   });
 

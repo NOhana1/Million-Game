@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, infra]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: Types, tests and build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run typecheck
+      - name: Engine tests
+        run: npm test
+      - name: API tests
+        run: npm test --workspace @portfolio-league/api
+      - name: Vercel build
+        run: npm run build:vercel
+
+  firebase:
+    name: Tests on the Firebase emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm ci
+      - name: API tests against the emulator
+        run: >
+          npx --yes firebase-tools@latest emulators:exec
+          --project demo-portfolio-league
+          --only firestore,auth
+          "npm test --workspace @portfolio-league/api"
