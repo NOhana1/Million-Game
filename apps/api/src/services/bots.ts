@@ -19,7 +19,7 @@ import {
 
 import type { Member } from '../store/types.ts';
 
-const BOTS_PER_STYLE = 8;
+const BOTS_PER_STYLE = 4;
 const PICKS = 5;
 
 type Style = {

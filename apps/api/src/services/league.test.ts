@@ -57,11 +57,11 @@ async function runTo(w: World, ms: number) {
 }
 
 describe('bots', () => {
-  it('fills a new league with 40 labelled bots', async () => {
+  it('fills a new league with 20 labelled bots', async () => {
     const w = world();
     await runTo(w, TUESDAY);
     const bots = await members(w);
-    assert.equal(bots.length, 40);
+    assert.equal(bots.length, 20);
     assert.ok(bots.every((bot) => bot.bot && bot.name.endsWith('(bot)')));
   });
 
@@ -118,7 +118,7 @@ describe('the weekly table', () => {
     const w = world();
     await runTo(w, TUESDAY);
     const { rows, total } = await table(w);
-    assert.equal(total, 40);
+    assert.equal(total, 20);
     rows.forEach((row, index) => {
       assert.equal(row.rank, index + 1);
       assert.ok(row.score >= 0 && row.score <= 100);
@@ -284,6 +284,6 @@ describe('the league stays correct when things go wrong', () => {
     const w = world(WORLD_START + 15 * 60_000);
     await settle(w.deps);
     assert.equal(await w.store.getCursor(), WORLD_START + 15 * 60_000);
-    assert.equal((await members(w)).length, 40);
+    assert.equal((await members(w)).length, 20);
   });
 });
