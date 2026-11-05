@@ -114,6 +114,17 @@ The repo is public, so the generator's code can be read by anyone. The secret is
 
 Prices are worked out step by step from the start of the world and kept in memory. A year took about 10 seconds to generate on this Mac, so a server starting cold pays roughly 0.2 seconds per game week.
 
+## The daily recap
+
+This is not a game rule. It only describes the past, so it can't change a result.
+
+| # | Choice | Why |
+|---|---|---|
+| D1 | "The last day" means the last 24 game hours | Works at any clock speed, and needs nothing stored |
+| D2 | It measures the units held now, against prices a day ago. A holding bought today counts for the whole day | Without stored daily values, this is the closest honest figure |
+| D3 | Best and worst are by percentage, not by shekels | A small holding can be the best performer |
+| D4 | The Tel Aviv and US moves use the two broad index funds | They stand in for each market |
+
 ## Worth raising in the README
 
 - All-cash scores perfectly on stability. A26 only removes players who held nothing all week, so banking a win and sitting in cash still works.

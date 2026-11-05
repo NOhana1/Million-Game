@@ -1,12 +1,12 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { api, LeagueRow, LeagueTable } from '@/api/client';
 import { Card, changeColor, colors, percent, Segments } from '@/components/ui';
 import { useGame } from '@/game/store';
+import { useLeague } from '@/game/use-league';
 
-const REFRESH_MS = 30_000; // the table only changes at market opens and closes
 const PPM_PER_PERCENT = 10_000;
 const BOT_SUFFIX = / \(bot\)$/; // the tag below always shows, however narrow the screen
 
@@ -37,24 +37,8 @@ function Row({ row, isMe }: { row: LeagueRow; isMe: boolean }) {
 export default function LeagueScreen() {
   const { me } = useGame();
   const [week, setWeek] = useState<Week>('this');
-  const [current, setCurrent] = useState<LeagueTable | null>(null);
   const [previous, setPrevious] = useState<LeagueTable | null>(null);
-  const [failed, setFailed] = useState(false);
-
-  useEffect(() => {
-    const load = async () => {
-      if (AppState.currentState !== 'active') return;
-      try {
-        setCurrent(await api.league());
-        setFailed(false);
-      } catch {
-        setFailed(true);
-      }
-    };
-    load();
-    const timer = setInterval(load, REFRESH_MS);
-    return () => clearInterval(timer);
-  }, []);
+  const { table: current, failed } = useLeague();
 
   const lastWeekEnd = current?.previousWeekEndsAt ?? null;
   useEffect(() => {

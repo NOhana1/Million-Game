@@ -4,13 +4,16 @@
 import {
   type Account,
   AGOROT_PER_SHEKEL,
+  dailyRecap,
   FX_SCALE,
   type Market,
   maxOrderAmount as engineMaxOrderAmount,
   type Order,
   orderProblem as engineOrderProblem,
+  partsPerMillion,
   PRICE_SCALE,
   quoteFor,
+  type Recap,
   type QuoteSource,
   shekelsToAgorot,
   type Side,
@@ -51,12 +54,39 @@ const account = (me: Me): Account => ({
   orders: me.pendingOrders,
 });
 
-function quotes(market: MarketData): QuoteSource {
+function quotes(market: MarketData, dayAgo = false): QuoteSource {
   return (id) => {
     const row = findRow(market, id);
     if (!row) throw new Error(`Unknown security ${id}`);
-    return quoteFor(row.market, row.price, market.usdIls);
+    if (!dayAgo) return quoteFor(row.market, row.price, market.usdIls);
+    return quoteFor(row.market, row.priceDayAgo, market.usdIlsDayAgo ?? market.usdIls);
   };
+}
+
+export const ppmToPercent = (ppm: number) => ppm / 10_000;
+
+export const recapFor = (me: Me, market: MarketData, orders: Order[]): Recap =>
+  dailyRecap({
+    now: market.worldTime,
+    value: me.value,
+    holdings: me.holdings,
+    orders,
+    quotes: quotes(market),
+    quotesDayAgo: quotes(market, true),
+  });
+
+const change = (now: number, before: number) => partsPerMillion(now - before, before);
+
+/** The two broad index funds stand in for each market. */
+export function marketMoves(market: MarketData) {
+  const fund = (label: string, id: string) => {
+    const row = findRow(market, id);
+    return row ? [{ label, ppm: change(row.price, row.priceDayAgo) }] : [];
+  };
+  const dollar = market.usdIlsDayAgo
+    ? [{ label: 'Dollar', ppm: change(market.usdIls, market.usdIlsDayAgo) }]
+    : [];
+  return [...fund('Tel Aviv', 'TAIX'), ...fund('US', 'USIX'), ...dollar];
 }
 
 export const maxOrderAmount = (me: Me, market: MarketData, row: MarketRow, side: Side) =>

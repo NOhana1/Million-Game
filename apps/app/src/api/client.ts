@@ -3,7 +3,12 @@
 import type { Market, Order, Side, WorldSecurity } from '@portfolio-league/engine';
 
 export type MarketRow = WorldSecurity & { price: number; priceDayAgo: number };
-export type MarketData = { worldTime: number; usdIls: number; securities: MarketRow[] };
+export type MarketData = {
+  worldTime: number;
+  usdIls: number;
+  usdIlsDayAgo?: number;
+  securities: MarketRow[];
+};
 
 export type WorldData = {
   worldTime: number;

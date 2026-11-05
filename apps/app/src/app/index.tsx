@@ -4,6 +4,7 @@ import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from '
 
 import type { MarketRow } from '@/api/client';
 import { OrderTicket } from '@/components/order-ticket';
+import { RecapCard } from '@/components/recap-card';
 import { changeColor, colors, money, percent, Segments } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { displayPrice } from '@/game/view';
@@ -22,19 +23,24 @@ export default function MarketScreen() {
 
   return (
     <View style={styles.page}>
-      <View style={styles.filter}>
-        <Segments
-          value={filter}
-          onChange={setFilter}
-          options={[
-            { value: 'all', label: 'All' },
-            { value: 'TASE', label: 'Tel Aviv' },
-            { value: 'US', label: 'US' },
-          ]}
-        />
-      </View>
       <FlatList
         data={shown}
+        ListHeaderComponent={
+          <View>
+            <RecapCard />
+            <View style={styles.filter}>
+              <Segments
+                value={filter}
+                onChange={setFilter}
+                options={[
+                  { value: 'all', label: 'All' },
+                  { value: 'TASE', label: 'Tel Aviv' },
+                  { value: 'US', label: 'US' },
+                ]}
+              />
+            </View>
+          </View>
+        }
         keyExtractor={(x) => x.id}
         ItemSeparatorComponent={() => <View style={styles.separator} />}
         renderItem={({ item }: { item: MarketRow }) => {
