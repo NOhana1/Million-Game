@@ -22,6 +22,7 @@ const Environment = z.object({
     })
     .pipe(ServiceAccount),
   WORLD_SEED: z.string().min(32),
+  TICK_SECRET: z.string().min(32),
 });
 
 export function readConfig(env: NodeJS.ProcessEnv) {

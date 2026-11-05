@@ -8,6 +8,7 @@ import type { PriceFeed } from './market/feed.ts';
 import { marketRoutes } from './routes/market.ts';
 import { orderRoutes } from './routes/orders.ts';
 import { playerRoutes } from './routes/players.ts';
+import { tickRoutes } from './routes/tick.ts';
 import type { Store } from './store/types.ts';
 
 export type Deps = {
@@ -16,6 +17,7 @@ export type Deps = {
   feed: PriceFeed;
   verifyToken: TokenVerifier;
   now: () => number; // real time
+  tickSecret: string;
 };
 
 export function createApp(deps: Deps) {
@@ -37,6 +39,7 @@ export function createApp(deps: Deps) {
   app.route('/', marketRoutes(deps));
   app.route('/', playerRoutes(deps));
   app.route('/', orderRoutes(deps));
+  app.route('/', tickRoutes(deps));
 
   return app;
 }

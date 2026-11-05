@@ -39,7 +39,30 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `BELOW_MINIMUM` | 422 | Under ₪100 |
 | `INSUFFICIENT_HOLDING` | 422 | Selling more than is held |
 | `TOO_MANY_PENDING` | 409 | Already 50 orders waiting |
+| `ORDER_SETTLING` | 409 | An earlier order is due and filling. Retry shortly |
 | `UNKNOWN_SECURITY` | 404 | No such security |
 | `PLAYER_NOT_FOUND` | 404 | Call `POST /players` first |
 | `INVALID_BODY` | 400 | The request is malformed |
 | `UNAUTHENTICATED` | 401 | Sign in again |
+
+## Filled orders
+
+- `GET /me/orders` includes both pending and filled orders. Filled ones have `status: "filled"` and a `fill` object: `units`, `price`, `fx`, `value`, `refund` and `at`.
+- `GET /me` lists only pending orders in `pendingOrders`.
+- `refund` is the part of a buy returned to cash because of the 20% limit at fill. A buy can fill for less than requested, or for 0 units.
+- A sale can return less than requested, or fill for 0 units.
+- Fills appear shortly after their moment, not exactly on it, because a cron runs them about once a minute. `fill.at` is always the true execution time.
+
+## Running locally
+
+`npm run dev --workspace @portfolio-league/api` starts the API on port 8787. Without a `.env` file it uses memory, the token is simply the user id, and orders fill by themselves every 5 seconds.
+
+| Method and path | Purpose |
+|---|---|
+| `POST /dev/advance` | **Local only.** Jumps to the next market open or close and fills orders. Body `{ "to": <world ms> }` jumps to a chosen time, forward only |
+
+## System
+
+| Method and path | Sign-in | Purpose |
+|---|---|---|
+| `POST /tick` | `Bearer <TICK_SECRET>` | Fills due orders. Called by the cron, never by the app |
