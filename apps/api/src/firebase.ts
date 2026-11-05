@@ -34,5 +34,6 @@ export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
     feed: worldFeed(config.WORLD_SEED),
     verifyToken,
     now: Date.now,
+    tickSecret: config.TICK_SECRET,
   });
 }

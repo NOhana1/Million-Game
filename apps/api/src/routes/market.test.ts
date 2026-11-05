@@ -161,6 +161,7 @@ describe('portfolio value', () => {
       cash: 0,
       holdings: { USIX: 1_000_000 },
       pendingOrders: [],
+      nextDueAt: null,
     });
     const feed = worldFeed('test');
     const app = testApp({ store, feed });

@@ -12,8 +12,8 @@ import { type Clock, worldTime } from '../clock.ts';
 import { ApiError } from '../errors.ts';
 import type { Listing } from '../market/feed.ts';
 import { findListing, quotesAt } from '../market/quotes.ts';
+import { toAccount, withPending } from '../player.ts';
 import type { Decision, Player } from '../store/types.ts';
-import { toAccount } from './players.ts';
 
 export const MAX_PENDING_ORDERS = 50;
 const MAX_PAGE = 50;
@@ -54,6 +54,11 @@ function decide(
   }
 
   const world = worldTime(clock, realNow);
+  // Holdings are out of date until this fills, and the rules would check against the wrong ones.
+  if (player.pendingOrders.some((order) => order.execution.at <= world)) {
+    throw new ApiError(409, 'ORDER_SETTLING', 'Your last order is filling. Try again in a moment.');
+  }
+
   const result = placeOrder(
     toAccount(player),
     {
@@ -69,7 +74,7 @@ function decide(
 
   return {
     order: result.order,
-    player: { ...player, cash: result.account.cash, pendingOrders: result.account.orders },
+    player: withPending({ ...player, cash: result.account.cash }, result.account.orders),
   };
 }
 

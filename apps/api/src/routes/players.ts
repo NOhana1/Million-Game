@@ -1,5 +1,4 @@
 import {
-  type Account,
   holdingValue,
   newAccount,
   portfolioValue,
@@ -14,6 +13,7 @@ import { readBody } from '../body.ts';
 import { worldTime } from '../clock.ts';
 import { ApiError } from '../errors.ts';
 import { quotesAt } from '../market/quotes.ts';
+import { toAccount } from '../player.ts';
 import type { Player } from '../store/types.ts';
 
 const NewPlayer = z.object({
@@ -23,14 +23,8 @@ const NewPlayer = z.object({
 
 const newPlayer = (uid: string, name: string, now: number): Player => {
   const { cash, holdings } = newAccount();
-  return { uid, name, createdAt: now, cash, holdings, pendingOrders: [] };
+  return { uid, name, createdAt: now, cash, holdings, pendingOrders: [], nextDueAt: null };
 };
-
-export const toAccount = (player: Player): Account => ({
-  cash: player.cash,
-  holdings: player.holdings,
-  orders: player.pendingOrders,
-});
 
 export function playerRoutes(deps: Deps) {
   const routes = new Hono<AuthEnv>();

@@ -22,6 +22,7 @@ export const testApp = (overrides: Partial<Deps> = {}) =>
     feed: worldFeed('test'),
     verifyToken: async (token) => (token === 'invalid' ? null : token),
     now: () => 0,
+    tickSecret: 'test-secret',
     ...overrides,
   });
 

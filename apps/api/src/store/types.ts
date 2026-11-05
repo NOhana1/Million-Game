@@ -12,6 +12,7 @@ export type Player = {
   cash: Agorot;
   holdings: Record<string, Units>;
   pendingOrders: Order[]; // filled orders live in the player's order history
+  nextDueAt: number | null; // earliest pending execution, so settlement can find this player
 };
 
 export type Decision = { player: Player; order: Order };
@@ -23,6 +24,10 @@ export type PlaceOrder = {
   /** Throw to refuse. May run more than once, so it must have no side effects. */
   decide(player: Player | null, clock: Clock): Decision;
 };
+
+export type Settled = { player: Player; filled: Order[] };
+
+export type Lease = { owner: string; realNow: number; ttlMs: number };
 
 export type OrderCursor = { placedAt: number; id: string };
 
@@ -39,4 +44,19 @@ export type Store = {
   placeOrder(input: PlaceOrder): Promise<{ order: Order; created: boolean }>;
   /** Newest first. */
   listOrders(uid: string, page: { limit: number; after?: OrderCursor }): Promise<Order[]>;
+
+  /** The world time settlement has finished up to. */
+  getCursor(): Promise<number>;
+  /** Takes the settlement lease and returns the cursor, or null if another run holds it. */
+  startSettlement(lease: Lease): Promise<number | null>;
+  /** Moves the cursor forward. False means this run lost the lease and must stop. */
+  saveCursor(owner: string, cursor: number): Promise<boolean>;
+  endSettlement(owner: string): Promise<void>;
+  /** Players with an order due by `upTo`. */
+  duePlayers(upTo: number, limit: number): Promise<string[]>;
+  /**
+   * All or nothing, on the latest stored player, so filling twice can't happen: the second
+   * run finds the order no longer pending. Returns how many orders were filled.
+   */
+  settlePlayer(uid: string, settle: (player: Player) => Settled): Promise<number>;
 };

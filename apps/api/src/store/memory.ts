@@ -1,16 +1,24 @@
 // A store that forgets everything on restart. For tests and local runs only.
 
-import type { Order } from '@portfolio-league/engine';
+import { type Order, WORLD_START } from '@portfolio-league/engine';
 
 import { type Clock, firstClock } from '../clock.ts';
 import type { Player, Store } from './types.ts';
 
-export function memoryStore(startClock?: Clock): Store {
+export type MemoryStore = Store & { setClock(next: Clock): void };
+
+export function memoryStore(startClock?: Clock): MemoryStore {
   const players = new Map<string, Player>();
   const orders = new Map<string, Map<string, Order>>();
   let clock = startClock;
+  let cursor = WORLD_START;
+  let lease: { owner: string; until: number } | null = null;
 
   return {
+    setClock(next) {
+      clock = next;
+    },
+
     async getClock(realNow) {
       clock ??= firstClock(realNow);
       return { ...clock };
@@ -46,6 +54,42 @@ export function memoryStore(startClock?: Clock): Store {
       const found = after ? all.findIndex((o) => newestFirst(o, { ...o, ...after }) > 0) : 0;
       const start = found < 0 ? all.length : found;
       return structuredClone(all.slice(start, start + limit));
+    },
+
+    async getCursor() {
+      return cursor;
+    },
+
+    async startSettlement({ owner, realNow, ttlMs }) {
+      if (lease && lease.until > realNow) return null;
+      lease = { owner, until: realNow + ttlMs };
+      return cursor;
+    },
+
+    async saveCursor(owner, next) {
+      if (lease?.owner !== owner) return false;
+      cursor = Math.max(cursor, next);
+      return true;
+    },
+
+    async endSettlement(owner) {
+      if (lease?.owner === owner) lease = null;
+    },
+
+    async duePlayers(upTo, limit) {
+      return [...players.values()]
+        .filter((player) => player.nextDueAt !== null && player.nextDueAt <= upTo)
+        .slice(0, limit)
+        .map((player) => player.uid);
+    },
+
+    async settlePlayer(uid, settle) {
+      const stored = players.get(uid);
+      if (!stored) return 0;
+      const { player, filled } = settle(structuredClone(stored));
+      players.set(uid, structuredClone(player));
+      for (const order of filled) orders.get(uid)?.set(order.id, structuredClone(order));
+      return filled.length;
     },
   };
 }
