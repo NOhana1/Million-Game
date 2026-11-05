@@ -26,7 +26,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 
 | Method and path | Sign-in | Cached | Purpose |
 |---|---|---|---|
-| `POST /orders` | Yes | No | Body `{ "id": "<new UUID>", "securityId": "TAIX", "side": "buy", "amount": 100000 }`, with `amount` in agorot. Returns 201 with the order |
+| `POST /orders` | Yes | No | Body `{ "id": "<new UUID>", "securityId": "TAIX", "side": "buy", "amount": 100000 }`, with `amount` in agorot, at least ₪100. A sell can send `"amount": "all"` to sell the whole holding. Returns 201 with the order |
 | `GET /me/orders` | Yes | No | Order history, newest first. Optional `?limit=` (up to 50) and `?after=<next>`. Returns `{ orders, next }`, and `next` is null on the last page |
 
 - **Make the UUID once per order, not once per request.** Send the same id on any retry: the server then returns the original order with status 200 and charges nothing.
@@ -36,6 +36,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 |---|---|---|
 | `INSUFFICIENT_CASH` | 422 | Not enough available cash |
 | `POSITION_LIMIT` | 422 | More than 20% in one security |
+| `BELOW_MINIMUM` | 422 | Under ₪100 |
 | `INSUFFICIENT_HOLDING` | 422 | Selling more than is held |
 | `TOO_MANY_PENDING` | 409 | Already 50 orders waiting |
 | `UNKNOWN_SECURITY` | 404 | No such security |

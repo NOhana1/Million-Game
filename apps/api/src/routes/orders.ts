@@ -22,11 +22,15 @@ const NewOrder = z.object({
   id: z.uuid(), // made by the client, so a retry or double tap can't place a second order
   securityId: z.string().max(10),
   side: z.enum(['buy', 'sell']),
-  amount: z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+  amount: z.union([
+    z.number().int().positive().max(Number.MAX_SAFE_INTEGER),
+    z.literal('all'), // sells the whole holding
+  ]),
 });
 
 const PROBLEMS: Record<OrderProblem, string> = {
   INVALID_AMOUNT: 'Enter an amount above zero.',
+  BELOW_MINIMUM: 'The smallest order is ₪100.',
   DUPLICATE_ORDER: 'This order was already placed.',
   INSUFFICIENT_CASH: 'Not enough available cash.',
   POSITION_LIMIT: 'This would put more than 20% of the portfolio in one security.',

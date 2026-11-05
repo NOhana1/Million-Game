@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { describe, it } from 'node:test';
 
-import { START_CASH } from '@portfolio-league/engine';
+import { MIN_ORDER, START_CASH } from '@portfolio-league/engine';
 
 import { memoryStore } from '../store/memory.ts';
 import { pausedAt, testApp, type TestApp, TEST_WORLD } from '../testing.ts';
@@ -88,7 +88,7 @@ describe('placing an order', () => {
         id: randomUUID(),
         securityId: 'TAIX',
         side: 'buy',
-        amount: 100,
+        amount: MIN_ORDER,
         placedAt: 1,
         status: 'filled',
       }),
@@ -208,16 +208,46 @@ describe('order rules', () => {
     const app = testApp({ store });
     const position = (await me(app)).positions[0].value;
     assert.equal((await send(app, { side: 'sell', amount: position })).status, 201);
-    const second = await send(app, { side: 'sell', amount: 1 });
+    const second = await send(app, { side: 'sell', amount: MIN_ORDER });
     assert.equal(await errorCode(second), 'INSUFFICIENT_HOLDING');
+  });
+
+  it('refuses an order below the minimum', async () => {
+    const response = await send(await joined(), { amount: MIN_ORDER - 1 });
+    assert.equal(response.status, 422);
+    assert.equal(await errorCode(response), 'BELOW_MINIMUM');
+  });
+
+  it('sells a whole holding with "all"', async () => {
+    const store = memoryStore(pausedAt(TEST_WORLD));
+    await store.createPlayer({
+      uid: 'noa',
+      name: 'Noa',
+      createdAt: 0,
+      cash: 0,
+      holdings: { TAIX: 100_000_000 },
+      pendingOrders: [],
+    });
+    const app = testApp({ store });
+    const position = (await me(app)).positions[0].value;
+    const response = await send(app, { side: 'sell', amount: 'all' });
+    assert.equal(response.status, 201);
+    assert.equal(((await response.json()) as { amount: number }).amount, position);
+  });
+
+  it('refuses "all" on a buy, and when nothing is held', async () => {
+    const app = await joined();
+    assert.equal((await send(app, { side: 'buy', amount: 'all' })).status, 422);
+    assert.equal((await send(app, { side: 'sell', amount: 'all' })).status, 422);
+    assert.equal((await me(app)).cash, START_CASH);
   });
 
   it('limits how many orders can wait at once', async () => {
     const app = await joined();
     for (let i = 0; i < MAX_PENDING_ORDERS; i++) {
-      assert.equal((await send(app, { amount: 100 })).status, 201);
+      assert.equal((await send(app, { amount: MIN_ORDER })).status, 201);
     }
-    const next = await send(app, { amount: 100 });
+    const next = await send(app, { amount: MIN_ORDER });
     assert.equal(next.status, 409);
     assert.equal(await errorCode(next), 'TOO_MANY_PENDING');
   });
@@ -231,7 +261,7 @@ describe('order history', () => {
     const app = await joined();
     const placed: string[] = [];
     for (let i = 0; i < 5; i++) {
-      placed.push(((await (await send(app, { amount: 100 })).json()) as { id: string }).id);
+      placed.push(((await (await send(app, { amount: MIN_ORDER })).json()) as { id: string }).id);
     }
     const seen: string[] = [];
     let after = '';
