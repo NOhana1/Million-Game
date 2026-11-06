@@ -7,6 +7,7 @@ import {
   Text,
   TextInput,
   TextInputProps,
+  TextStyle,
   useWindowDimensions,
   View,
   ViewStyle,
@@ -19,6 +20,8 @@ export { colors };
 /** Gives an element a look from hover-css.ts. Ignored outside the web. */
 export const hover = (kind: string) => ({ dataSet: { hover: kind } }) as object;
 
+const riseIn = { dataSet: { rise: 'true' } } as object;
+
 // Frank Ruhl Libre has Hebrew of its own. Inter doesn't, so Hebrew names fall through to Heebo.
 export const font = {
   display: "'Frank Ruhl Libre', Georgia, serif",
@@ -27,22 +30,6 @@ export const font = {
 
 const WIDE_FROM = 900;
 export const useWide = () => useWindowDimensions().width >= WIDE_FROM;
-
-const SECTOR_COLORS: Record<string, string> = {
-  Fund: '#12372E',
-  Banks: '#2B4C7E',
-  Consumer: '#8C4A32',
-  Energy: '#8F7228',
-  Transport: '#3D6B7C',
-  Health: '#7E3F52',
-  'Real estate': '#6B5B4B',
-  Technology: '#2F6F62',
-  Telecom: '#56608F',
-  Insurance: '#664E7A',
-  Finance: '#3E6B4A',
-};
-
-export const sectorColor = (sector: string) => SECTOR_COLORS[sector] ?? colors.deepSoft;
 
 export const ils = (n: number) =>
   `₪${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -63,20 +50,36 @@ export const changeColor = (n: number) =>
 export const changeColorOnDeep = (n: number) =>
   n > 0.004 ? colors.upOnDeep : n < -0.004 ? colors.downOnDeep : colors.onDeep;
 
-/** A scrolling screen. */
-export function Page({ children, maxWidth = 1120 }: { children: ReactNode; maxWidth?: number }) {
+/** A scrolling screen. Its sections rise into place one after another. */
+export function Page({ children, maxWidth = 1160 }: { children: ReactNode; maxWidth?: number }) {
   const wide = useWide();
   return (
     <ScrollView style={styles.page}>
-      <View style={[styles.pageColumn, { maxWidth }, wide ? styles.pageWide : styles.pagePhone]}>
+      <View
+        {...riseIn}
+        style={[styles.pageColumn, { maxWidth }, wide ? styles.pageWide : styles.pagePhone]}>
         {children}
       </View>
     </ScrollView>
   );
 }
 
-export function Card({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
-  return <View style={[styles.card, style]}>{children}</View>;
+/** A panel, or with `ruled` a section that only has a line above it, like a page in a paper. */
+export function Card({
+  children,
+  style,
+  ruled,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+  ruled?: boolean;
+}) {
+  return <View style={[ruled ? styles.ruled : styles.card, style]}>{children}</View>;
+}
+
+/** The small spaced capitals above a heading or a number. */
+export function Eyebrow({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
+  return <Text style={[styles.eyebrow, style]}>{children}</Text>;
 }
 
 export function Hero({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
@@ -95,20 +98,16 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
 
-/** The colored square that makes a security easy to spot. Its color shows the sector. */
-export function Tile({ name, sector, size = 40 }: { name: string; sector: string; size?: number }) {
+/** A security's monogram, set like a stamp on a certificate. */
+export function Tile({ name, size = 40 }: { name: string; sector?: string; size?: number }) {
   const initials = name
     .split(' ')
     .slice(0, 2)
     .map((word) => word[0])
     .join('');
   return (
-    <View
-      style={[
-        styles.tile,
-        { backgroundColor: sectorColor(sector), borderRadius: 8, height: size, width: size },
-      ]}>
-      <Text style={[styles.tileText, { fontSize: size * 0.34 }]}>{initials}</Text>
+    <View style={[styles.tile, { height: size, width: size }]}>
+      <Text style={[styles.tileText, { fontSize: size * 0.38 }]}>{initials}</Text>
     </View>
   );
 }
@@ -151,7 +150,7 @@ export function Button({
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}>
-      <Text style={[styles.buttonText, { color: solid ? '#FFFFFF' : colors.ink }]}>{label}</Text>
+      <Text style={[styles.buttonText, { color: solid ? colors.onBrand : colors.ink }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -192,42 +191,59 @@ export function Segments<T extends string>({
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
-  pageColumn: { alignSelf: 'center', gap: 16, width: '100%' },
-  pageWide: { paddingHorizontal: 32, paddingVertical: 28 },
-  pagePhone: { padding: 16, paddingBottom: 28 },
+  pageColumn: { alignSelf: 'center', gap: 28, width: '100%' },
+  pageWide: { paddingHorizontal: 40, paddingVertical: 36 },
+  pagePhone: { gap: 22, padding: 16, paddingBottom: 32 },
   card: {
     backgroundColor: colors.card,
     borderColor: colors.line,
-    borderRadius: 10,
+    borderRadius: 4,
     borderWidth: 1,
-    padding: 20,
+    padding: 22,
   },
-  hero: { backgroundColor: colors.deep, borderRadius: 10, padding: 24 },
+  ruled: { borderTopColor: colors.line, borderTopWidth: 1, paddingTop: 18 },
+  hero: { paddingBottom: 4 },
+  eyebrow: {
+    color: colors.muted,
+    fontFamily: font.body,
+    fontSize: 11,
+    fontWeight: '600',
+    letterSpacing: 1.6,
+    textTransform: 'uppercase',
+  },
   pill: {
     borderColor: colors.deepSoft,
-    borderRadius: 6,
+    borderRadius: 3,
     borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
   },
-  pillBright: { borderColor: colors.brass },
-  pillText: { color: colors.onDeep, fontFamily: font.body, fontSize: 13, fontWeight: '500' },
-  pillTextBright: { color: colors.brass },
+  pillBright: { borderColor: colors.brand },
+  pillText: { color: colors.onDeep, fontFamily: font.body, fontSize: 12, fontWeight: '500' },
+  pillTextBright: { color: colors.brand },
   sectionTitle: {
     color: colors.ink,
     fontFamily: font.display,
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: '500',
-    marginTop: 8,
+    marginTop: 4,
   },
-  tile: { alignItems: 'center', flexShrink: 0, justifyContent: 'center' },
-  tileText: { color: '#FFFFFF', fontFamily: font.body, fontWeight: '600', letterSpacing: 0.5 },
-  field: { gap: 6 },
-  label: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
-  input: {
-    backgroundColor: colors.card,
+  tile: {
+    alignItems: 'center',
+    backgroundColor: colors.raised,
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 3,
+    borderWidth: 1,
+    flexShrink: 0,
+    justifyContent: 'center',
+  },
+  tileText: { color: colors.brand, fontFamily: font.display, fontWeight: '500' },
+  field: { gap: 6 },
+  label: { color: colors.onDeep, fontFamily: font.body, fontSize: 13, fontWeight: '500' },
+  input: {
+    backgroundColor: colors.page,
+    borderColor: colors.line,
+    borderRadius: 3,
     borderWidth: 1,
     color: colors.ink,
     fontFamily: font.body,
@@ -237,35 +253,25 @@ const styles = StyleSheet.create({
   },
   button: {
     alignItems: 'center',
-    borderRadius: 8,
+    borderRadius: 3,
     justifyContent: 'center',
     minHeight: 48,
-    paddingHorizontal: 18,
+    paddingHorizontal: 22,
   },
   buttonSolid: { backgroundColor: colors.brand },
-  buttonQuiet: { backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1 },
+  buttonQuiet: { backgroundColor: 'transparent', borderColor: colors.deepSoft, borderWidth: 1 },
   buttonText: { fontFamily: font.body, fontSize: 15, fontWeight: '600' },
-  disabled: { opacity: 0.45 },
+  disabled: { opacity: 0.4 },
   pressed: { opacity: 0.75 },
-  segments: {
-    alignSelf: 'flex-start',
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderRadius: 8,
-    borderWidth: 1,
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 2,
-    padding: 3,
-  },
+  segments: { alignSelf: 'flex-start', flexDirection: 'row', flexWrap: 'wrap', gap: 2 },
   segment: {
     alignItems: 'center',
-    borderRadius: 6,
+    borderRadius: 3,
     justifyContent: 'center',
-    minHeight: 38,
-    paddingHorizontal: 16,
+    minHeight: 36,
+    paddingHorizontal: 14,
   },
-  segmentActive: { backgroundColor: colors.deep },
+  segmentActive: { backgroundColor: colors.brand },
   segmentText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
-  segmentTextActive: { color: '#FFFFFF' },
+  segmentTextActive: { color: colors.onBrand, fontWeight: '600' },
 });

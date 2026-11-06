@@ -28,7 +28,10 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
       {...(props as PressableProps)}
       {...hover(wide ? 'tab' : 'line')}
       aria-selected={isFocused}
-      style={[wide ? styles.topTab : styles.tab, isFocused && styles.tabActive]}>
+      style={[
+        wide ? styles.topTab : styles.tab,
+        isFocused && (wide ? styles.tabActive : styles.tabActivePhone),
+      ]}>
       <Text
         style={[
           wide ? styles.topTabText : styles.tabText,
@@ -65,6 +68,7 @@ function Game() {
           </TabTrigger>
           {/* Reached from a link on the League screen, so it needs no button here. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
+          <TabTrigger name="security" href="/security/TAIX" style={styles.hidden} />
           {wide ? <MenuStatus /> : null}
         </TabList>
       </Tabs>
@@ -89,7 +93,7 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   menuOnTop: { flexDirection: 'column-reverse' },
   tabs: {
-    backgroundColor: colors.card,
+    backgroundColor: colors.page,
     borderTopColor: colors.line,
     borderTopWidth: 1,
     flexDirection: 'row',
@@ -104,12 +108,14 @@ const styles = StyleSheet.create({
   },
   topMenu: {
     alignItems: 'stretch',
-    backgroundColor: colors.deep,
+    backgroundColor: colors.page,
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
     flexDirection: 'row',
-    gap: 28,
+    gap: 30,
     justifyContent: 'flex-start',
-    minHeight: 68,
-    paddingHorizontal: 32,
+    minHeight: 64,
+    paddingHorizontal: 40,
   },
   topTab: {
     borderBottomColor: 'transparent',
@@ -119,10 +125,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 2,
   },
-  tabActive: { borderBottomColor: colors.brass, borderTopColor: colors.brass },
+  tabActive: { borderBottomColor: colors.brand },
+  tabActivePhone: { borderTopColor: colors.brand },
   tabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   tabTextActive: { color: colors.ink, fontWeight: '600' },
-  topTabText: { color: colors.onDeep, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
-  topTabTextActive: { color: '#FFFFFF' },
+  topTabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500', letterSpacing: 0.3 },
+  topTabTextActive: { color: colors.ink },
   hidden: { display: 'none' },
 });

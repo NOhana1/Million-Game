@@ -126,6 +126,7 @@ describe('filling orders', () => {
       priceAt: (id, ms) => (seen.push(ms), feed.priceAt(id, ms)),
       usdIlsAt: (ms) => (seen.push(ms), feed.usdIlsAt(ms)),
       stepsBetween: (from, to) => (seen.push(to), feed.stepsBetween(from, to)),
+      pastPrices: () => [],
     };
     await join(w);
     await order(w, {});

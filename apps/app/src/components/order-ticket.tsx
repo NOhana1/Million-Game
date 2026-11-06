@@ -182,18 +182,20 @@ export function OrderTicket({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 43, 36, 0.6)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3, 6, 5, 0.74)' },
   holder: { flex: 1, justifyContent: 'flex-end' },
   holderWide: { alignItems: 'center', justifyContent: 'center' },
   sheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
+    borderColor: colors.line,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderWidth: 1,
     gap: 12,
     padding: 18,
     paddingBottom: 24,
   },
-  sheetWide: { borderRadius: 12, maxWidth: 460, width: '100%' },
+  sheetWide: { borderRadius: 6, maxWidth: 460, width: '100%' },
   header: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   flex: { flex: 1 },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
@@ -201,8 +203,9 @@ const styles = StyleSheet.create({
   close: { color: colors.muted, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
   amount: {
     alignItems: 'center',
+    backgroundColor: colors.page,
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 3,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
@@ -224,14 +227,14 @@ const styles = StyleSheet.create({
   chip: {
     alignItems: 'center',
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 3,
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
     minHeight: 44,
   },
   chipText: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
-  notice: { backgroundColor: colors.warnSoft, borderRadius: 8, padding: 12 },
+  notice: { backgroundColor: colors.warnSoft, borderRadius: 3, padding: 12 },
   noticeText: { color: colors.warnInk, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });

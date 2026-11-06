@@ -20,9 +20,9 @@ const START_FX: FxRate = 3.42 * FX_SCALE;
 const WORD_RANGE = 2 ** 32;
 
 // How much of a security's move comes from each source. Their squares add up to about 1.
-const MARKET_SHARE = 0.7;
-const SECTOR_SHARE = 0.45;
-const OWN_SHARE = 0.55;
+export const MARKET_SHARE = 0.7;
+export const SECTOR_SHARE = 0.45;
+export const OWN_SHARE = 0.55;
 
 // Five minute steps in a full session, so that a day's steps add up to one daily move.
 const STEPS_PER_DAY: Record<Market, number> = { TASE: 90, US: 78 };
@@ -43,7 +43,7 @@ export function normalFrom(words: readonly number[]): number {
   return (sum - 3) * Math.SQRT2;
 }
 
-function jumpFrom(words: readonly number[], dailyVol: number): number {
+export function jumpFrom(words: readonly number[], dailyVol: number): number {
   if ((words[6] ?? 0) / WORD_RANGE >= JUMP_CHANCE) return 0;
   const draw = (words[7] ?? 0) / WORD_RANGE; // the lower half falls, the upper half rises
   const size = dailyVol * (JUMP_MIN + JUMP_EXTRA * ((draw * 2) % 1));

@@ -94,7 +94,7 @@ const styles = StyleSheet.create({
   value: {
     color: colors.ink,
     fontFamily: font.display,
-    fontSize: 24,
+    fontSize: 26,
     fontVariant: ['tabular-nums'],
     fontWeight: '500',
   },

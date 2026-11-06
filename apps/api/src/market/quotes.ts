@@ -4,8 +4,10 @@
 import {
   isMarketOpen,
   nextSessionChange,
+  type PricePoint,
   type QuoteSource,
   quoteFor,
+  SAMPLE_HOUR_UTC,
   WORLD_START,
 } from '@portfolio-league/engine';
 
@@ -55,6 +57,94 @@ export const marketSnapshot = (feed: PriceFeed, world: number) => ({
     priceDayAgo: feed.priceAt(listing.id, world - DAY_MS),
   })),
 });
+
+const MINUTE_MS = 60 * 1000;
+const HOUR_MS = 60 * MINUTE_MS;
+const MAX_POINTS = 320; // plenty for a line, and small enough to download quickly
+const FEW_POINTS = 12; // a one day chart with fewer than this has landed on a weekend
+const MAX_EXTRA_DAYS = 6;
+const SPARK_DAYS = 7;
+const SPARK_STEP_MS = 4 * HOUR_MS;
+
+/** How far back each chart button looks, and how often it samples the game's own prices. */
+export const RANGES = {
+  '1D': { days: 1, stepMs: 5 * MINUTE_MS },
+  '1W': { days: 7, stepMs: 30 * MINUTE_MS },
+  '1M': { days: 30, stepMs: 2 * HOUR_MS },
+  '3M': { days: 91, stepMs: DAY_MS },
+  '6M': { days: 182, stepMs: DAY_MS },
+  '1Y': { days: 365, stepMs: DAY_MS },
+  '5Y': { days: 1826, stepMs: DAY_MS },
+  ALL: { days: Number.POSITIVE_INFINITY, stepMs: DAY_MS },
+} as const;
+
+export type Range = keyof typeof RANGES;
+
+export const isRange = (text: string | undefined): text is Range =>
+  text !== undefined && Object.hasOwn(RANGES, text);
+
+/** The game's own prices, never at or after `world`, so a chart can't show the future. */
+function gamePrices(feed: PriceFeed, listing: Listing, from: number, world: number, stepMs: number) {
+  const points: PricePoint[] = [];
+  const start = Math.max(from, WORLD_START);
+  // Daily samples land inside the session. Shorter steps only need to line up with the clock.
+  const offset = stepMs === DAY_MS ? SAMPLE_HOUR_UTC[listing.market] * HOUR_MS : 0;
+  const first = Math.ceil((start - offset) / stepMs) * stepMs + offset;
+  for (let at = first; at < world; at += stepMs) {
+    if (isMarketOpen(listing.market, at)) points.push({ at, price: feed.priceAt(listing.id, at) });
+  }
+  return points;
+}
+
+/** Skips the work when a range doesn't reach back that far. */
+const pricesBeforeGame = (feed: PriceFeed, listing: Listing, from: number) =>
+  from < WORLD_START ? feed.pastPrices(listing.id).filter((point) => point.at >= from) : [];
+
+/** Keeps every nth point, so a long range stays light. */
+function thinned(points: readonly PricePoint[]) {
+  const every = Math.ceil(points.length / MAX_POINTS);
+  return points.filter((_, index) => index % every === 0);
+}
+
+/**
+ * Prices for one chart button: simulated history up to the game's start, then the game's own
+ * prices, ending exactly at the given time.
+ */
+export function rangeHistory(feed: PriceFeed, listing: Listing, world: number, range: Range) {
+  const { days, stepMs } = RANGES[range];
+  let from = world - days * DAY_MS;
+  let game = gamePrices(feed, listing, from, world, stepMs);
+  for (let extra = 0; range === '1D' && game.length < FEW_POINTS && extra < MAX_EXTRA_DAYS; extra += 1) {
+    from -= DAY_MS;
+    game = gamePrices(feed, listing, from, world, stepMs);
+  }
+  const past = pricesBeforeGame(feed, listing, from);
+  return {
+    worldTime: world,
+    securityId: listing.id,
+    range,
+    gameStartedAt: WORLD_START,
+    points: [
+      ...thinned([...past, ...game]),
+      { at: world, price: feed.priceAt(listing.id, world) },
+    ],
+  };
+}
+
+/** A small line for every security in the market list. */
+export function marketSparks(feed: PriceFeed, world: number) {
+  const from = world - SPARK_DAYS * DAY_MS;
+  return Object.fromEntries(
+    feed.listings.map((listing) => [
+      listing.id,
+      [
+        ...pricesBeforeGame(feed, listing, from),
+        ...gamePrices(feed, listing, from, world, SPARK_STEP_MS),
+        { at: world, price: feed.priceAt(listing.id, world) },
+      ].map((point) => point.price),
+    ]),
+  );
+}
 
 /** Prices for a chart: the last few days of trading, ending exactly at the given time. */
 export function priceHistory(feed: PriceFeed, listing: Listing, world: number) {

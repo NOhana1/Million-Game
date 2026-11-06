@@ -1,15 +1,16 @@
 import type { Order } from '@portfolio-league/engine';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
-import { OrderTicket } from '@/components/order-ticket';
 import { SLICE_COLORS } from '@/components/palette';
 import {
   Button,
   Card,
   changeColorOnDeep,
   colors,
+  Eyebrow,
   font,
   Hero,
   hover,
@@ -62,7 +63,6 @@ function OrderRow({ order }: { order: Order }) {
 export default function PortfolioScreen() {
   const { me, market, orders, signOut } = useGame();
   const wide = useWide();
-  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [active, setActive] = useState<string | null>(null);
 
   if (!me || !market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
@@ -72,7 +72,6 @@ export default function PortfolioScreen() {
   const change = (total / START_SHEKELS - 1) * 100;
   const pending = orders.filter((o) => o.status === 'pending');
   const filled = orders.filter((o) => o.status === 'filled');
-  const selected = selectedId ? findRow(market, selectedId) : undefined;
 
   const side = [styles.column, wide && styles.flex];
 
@@ -82,9 +81,9 @@ export default function PortfolioScreen() {
     label: findRow(market, securityId)?.name ?? securityId,
     value: toShekels(value),
     color: SLICE_COLORS[index % SLICE_COLORS.length],
-    onPress: () => setSelectedId(securityId),
+    onPress: () => router.push(`/security/${securityId}`),
   }));
-  if (cash > 0) slices.push({ id: 'cash', label: 'Cash', value: cash, color: colors.line });
+  if (cash > 0) slices.push({ id: 'cash', label: 'Cash', value: cash, color: colors.cash });
 
   const holdingsCard = (
     <View style={side}>
@@ -117,7 +116,7 @@ export default function PortfolioScreen() {
                 <Pressable
                   key={slice.id}
                   accessibilityRole="button"
-                  accessibilityLabel={`Trade ${slice.label}`}
+                  accessibilityLabel={`Open ${slice.label}`}
                   onPress={slice.onPress}
                   onHoverIn={() => setActive(slice.id)}
                   onHoverOut={() => setActive(null)}
@@ -171,23 +170,25 @@ export default function PortfolioScreen() {
     <>
       <Page>
         <Hero style={styles.hero}>
-          <Text style={styles.heroLabel}>Portfolio value</Text>
-          <Text style={styles.total}>{ils(total)}</Text>
+          <Eyebrow>Portfolio value</Eyebrow>
+          <Text numberOfLines={1} style={[styles.total, !wide && styles.totalPhone]}>
+            {ils(total)}
+          </Text>
           <Text style={[styles.change, { color: changeColorOnDeep(change) }]}>
             {percent(change)} since you started
           </Text>
 
           <View style={styles.split}>
-            <View>
-              <Text style={styles.heroLabel}>You can spend</Text>
+            <View style={styles.stat}>
+              <Eyebrow>You can spend</Eyebrow>
               <Text style={styles.heroNumber}>{ils(toShekels(me.cash))}</Text>
             </View>
-            <View>
-              <Text style={styles.heroLabel}>In waiting orders</Text>
+            <View style={styles.stat}>
+              <Eyebrow>In waiting orders</Eyebrow>
               <Text style={styles.heroNumber}>{ils(toShekels(me.reserved))}</Text>
             </View>
-            <View>
-              <Text style={styles.heroLabel}>Invested</Text>
+            <View style={styles.stat}>
+              <Eyebrow>Invested</Eyebrow>
               <Text style={styles.heroNumber}>{ils(total - cash)}</Text>
             </View>
           </View>
@@ -202,9 +203,6 @@ export default function PortfolioScreen() {
           <Button variant="quiet" label="Sign out" onPress={signOut} />
         </View>
       </Page>
-      {selected ? (
-        <OrderTicket security={selected} startSide="sell" onClose={() => setSelectedId(null)} />
-      ) : null}
     </>
   );
 }
@@ -213,31 +211,41 @@ const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
   hero: { gap: 2 },
-  heroLabel: { color: colors.onDeep, fontFamily: font.body, fontSize: 14 },
   heroNumber: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontFamily: font.body,
-    fontSize: 16,
+    fontSize: 22,
     fontVariant: ['tabular-nums'],
     fontWeight: '500',
-    marginTop: 2,
+    marginTop: 4,
   },
   total: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontFamily: font.display,
-    fontSize: 44,
+    fontSize: 72,
     fontVariant: ['tabular-nums'],
-    fontWeight: '500',
-    lineHeight: 52,
+    fontWeight: '400',
+    lineHeight: 84,
   },
+  totalPhone: { fontSize: 46, lineHeight: 54 },
   change: { fontFamily: font.body, fontSize: 15, fontWeight: '500' },
-  split: { columnGap: 36, flexDirection: 'row', flexWrap: 'wrap', marginTop: 16, rowGap: 10 },
+  split: {
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    columnGap: 48,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginTop: 20,
+    paddingTop: 16,
+    rowGap: 14,
+  },
+  stat: { gap: 2 },
   columns: { alignItems: 'flex-start', flexDirection: 'row', gap: 24 },
   column: { gap: 10, width: '100%' },
   list: { paddingHorizontal: 16, paddingVertical: 12 },
   row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingVertical: 10 },
   key: { borderRadius: 6, marginHorizontal: -8, paddingHorizontal: 8 },
-  keyActive: { backgroundColor: colors.page },
+  keyActive: { backgroundColor: colors.raised },
   dot: { borderRadius: 5, height: 10, width: 10 },
   name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13, marginTop: 2 },

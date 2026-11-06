@@ -40,6 +40,8 @@ The world is **generated, not real data**.
 - **Risk feels real.** Riskier securities move more, markets can open away from the last close, and stocks get rare news jumps. So an order placed while the market is closed carries overnight risk.
 - **The dollar moves** only while a market is trading, and tends to rise when Tel Aviv falls. It stays frozen over the weekend.
 - **The future stays secret, even in a public repo.** Prices come from HMAC-SHA256 noise keyed by `WORLD_SEED`, which only the server has. Past prices can't reveal the seed, and the server only computes up to the world clock.
+- **Long charts use simulated history.** Each security has ten years of made-up daily prices, walked backward from its start price so the line joins the game with no jump. They only feed charts and are labelled as simulated: no order, score or game price reads them.
+- **Company profiles are fiction too,** and each page says so. They hold no figures or company history.
 - **History can't drift.** A test pins the first week's exact prices, so changing the generator fails on purpose.
 
 Why not real prices? A real feed would tie the game to market hours and to a paid or rate-limited service. It would also let anyone look up what's coming when the clock is behind real time. A generated world can be moved forward freely and costs nothing.
