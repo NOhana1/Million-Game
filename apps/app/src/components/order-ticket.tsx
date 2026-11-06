@@ -103,7 +103,7 @@ export function OrderTicket({
       <View style={[styles.holder, wide && styles.holderWide]} pointerEvents="box-none">
         <View style={[styles.sheet, wide && styles.sheetWide]}>
           <View style={styles.header}>
-            <Tile name={security.name} sector={security.sector} />
+            <Tile id={security.id} name={security.name} sector={security.sector} />
             <View style={styles.flex}>
               <Text style={styles.title}>{security.name}</Text>
               <Text style={styles.muted}>

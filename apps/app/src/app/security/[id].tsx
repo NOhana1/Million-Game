@@ -28,7 +28,6 @@ import {
   dayChange,
   displayPrice,
   findRow,
-  formatWorldTime,
   MARKET_LABEL,
   orderAmount,
   scrubDate,
@@ -163,10 +162,6 @@ export default function SecurityScreen() {
           setRange(next);
         }}
       />
-      <Text style={styles.note}>
-        Simulated game data. Prices before {formatWorldTime(history?.gameStartedAt ?? 0).split(',')[0]}{' '}
-        are made-up history for this fictional world.
-      </Text>
     </View>
   );
 
@@ -185,7 +180,7 @@ export default function SecurityScreen() {
         <View style={[styles.head, wide && styles.headWide]}>
           <View style={styles.flex}>
             <View style={styles.title}>
-              <Tile name={row.name} size={wide ? 52 : 42} />
+              <Tile id={row.id} name={row.name} size={wide ? 52 : 42} />
               <Text style={[styles.name, !wide && styles.namePhone]}>{row.name}</Text>
             </View>
             <Text style={[styles.price, !wide && styles.pricePhone]}>{format(shown)}</Text>
@@ -306,7 +301,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   rangeTextActive: { color: colors.onBrand },
-  note: { color: colors.faint, fontFamily: font.body, fontSize: 12, lineHeight: 18 },
   columns: { borderTopColor: colors.line, borderTopWidth: 1, gap: 28, paddingTop: 24 },
   columnsWide: { flexDirection: 'row', gap: 56 },
   about: { gap: 10 },

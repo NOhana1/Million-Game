@@ -15,6 +15,8 @@ export type Range = (typeof RANGES)[number];
 export type PricePoint = { at: number; price: number };
 export type RangeHistory = { range: Range; gameStartedAt: number; points: PricePoint[] };
 
+export type News = { source: string; headlines: { title: string; link: string }[] };
+
 export type WorldData = {
   worldTime: number;
   clock: { speed: number; paused: boolean };
@@ -113,6 +115,7 @@ export const api = {
   history: (id: string, range: Range) =>
     call<RangeHistory>('GET', `/market/${id}/history?range=${range}`),
   sparks: () => call<Record<string, number[]>>('GET', '/market/sparks'),
+  news: () => call<News>('GET', '/news'),
   me: (token: string) => call<Me>('GET', '/me', { token }),
   orders: (token: string) =>
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),

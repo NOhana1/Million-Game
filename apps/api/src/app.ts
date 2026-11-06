@@ -8,6 +8,7 @@ import type { PriceFeed } from './market/feed.ts';
 import { clockRoutes } from './routes/clock.ts';
 import { leagueRoutes } from './routes/league.ts';
 import { marketRoutes } from './routes/market.ts';
+import { newsRoutes } from './routes/news.ts';
 import { orderRoutes } from './routes/orders.ts';
 import { playerRoutes } from './routes/players.ts';
 import { tickRoutes } from './routes/tick.ts';
@@ -22,6 +23,7 @@ export type Deps = {
   now: () => number; // real time
   tickSecret: string;
   clockSecret: string;
+  fetchFeed?: typeof fetch; // tests pass their own
 };
 
 export function createApp(deps: Deps) {
@@ -41,6 +43,7 @@ export function createApp(deps: Deps) {
   app.get('/health', (c) => c.json({ ok: true, version: deps.version, environment: deps.environment }));
 
   app.route('/', marketRoutes(deps));
+  app.route('/', newsRoutes(deps));
   app.route('/', playerRoutes(deps));
   app.route('/', orderRoutes(deps));
   app.route('/', leagueRoutes(deps));

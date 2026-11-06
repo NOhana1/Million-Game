@@ -13,7 +13,10 @@ import {
   ViewStyle,
 } from 'react-native';
 
+import Svg, { Circle, Path, Rect } from 'react-native-svg';
+
 import { colors } from './palette';
+import { SECURITY_ICONS } from './security-icons';
 
 export { colors };
 
@@ -98,16 +101,50 @@ export function SectionTitle({ children }: { children: ReactNode }) {
   return <Text style={styles.sectionTitle}>{children}</Text>;
 }
 
-/** A security's monogram, set like a stamp on a certificate. */
-export function Tile({ name, size = 40 }: { name: string; sector?: string; size?: number }) {
+/** A security's letters, with its symbol as a small gold seal on the corner. */
+export function Tile({
+  id,
+  name,
+  size = 40,
+}: {
+  id: string;
+  name: string;
+  sector?: string;
+  size?: number;
+}) {
   const initials = name
     .split(' ')
     .slice(0, 2)
     .map((word) => word[0])
     .join('');
+  const seal = Math.round(size * 0.52);
+  const parts = SECURITY_ICONS[id] ?? [];
   return (
     <View style={[styles.tile, { height: size, width: size }]}>
-      <Text style={[styles.tileText, { fontSize: size * 0.38 }]}>{initials}</Text>
+      <Text style={[styles.tileText, { fontSize: size * 0.36 }]}>{initials}</Text>
+      {parts.length > 0 ? (
+        <View style={[styles.seal, { borderRadius: seal / 2, height: seal, width: seal }]}>
+          <Svg
+            width={seal * 0.68}
+            height={seal * 0.68}
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke={colors.onBrand}
+            strokeWidth={2.2}
+            strokeLinecap="round"
+            strokeLinejoin="round">
+            {parts.map((part, index) =>
+              'd' in part ? (
+                <Path key={index} d={part.d} />
+              ) : 'r' in part ? (
+                <Circle key={index} {...part} />
+              ) : (
+                <Rect key={index} {...part} />
+              ),
+            )}
+          </Svg>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -237,7 +274,17 @@ const styles = StyleSheet.create({
     flexShrink: 0,
     justifyContent: 'center',
   },
-  tileText: { color: colors.brand, fontFamily: font.display, fontWeight: '500' },
+  tileText: { color: colors.ink, fontFamily: font.display, fontWeight: '500' },
+  seal: {
+    alignItems: 'center',
+    backgroundColor: colors.brand,
+    borderColor: colors.page,
+    borderWidth: 1.5,
+    bottom: -6,
+    justifyContent: 'center',
+    position: 'absolute',
+    right: -6,
+  },
   field: { gap: 6 },
   label: { color: colors.onDeep, fontFamily: font.body, fontSize: 13, fontWeight: '500' },
   input: {

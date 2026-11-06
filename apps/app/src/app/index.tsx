@@ -10,6 +10,7 @@ import { MarketCompare, WeekResult } from '@/components/league-cards';
 import { OrderTicket } from '@/components/order-ticket';
 import { RecapCard } from '@/components/recap-card';
 import { Spark } from '@/components/spark';
+import { NewsStrip } from '@/components/news-strip';
 import { Ticker } from '@/components/ticker';
 import {
   changeColor,
@@ -128,7 +129,7 @@ function SecurityRow({
         accessibilityLabel={`Open ${item.name}`}
         onPress={() => openPage(item.id)}
         style={({ pressed }) => [styles.rowLink, pressed && styles.pressed]}>
-        <Tile name={item.name} size={wide ? 42 : 38} />
+        <Tile id={item.id} name={item.name} size={wide ? 42 : 38} />
         <View style={styles.names}>
           <Text style={styles.name} numberOfLines={1} {...namePart}>
             {item.name}
@@ -207,6 +208,7 @@ export default function MarketScreen() {
   return (
     <View style={styles.page}>
       <Ticker market={market} />
+      <NewsStrip />
       {/* On a phone the cash sits outside the scrolling part, so it stays in view. */}
       {wide ? null : cash}
       <Page>

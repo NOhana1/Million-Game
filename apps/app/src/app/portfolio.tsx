@@ -48,7 +48,7 @@ function OrderRow({ order }: { order: Order }) {
     : `Filled ${formatWorldTime(order.fill?.at ?? 0)} · ${toUnits(order.fill?.units ?? 0).toFixed(3)} units${refundText(order)}`;
   return (
     <View style={styles.row}>
-      {row ? <Tile name={row.name} sector={row.sector} size={36} /> : null}
+      {row ? <Tile id={row.id} name={row.name} sector={row.sector} size={36} /> : null}
       <View style={styles.flex}>
         <Text style={styles.name}>
           {order.side === 'buy' ? 'Buy' : 'Sell'} {row?.name ?? order.securityId}
@@ -101,7 +101,7 @@ export default function PortfolioScreen() {
               const body = (
                 <>
                   <View style={[styles.dot, { backgroundColor: slice.color }]} />
-                  {row ? <Tile name={row.name} sector={row.sector} size={36} /> : null}
+                  {row ? <Tile id={row.id} name={row.name} sector={row.sector} size={36} /> : null}
                   <View style={styles.flex}>
                     <Text style={styles.name}>{slice.label}</Text>
                     <Text style={styles.meta}>

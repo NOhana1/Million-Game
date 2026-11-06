@@ -32,7 +32,8 @@ ${staggered}
 
 @keyframes tape { to { transform: translateX(-50%); } }
 [data-tape] { animation: tape 70s linear infinite; }
-[data-tape]:hover { animation-play-state: paused; }
+[data-news] { animation: tape 130s linear infinite; }
+[data-tape]:hover, [data-news]:hover { animation-play-state: paused; }
 
 @keyframes breathe { 50% { opacity: .35; } }
 [data-breathe] { animation: breathe 1.4s ease-in-out infinite; }
@@ -58,6 +59,6 @@ ${staggered}
 @media (prefers-reduced-motion: reduce) {
   [data-hover], [data-hover] *, input { transition: none; }
   [data-hover]:hover { transform: none !important; }
-  [data-rise] > *, [data-tape], [data-breathe] { animation: none; }
+  [data-rise] > *, [data-tape], [data-news], [data-breathe] { animation: none; }
 }
 `;
