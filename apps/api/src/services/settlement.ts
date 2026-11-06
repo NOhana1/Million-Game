@@ -21,6 +21,7 @@ export type SettlementResult = {
   cursor: number;
   filled: number;
   failed: number;
+  slots: number[]; // each market open and close finished by this run, in the order it did them
 };
 
 type Run = { deps: Deps; deadline: number; filled: number; failed: Set<string> };
@@ -75,16 +76,17 @@ export async function settle(deps: Deps, budgetMs = BUDGET_MS): Promise<Settleme
   // Most runs find nothing to do, and this check keeps those from costing any writes.
   const slotDue = nextMarketEvent(saved) <= world;
   if (!slotDue && (await store.duePlayers(saved, 1)).length === 0) {
-    return { status: 'idle', cursor: saved, filled: 0, failed: 0 };
+    return { status: 'idle', cursor: saved, filled: 0, failed: 0, slots: [] };
   }
 
   const owner = randomUUID();
   const start = await store.startSettlement({ owner, realNow: startedAt, ttlMs: LEASE_MS });
-  if (start === null) return { status: 'busy', cursor: saved, filled: 0, failed: 0 };
+  if (start === null) return { status: 'busy', cursor: saved, filled: 0, failed: 0, slots: [] };
 
   const run: Run = { deps, deadline: startedAt + budgetMs, filled: 0, failed: new Set() };
   let cursor = start;
   let finished = false;
+  const slots: number[] = [];
   try {
     // Orders that arrived just as their slot was being processed.
     finished = await fillDue(run, cursor);
@@ -105,7 +107,10 @@ export async function settle(deps: Deps, budgetMs = BUDGET_MS): Promise<Settleme
       const save = finishSlot(deps.feed, shards, changed, slot, previousWeek);
       previousWeek = save.table?.previousWeekEndsAt ?? null;
       finished = await store.saveSlot(owner, slot, save);
-      if (finished) cursor = slot;
+      if (finished) {
+        cursor = slot;
+        slots.push(slot);
+      }
     }
   } finally {
     await store.endSettlement(owner);
@@ -116,5 +121,6 @@ export async function settle(deps: Deps, budgetMs = BUDGET_MS): Promise<Settleme
     cursor,
     filled: run.filled,
     failed: run.failed.size,
+    slots,
   };
 }

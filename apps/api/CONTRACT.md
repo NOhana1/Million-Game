@@ -81,7 +81,7 @@ Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, st
 
 | Method and path | Sign-in | Purpose |
 |---|---|---|
-| `POST /tick` | `Bearer <TICK_SECRET>` | Fills due orders. Called by the cron, never by the app |
+| `POST /tick` | `Bearer <TICK_SECRET>` | Fills due orders. Called by the cron, never by the app. Returns `{ status, cursor, filled, failed, slots }`, where `slots` lists each market open and close it finished, oldest first |
 | `POST /admin/clock` | `Bearer <CLOCK_SECRET>` | Moves the clock, then fills what became due. Returns `{ worldTime, clock, settlement }` |
 
 Bodies for `POST /admin/clock`:

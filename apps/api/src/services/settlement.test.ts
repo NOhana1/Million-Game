@@ -244,6 +244,9 @@ describe('missed runs', () => {
     assert.equal(result.status, 'finished');
     assert.ok(result.cursor <= END);
     assert.ok(result.cursor > TASE_CLOSE);
+    assert.ok(result.slots.length > 1);
+    assert.deepEqual(result.slots, result.slots.toSorted((x, y) => x - y));
+    assert.equal(result.slots.at(-1), result.cursor);
   });
 
   it('stops when out of time, and the next run resumes where it stopped', async () => {

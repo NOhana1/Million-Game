@@ -1,0 +1,33 @@
+# Backup alarm for the real game. cron-job.org knocks every minute. This knocks about every
+# 15 minutes in case that fails. It does nothing until LIVE_TICK_SECRET is set in GitHub.
+
+name: Backup alarm
+
+on:
+  schedule:
+    - cron: '7,22,37,52 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: backup-alarm
+
+jobs:
+  knock:
+    name: Knock on the alarm door
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TICK_SECRET: ${{ secrets.LIVE_TICK_SECRET }}
+    steps:
+      - name: Fill what is due
+        run: |
+          if [ -z "$TICK_SECRET" ]; then
+            echo "Switched off: LIVE_TICK_SECRET is not set."
+            exit 0
+          fi
+          curl --fail --silent --show-error --max-time 40 --request POST \
+            --header "Authorization: Bearer $TICK_SECRET" \
+            https://million-game-three.vercel.app/api/tick
