@@ -5,6 +5,7 @@ import { FirebaseError, initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
@@ -52,6 +53,16 @@ export async function logIn(email: string, password: string) {
   if (firebase) await signInWithEmailAndPassword(firebase, email, password);
 }
 
+/** Firebase emails a reset link. An unknown email looks the same, so nobody can test who plays. */
+export async function resetPassword(email: string) {
+  if (!firebase) return;
+  try {
+    await sendPasswordResetEmail(firebase, email);
+  } catch (error) {
+    if (!(error instanceof FirebaseError && error.code === 'auth/user-not-found')) throw error;
+  }
+}
+
 export async function logOut() {
   if (firebase) await signOut(firebase);
   else storage()?.removeItem(KEY);
@@ -60,7 +71,7 @@ export async function logOut() {
 const SIGN_IN_PROBLEMS: Record<string, string> = {
   'auth/email-already-in-use': 'That email already has an account. Try signing in.',
   'auth/invalid-email': 'That email doesn’t look right.',
-  'auth/weak-password': 'Use a password of at least 6 characters.',
+  'auth/weak-password': 'Use a password of at least 8 characters.',
   'auth/invalid-credential': 'That email or password isn’t right.',
   'auth/too-many-requests': 'Too many attempts. Please wait a little and try again.',
   'auth/network-request-failed': 'Can’t reach the server. Please try again.',

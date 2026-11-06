@@ -44,7 +44,7 @@ export function OrderTicket({
 
   if (!me || !market || !world) return null;
 
-  const amount = Number(text.replace(/,/g, ''));
+  const amount = Number(text);
   const limit = maxOrderAmount(me, market, security, side);
   const problem = orderProblem(me, market, security, side, amount);
   const open = world.markets[security.market].open;
@@ -55,8 +55,9 @@ export function OrderTicket({
       ? `You can spend ${ils(toShekels(me.cash))}`
       : `You hold ${ils(toShekels(held?.value ?? 0))}`;
 
+  // Whole shekels only. Cutting at the dot first keeps a pasted 12.50 from becoming 1250.
   const setAmount = (value: string) => {
-    setText(value);
+    setText(value.split('.')[0].replace(/\D/g, ''));
     changeOrder();
   };
 
@@ -125,7 +126,7 @@ export function OrderTicket({
             <TextInput
               accessibilityLabel="Amount in shekels"
               autoFocus
-              inputMode="decimal"
+              inputMode="numeric"
               onChangeText={setAmount}
               placeholder="0"
               placeholderTextColor={colors.muted}
