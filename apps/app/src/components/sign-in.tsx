@@ -1,18 +1,13 @@
+import { DIVISIONS } from '@portfolio-league/engine';
 import { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { resetPassword, signInProblem, usesAccounts } from '@/api/session';
 import { useGame } from '@/game/store';
 
-import { Button, Card, colors, Field, font, Segments, Tile, useWide } from './ui';
-
-const SAMPLE_TILES = [
-  { name: 'Tel Aviv', sector: 'Fund' },
-  { name: 'Sharon Bank', sector: 'Banks' },
-  { name: 'Negev Solar', sector: 'Energy' },
-  { name: 'Arava Pharma', sector: 'Health' },
-  { name: 'HaGalil Foods', sector: 'Consumer' },
-];
+import { Brand } from './world-bar';
+import { DivisionTag } from './division-badge';
+import { Button, Card, colors, Field, font, Segments, useWide } from './ui';
 
 type Mode = 'create' | 'signIn' | 'reset';
 
@@ -77,15 +72,15 @@ export function SignIn() {
     <ScrollView style={styles.page} contentContainerStyle={styles.content}>
       <View style={[styles.layout, wide && styles.layoutWide]}>
         <View style={[styles.intro, wide && styles.half]}>
-          <Text style={styles.brand}>Portfolio League</Text>
+          <Brand />
           <Text style={styles.money}>₪1,000,000</Text>
           <Text style={styles.lead}>
             Virtual money, real competition. Trade Tel Aviv and US securities and climb the weekly
             table.
           </Text>
-          <View style={styles.tiles}>
-            {SAMPLE_TILES.map((tile) => (
-              <Tile key={tile.name} {...tile} />
+          <View style={styles.badges}>
+            {DIVISIONS.map((division) => (
+              <DivisionTag key={division} onDark division={division} size={26} />
             ))}
           </View>
         </View>
@@ -188,29 +183,29 @@ export function SignIn() {
 }
 
 const styles = StyleSheet.create({
-  page: { backgroundColor: colors.plum, flex: 1 },
+  page: { backgroundColor: colors.deep, flex: 1 },
   content: { alignItems: 'center', flexGrow: 1, justifyContent: 'center', padding: 20 },
-  layout: { gap: 24, maxWidth: 420, width: '100%' },
-  layoutWide: { alignItems: 'center', flexDirection: 'row', gap: 56, maxWidth: 920 },
+  layout: { gap: 28, maxWidth: 420, width: '100%' },
+  layoutWide: { alignItems: 'center', flexDirection: 'row', gap: 72, maxWidth: 960 },
   half: { flex: 1 },
-  intro: { gap: 8, width: '100%' },
-  brand: { color: colors.sun, fontFamily: font.display, fontSize: 24, fontWeight: '700' },
+  intro: { gap: 10, width: '100%' },
   money: {
     color: '#FFFFFF',
     fontFamily: font.display,
-    fontSize: 58,
-    fontWeight: '600',
-    lineHeight: 66,
+    fontSize: 60,
+    fontWeight: '500',
+    lineHeight: 70,
+    marginTop: 14,
   },
-  lead: { color: colors.onPlum, fontFamily: font.body, fontSize: 17, lineHeight: 25 },
-  tiles: { flexDirection: 'row', gap: 8, marginTop: 10 },
-  card: { borderRadius: 28, gap: 14, padding: 20, width: '100%' },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '600' },
+  lead: { color: colors.onDeep, fontFamily: font.body, fontSize: 17, lineHeight: 26 },
+  badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 14 },
+  card: { borderRadius: 12, borderWidth: 0, gap: 14, padding: 28, width: '100%' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
   rules: { gap: 4 },
   rule: { color: colors.muted, fontFamily: font.body, fontSize: 14 },
   ruleMet: { color: colors.up, fontWeight: '600' },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   notice: { color: colors.up, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   link: { alignItems: 'center', paddingVertical: 4 },
-  linkText: { color: colors.brand, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  linkText: { color: colors.muted, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
 });

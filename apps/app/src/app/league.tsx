@@ -1,20 +1,21 @@
-import { divisionMoves, DIVISIONS } from '@portfolio-league/engine';
+import { type Division, divisionMoves, DIVISIONS, MOVE_PERCENT } from '@portfolio-league/engine';
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { LeagueRow, LeagueTable } from '@/api/client';
+import { DivisionBadge, DivisionTag } from '@/components/division-badge';
 import { TopThree } from '@/components/league-cards';
 import {
   Card,
   changeColor,
   colors,
-  DivisionTag,
   font,
   Hero,
   Page,
   percent,
   Segments,
+  useWide,
 } from '@/components/ui';
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { useLeague } from '@/game/use-league';
@@ -25,7 +26,7 @@ const BOT_SUFFIX = / \(bot\)$/; // the tag below always shows, however narrow th
 const PODIUM = 3;
 
 type Week = 'this' | 'last';
-type Shown = 'division' | 'everyone';
+type Shown = Division | 'everyone';
 type Move = 'up' | 'down' | null;
 
 const MOVE_TEXT = { up: '▲ Moving up', down: '▼ Moving down' };
@@ -47,6 +48,58 @@ function movesOf(table: LeagueTable, finished: boolean) {
   };
 }
 
+/** Says in plain words what this week's place means for the player's division. */
+function standingText(table: LeagueTable, mine: LeagueRow, move: Move) {
+  const group = table.rows.filter((row) => row.division === mine.division);
+  const place = group.findIndex((row) => row.id === mine.id) + 1;
+  const label = DIVISION_LABEL[mine.division];
+  const next = DIVISIONS[DIVISIONS.indexOf(mine.division) + 1];
+  const lower = DIVISIONS[DIVISIONS.indexOf(mine.division) - 1];
+  const start = `You’re #${place} of ${group.length} in ${label}.`;
+  if (move === 'up') return `${start} If the week ended now, you’d move up to ${DIVISION_LABEL[next]}.`;
+  if (move === 'down') return `${start} If the week ended now, you’d drop to ${DIVISION_LABEL[lower]}.`;
+  if (!next) return `${start} This is the top division. Stay out of the bottom ${MOVE_PERCENT}%.`;
+  const places = Math.ceil((group.length * MOVE_PERCENT) / 100);
+  return `${start} Finish in the top ${places} to move up to ${DIVISION_LABEL[next]}.`;
+}
+
+/** The four stages, lowest first. Pressing one shows who is in it. */
+function Ladder({
+  table,
+  mine,
+  shown,
+  onShow,
+}: {
+  table: LeagueTable;
+  mine?: LeagueRow;
+  shown: Shown;
+  onShow: (shown: Shown) => void;
+}) {
+  return (
+    <View style={styles.ladder}>
+      {DIVISIONS.map((division) => {
+        const players = table.rows.filter((row) => row.division === division).length;
+        const active = shown === division;
+        return (
+          <Pressable
+            key={division}
+            accessibilityRole="button"
+            accessibilityLabel={`Show the ${DIVISION_LABEL[division]} division`}
+            accessibilityState={{ selected: active }}
+            onPress={() => onShow(division)}
+            style={[styles.step, active && styles.stepActive]}>
+            <DivisionBadge division={division} size={38} />
+            <Text style={styles.stepName}>{DIVISION_LABEL[division]}</Text>
+            <Text style={styles.stepCount}>
+              {mine?.division === division ? 'You’re here' : `${players} ${players === 1 ? 'player' : 'players'}`}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 function Row({
   row,
   place,
@@ -58,13 +111,20 @@ function Row({
   move: Move;
   isMe: boolean;
 }) {
+  const wide = useWide();
   const returnPct = row.returnPpm / PPM_PER_PERCENT;
-  const podium = place <= PODIUM;
+  const fall = `${(row.maxFallPpm / PPM_PER_PERCENT).toFixed(2)}%`;
   return (
     <View style={[styles.row, isMe && styles.me]}>
-      <View style={[styles.rank, podium && styles.rankPodium]}>
-        <Text style={styles.rankText}>{place}</Text>
-      </View>
+      <Text style={[styles.rank, place <= PODIUM && styles.rankPodium]}>{place}</Text>
+      {wide ? (
+        <DivisionBadge division={row.division} size={26} />
+      ) : (
+        <View style={styles.badgeBox}>
+          <DivisionBadge division={row.division} size={24} />
+          <Text style={styles.badgeName}>{DIVISION_LABEL[row.division]}</Text>
+        </View>
+      )}
       <View style={styles.player}>
         <View style={styles.nameLine}>
           <Text style={styles.name} numberOfLines={1}>
@@ -73,28 +133,49 @@ function Row({
           </Text>
           {row.bot ? <Text style={styles.botTag}>bot</Text> : null}
         </View>
-        <Text style={styles.meta}>
-          <Text style={[styles.strong, { color: changeColor(returnPct) }]}>{percent(returnPct)}</Text>
-          {'  '}Max fall {(row.maxFallPpm / PPM_PER_PERCENT).toFixed(2)}%
-        </Text>
+        {wide ? null : (
+          <Text style={styles.meta}>
+            <Text style={[styles.strong, { color: changeColor(returnPct) }]}>{percent(returnPct)}</Text>
+            {'  '}Max fall {fall}
+          </Text>
+        )}
         {move ? (
           <Text style={[styles.meta, styles.strong, { color: changeColor(move === 'up' ? 1 : -1) }]}>
             {MOVE_TEXT[move]}
           </Text>
         ) : null}
       </View>
-      <View style={styles.scoreBox}>
-        <Text style={styles.score}>{row.score.toFixed(0)}</Text>
-        <Text style={styles.scoreLabel}>score</Text>
-      </View>
+      {wide ? (
+        <>
+          <Text style={[styles.cell, styles.cellDivision]}>{DIVISION_LABEL[row.division]}</Text>
+          <Text style={[styles.cell, styles.strong, { color: changeColor(returnPct) }]}>
+            {percent(returnPct)}
+          </Text>
+          <Text style={styles.cell}>{fall}</Text>
+        </>
+      ) : null}
+      <Text style={[styles.score, !wide && styles.scorePhone]}>{row.score.toFixed(0)}</Text>
+    </View>
+  );
+}
+
+function TableHead() {
+  return (
+    <View style={styles.head}>
+      <Text style={[styles.headText, styles.headPlayer]}>Player</Text>
+      <Text style={[styles.headText, styles.cellDivision]}>Division</Text>
+      <Text style={[styles.headText, styles.headCell]}>Return</Text>
+      <Text style={[styles.headText, styles.headCell]}>Max fall</Text>
+      <Text style={[styles.headText, styles.headScore]}>Score</Text>
     </View>
   );
 }
 
 export default function LeagueScreen() {
   const { me } = useGame();
+  const wide = useWide();
   const [week, setWeek] = useState<Week>('this');
-  const [shown, setShown] = useState<Shown>('division');
+  const [picked, setPicked] = useState<Shown | null>(null);
   const { table: current, previous, failed } = useLeague();
 
   if (!current) {
@@ -112,29 +193,55 @@ export default function LeagueScreen() {
   const table = week === 'last' && previous ? previous : current;
   const finished = table === previous;
   const mine = table.rows.find((row) => row.id === me?.uid);
-  const byDivision = shown === 'division' && mine;
-  const rows = byDivision ? table.rows.filter((r) => r.division === mine.division) : table.rows;
+  const shown = picked ?? mine?.division ?? 'everyone';
+  const byDivision = shown !== 'everyone';
+  const rows = byDivision ? table.rows.filter((r) => r.division === shown) : table.rows;
   const moveOf = movesOf(table, finished);
 
   return (
-    <Page maxWidth={720}>
+    <Page maxWidth={880}>
       <Hero style={styles.hero}>
-        <Text style={styles.heroLabel}>{week === 'last' ? 'Last week' : 'This week'}</Text>
-        <Text style={styles.heroTitle}>
-          {mine ? `You’re #${mine.rank} of ${table.total}` : 'You’re not on the table yet'}
-        </Text>
-        {mine ? (
-          <View style={styles.heroTag}>
-            <DivisionTag division={mine.division} label={DIVISION_LABEL[mine.division]} />
-          </View>
-        ) : null}
-        <Text style={styles.heroLabel}>
-          {mine || week === 'last'
-            ? 'Score: 85% return rank, 15% stability rank. When the week ends, the top 25% of each division move up and the bottom 25% move down.'
-            : 'Hold a security this week to join. The table updates at each market open and close.'}
-        </Text>
-        {week === 'this' && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
+        <View style={styles.heroText}>
+          <Text style={styles.heroLabel}>{week === 'last' ? 'Last week' : 'This week'}</Text>
+          <Text style={[styles.heroTitle, !wide && styles.heroTitlePhone]}>
+            {mine ? `${DIVISION_LABEL[mine.division]} division` : 'You’re not on the table yet'}
+          </Text>
+          {mine ? (
+            <Text style={styles.heroStrong}>
+              #{mine.rank} of {table.total} overall
+            </Text>
+          ) : (
+            <Text style={styles.heroLabel}>
+              Hold a security this week to join. The table updates at each market open and close.
+            </Text>
+          )}
+          {week === 'this' && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
+        </View>
+        {mine ? <DivisionBadge division={mine.division} size={wide ? 92 : 60} /> : null}
       </Hero>
+
+      <Card style={styles.divisions}>
+        <View style={styles.divisionsTop}>
+          <Text style={styles.title}>Divisions</Text>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ selected: shown === 'everyone' }}
+            onPress={() => setPicked('everyone')}>
+            <Text style={[styles.everyone, shown === 'everyone' && styles.everyoneActive]}>
+              Show everyone
+            </Text>
+          </Pressable>
+        </View>
+        <Ladder table={table} mine={mine} shown={shown} onShow={setPicked} />
+        {mine && week === 'this' ? (
+          <Text style={styles.standing}>{standingText(table, mine, moveOf(mine))}</Text>
+        ) : null}
+        <Text style={styles.meta}>
+          Your score is 85% return rank and 15% stability rank. When the week ends, the top 25% of
+          each division move up and the bottom 25% move down. A new week starts everyone’s score
+          again, but your division stays.
+        </Text>
+      </Card>
 
       <TopThree previous={previous} />
 
@@ -149,28 +256,22 @@ export default function LeagueScreen() {
         />
       ) : null}
 
-      {mine ? (
-        <Segments
-          value={shown}
-          onChange={setShown}
-          options={[
-            { value: 'division', label: `${DIVISION_LABEL[mine.division]} division` },
-            { value: 'everyone', label: 'Everyone' },
-          ]}
-        />
-      ) : null}
-
       {table.rows.length === 0 ? (
         <Card>
           <Text style={styles.meta}>The table starts at the next market open.</Text>
         </Card>
+      ) : rows.length === 0 ? (
+        <Card>
+          <Text style={styles.meta}>Nobody is in this division yet.</Text>
+        </Card>
       ) : (
         <View style={styles.rows}>
-          {rows.map((row, index) => (
+          {wide ? <TableHead /> : null}
+          {rows.map((row) => (
             <Row
               key={row.id}
               row={row}
-              place={byDivision ? index + 1 : row.rank}
+              place={byDivision ? rows.indexOf(row) + 1 : row.rank}
               move={moveOf(row)}
               isMe={row.id === me?.uid}
             />
@@ -190,33 +291,81 @@ export default function LeagueScreen() {
   );
 }
 
+const CELL = 84;
+const SCORE = 56;
+const LEAD = 70; // the place number and the trophy before each name
+
 const styles = StyleSheet.create({
   loading: { backgroundColor: colors.page, flex: 1, padding: 16 },
-  hero: { gap: 4 },
-  heroLabel: { color: colors.onPlum, fontFamily: font.body, fontSize: 14, lineHeight: 20 },
-  heroTitle: { color: '#FFFFFF', fontFamily: font.display, fontSize: 32, fontWeight: '600' },
-  heroTag: { flexDirection: 'row', marginVertical: 4 },
-  heroStrong: { color: '#FFFFFF', fontFamily: font.body, fontSize: 14, fontWeight: '600' },
-  rows: { gap: 8 },
-  row: {
+  hero: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between' },
+  heroText: { flex: 1, gap: 4, minWidth: 0 },
+  heroLabel: { color: colors.onDeep, fontFamily: font.body, fontSize: 14, lineHeight: 20 },
+  heroTitle: { color: '#FFFFFF', fontFamily: font.display, fontSize: 34, fontWeight: '500' },
+  heroTitlePhone: { fontSize: 28 },
+  heroStrong: { color: '#FFFFFF', fontFamily: font.body, fontSize: 14, fontWeight: '500' },
+  divisions: { gap: 14 },
+  divisionsTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
+  everyone: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
+  everyoneActive: { color: colors.ink, fontWeight: '600', textDecorationLine: 'underline' },
+  ladder: { flexDirection: 'row', gap: 6 },
+  step: {
     alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flex: 1,
+    gap: 3,
+    minWidth: 0,
+    paddingHorizontal: 2,
+    paddingVertical: 12,
+  },
+  stepActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  stepName: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  stepCount: { color: colors.muted, fontFamily: font.body, fontSize: 12, textAlign: 'center' },
+  standing: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500', lineHeight: 22 },
+  rows: {
     backgroundColor: colors.card,
-    borderRadius: 18,
+    borderColor: colors.line,
+    borderRadius: 10,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  head: {
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     gap: 10,
-    padding: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  headText: { color: colors.muted, fontFamily: font.body, fontSize: 12, fontWeight: '500' },
+  headPlayer: { flex: 1, paddingLeft: LEAD },
+  headCell: { textAlign: 'right', width: CELL },
+  headScore: { textAlign: 'right', width: SCORE },
+  row: {
+    alignItems: 'center',
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    gap: 10,
+    minHeight: 56,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
   },
   me: { backgroundColor: colors.brandSoft },
   rank: {
-    alignItems: 'center',
-    backgroundColor: colors.page,
-    borderRadius: 12,
-    height: 40,
-    justifyContent: 'center',
-    width: 40,
+    color: colors.muted,
+    fontFamily: font.body,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '500',
+    textAlign: 'right',
+    width: 24,
   },
-  rankPodium: { backgroundColor: colors.sun },
-  rankText: { color: colors.ink, fontFamily: font.display, fontSize: 17, fontWeight: '700' },
+  rankPodium: { color: colors.brassInk, fontWeight: '600' },
+  badgeBox: { alignItems: 'center', gap: 1, width: 42 },
+  badgeName: { color: colors.muted, fontFamily: font.body, fontSize: 11, fontWeight: '500' },
   player: { flex: 1, minWidth: 0 },
   nameLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
   name: {
@@ -224,7 +373,7 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     fontFamily: font.body,
     fontSize: 15,
-    fontWeight: '600',
+    fontWeight: '500',
   },
   botTag: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
   meta: {
@@ -232,17 +381,27 @@ const styles = StyleSheet.create({
     fontFamily: font.body,
     fontSize: 13,
     fontVariant: ['tabular-nums'],
-    marginTop: 2,
+    lineHeight: 19,
   },
   strong: { fontWeight: '600' },
-  scoreBox: { alignItems: 'flex-end', minWidth: 44 },
-  score: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '600' },
-  scoreLabel: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
-  link: {
-    color: colors.brand,
+  cell: {
+    color: colors.ink,
     fontFamily: font.body,
     fontSize: 14,
-    fontWeight: '600',
-    marginTop: 8,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'right',
+    width: CELL,
   },
+  cellDivision: { textAlign: 'left', width: CELL },
+  score: {
+    color: colors.ink,
+    fontFamily: font.body,
+    fontSize: 16,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    textAlign: 'right',
+    width: SCORE,
+  },
+  scorePhone: { width: 32 },
+  link: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
 });

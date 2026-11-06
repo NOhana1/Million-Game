@@ -6,7 +6,7 @@ import { OrderTicket } from '@/components/order-ticket';
 import {
   Button,
   Card,
-  changeColorOnPlum,
+  changeColorOnDeep,
   colors,
   font,
   Hero,
@@ -77,6 +77,20 @@ export default function PortfolioScreen() {
     <View style={side}>
       <SectionTitle>Holdings</SectionTitle>
       <Card style={styles.list}>
+        {me.positions.length > 0 ? (
+          <View style={styles.bar}>
+            {me.positions.map(({ securityId, value }) => (
+              <View
+                key={securityId}
+                style={{
+                  backgroundColor: sectorColor(findRow(market, securityId)?.sector ?? ''),
+                  flex: value,
+                }}
+              />
+            ))}
+            <View style={[styles.barCash, { flex: me.cash + me.reserved }]} />
+          </View>
+        ) : null}
         {me.positions.length === 0 ? (
           <Text style={styles.empty}>No holdings yet. Buy something from the Market tab.</Text>
         ) : (
@@ -135,22 +149,9 @@ export default function PortfolioScreen() {
         <Hero style={styles.hero}>
           <Text style={styles.heroLabel}>Portfolio value</Text>
           <Text style={styles.total}>{ils(total)}</Text>
-          <Text style={[styles.change, { color: changeColorOnPlum(change) }]}>
+          <Text style={[styles.change, { color: changeColorOnDeep(change) }]}>
             {percent(change)} since you started
           </Text>
-
-          <View style={styles.bar}>
-            {me.positions.map(({ securityId, value }) => (
-              <View
-                key={securityId}
-                style={{
-                  backgroundColor: sectorColor(findRow(market, securityId)?.sector ?? ''),
-                  flex: value,
-                }}
-              />
-            ))}
-            <View style={[styles.barCash, { flex: me.cash + me.reserved }]} />
-          </View>
 
           <View style={styles.split}>
             <View>
@@ -188,48 +189,48 @@ const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
   hero: { gap: 2 },
-  heroLabel: { color: colors.onPlum, fontFamily: font.body, fontSize: 14 },
+  heroLabel: { color: colors.onDeep, fontFamily: font.body, fontSize: 14 },
   heroNumber: {
     color: '#FFFFFF',
     fontFamily: font.body,
     fontSize: 16,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 2,
   },
   total: {
     color: '#FFFFFF',
     fontFamily: font.display,
-    fontSize: 46,
+    fontSize: 44,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-    lineHeight: 54,
+    fontWeight: '500',
+    lineHeight: 52,
   },
-  change: { fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  change: { fontFamily: font.body, fontSize: 15, fontWeight: '500' },
   bar: {
-    backgroundColor: colors.plumSoft,
-    borderRadius: 6,
+    borderRadius: 3,
     flexDirection: 'row',
     gap: 2,
-    height: 12,
-    marginTop: 14,
+    height: 8,
+    marginBottom: 8,
+    marginTop: 8,
     overflow: 'hidden',
   },
-  barCash: { backgroundColor: colors.plumSoft },
-  split: { columnGap: 28, flexDirection: 'row', flexWrap: 'wrap', marginTop: 14, rowGap: 10 },
-  columns: { alignItems: 'flex-start', flexDirection: 'row', gap: 16 },
+  barCash: { backgroundColor: colors.line },
+  split: { columnGap: 36, flexDirection: 'row', flexWrap: 'wrap', marginTop: 16, rowGap: 10 },
+  columns: { alignItems: 'flex-start', flexDirection: 'row', gap: 24 },
   column: { gap: 10, width: '100%' },
-  list: { paddingVertical: 6 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingVertical: 9 },
-  name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  list: { paddingHorizontal: 16, paddingVertical: 6 },
+  row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingVertical: 10 },
+  name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13, marginTop: 2 },
   number: {
     color: colors.ink,
     fontFamily: font.body,
     fontSize: 15,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
   },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 14, paddingVertical: 10 },
-  signOut: { marginTop: 12 },
+  signOut: { alignSelf: 'flex-start', marginTop: 12 },
 });

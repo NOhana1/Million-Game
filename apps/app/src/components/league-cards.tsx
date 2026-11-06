@@ -2,6 +2,7 @@ import { DIVISIONS } from '@portfolio-league/engine';
 import { StyleSheet, Text, View } from 'react-native';
 
 import type { LeagueRow, LeagueTable } from '@/api/client';
+import { DivisionBadge } from '@/components/division-badge';
 import { Card, changeColor, colors, font, percent } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, indexFunds, ppmToPercent, recapFor } from '@/game/view';
@@ -22,10 +23,13 @@ export function WeekResult({ previous }: { previous: LeagueTable | null }) {
     step > 0 ? `You moved up to ${next}!` : step < 0 ? `You dropped to ${next}.` : `You stayed in ${next}.`;
   return (
     <Card style={styles.result}>
-      <Text style={styles.title}>{text}</Text>
-      <Text style={styles.meta}>
-        You finished #{row.rank} of {previous?.total} last week.
-      </Text>
+      <DivisionBadge division={row.nextDivision} size={40} />
+      <View style={styles.resultText}>
+        <Text style={styles.title}>{text}</Text>
+        <Text style={styles.meta}>
+          You finished #{row.rank} of {previous?.total} last week.
+        </Text>
+      </View>
     </Card>
   );
 }
@@ -66,7 +70,7 @@ export function MarketCompare({ table, row }: { table: LeagueTable | null; row?:
           ? `This week you’re ahead of ${beaten} of ${funds.length} index funds, all in shekels.`
           : 'Hold a security to see how you compare this week.'}
       </Text>
-      <View style={styles.line}>
+      <View style={[styles.line, styles.head]}>
         <Text style={styles.name} />
         <Text style={[styles.number, styles.meta]}>Last day</Text>
         <Text style={[styles.number, styles.meta]}>This week</Text>
@@ -91,13 +95,13 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
   return (
     <Card style={styles.card}>
       <Text style={styles.title}>Last week’s top {TOP}</Text>
+      <Text style={styles.meta}>Ranked by score, which counts stability too. The % is return.</Text>
       {previous.rows.slice(0, TOP).map((row) => {
         const value = ppmToPercent(row.returnPpm);
         return (
           <View key={row.id} style={styles.line}>
-            <View style={styles.medal}>
-              <Text style={styles.medalText}>{row.rank}</Text>
-            </View>
+            <Text style={styles.place}>{row.rank}</Text>
+            <DivisionBadge division={row.division} size={24} />
             <Text style={[styles.name, styles.strong]} numberOfLines={1}>
               {row.name.replace(BOT_SUFFIX, '')}
               {row.id === me?.uid ? ' (you)' : ''}
@@ -112,11 +116,13 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
 }
 
 const styles = StyleSheet.create({
-  card: { gap: 6 },
-  result: { backgroundColor: colors.brandSoft, gap: 2 },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 18, fontWeight: '600' },
+  card: { gap: 8 },
+  result: { alignItems: 'center', borderColor: colors.brass, flexDirection: 'row', gap: 14 },
+  resultText: { flex: 1, gap: 2 },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
-  line: { alignItems: 'center', flexDirection: 'row', gap: 8 },
+  head: { borderBottomColor: colors.line, borderBottomWidth: 1, paddingBottom: 6 },
+  line: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   name: { color: colors.ink, flex: 1, fontFamily: font.body, fontSize: 14, minWidth: 0 },
   strong: { fontWeight: '600' },
   number: {
@@ -127,13 +133,12 @@ const styles = StyleSheet.create({
     minWidth: 76,
     textAlign: 'right',
   },
-  medal: {
-    alignItems: 'center',
-    backgroundColor: colors.sun,
-    borderRadius: 10,
-    height: 28,
-    justifyContent: 'center',
-    width: 28,
+  place: {
+    color: colors.brassInk,
+    fontFamily: font.body,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    width: 14,
   },
-  medalText: { color: colors.ink, fontFamily: font.display, fontSize: 14, fontWeight: '700' },
 });
