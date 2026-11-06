@@ -1,7 +1,7 @@
 import type { Market } from '@portfolio-league/engine';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { api, LeagueRow, LeagueTable, MarketData, MarketRow } from '@/api/client';
 import { DivisionTag } from '@/components/division-badge';
@@ -32,6 +32,13 @@ import { useLeague } from '@/game/use-league';
 import { dayChange, displayFx, displayPrice, MARKET_LABEL, marketsText, toShekels } from '@/game/view';
 
 type Filter = 'all' | Market;
+type Sort = 'name' | 'gainers' | 'losers';
+
+const SORTS: Record<Sort, (a: MarketRow, b: MarketRow) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  gainers: (a, b) => dayChange(b) - dayChange(a),
+  losers: (a, b) => dayChange(a) - dayChange(b),
+};
 
 const MOVERS = 3;
 const SPARKS_EVERY_MS = 120_000;
@@ -42,13 +49,36 @@ function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }
   const { me, world } = useGame();
   const wide = useWide();
   if (!me || !world) return null;
+  const waiting = me.reserved > 0 ? (
+    <Text style={styles.heroLabel}>{ils(toShekels(me.reserved))} is waiting in your orders</Text>
+  ) : null;
+
+  // On a phone this panel never scrolls away, so it has to stay small.
+  if (!wide) {
+    return (
+      <Hero style={styles.heroPhone}>
+        <View style={styles.heroPhoneTop}>
+          <View style={styles.names}>
+            <Eyebrow>You can spend</Eyebrow>
+            <Text numberOfLines={1} style={styles.cashPhone}>{ils(toShekels(me.cash))}</Text>
+          </View>
+          <View style={styles.heroPhoneSide}>
+            {row ? <DivisionTag onDark division={row.division} /> : null}
+            {row && table ? <Text style={styles.heroSmall}>#{row.rank} of {table.total}</Text> : null}
+            <Text style={styles.heroSmall}>{marketsText(world)}</Text>
+          </View>
+        </View>
+        {waiting}
+        <GoalBar />
+      </Hero>
+    );
+  }
+
   return (
-    <Hero style={wide ? styles.hero : styles.heroPhone}>
+    <Hero style={styles.hero}>
       <Eyebrow>You can spend</Eyebrow>
-      <Text numberOfLines={1} style={[styles.cash, !wide && styles.cashPhone]}>{ils(toShekels(me.cash))}</Text>
-      {me.reserved > 0 ? (
-        <Text style={styles.heroLabel}>{ils(toShekels(me.reserved))} is waiting in your orders</Text>
-      ) : null}
+      <Text numberOfLines={1} style={styles.cash}>{ils(toShekels(me.cash))}</Text>
+      {waiting}
       <View style={styles.pills}>
         {row ? <DivisionTag onDark division={row.division} /> : null}
         {row && table ? <Pill bright label={`#${row.rank} of ${table.total} this week`} /> : null}
@@ -159,11 +189,17 @@ export default function MarketScreen() {
   const wide = useWide();
   const sparks = useSparks();
   const [filter, setFilter] = useState<Filter>('all');
+  const [sort, setSort] = useState<Sort>('name');
+  const [query, setQuery] = useState('');
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   if (!market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
 
-  const shown = market.securities.filter((x) => filter === 'all' || x.market === filter);
+  const wanted = query.trim().toLowerCase();
+  const shown = market.securities
+    .filter((x) => filter === 'all' || x.market === filter)
+    .filter((x) => `${x.name} ${x.id} ${x.sector}`.toLowerCase().includes(wanted))
+    .sort(SORTS[sort]);
   const selected = market.securities.find((x) => x.id === selectedId);
   const row = table?.rows.find((r) => r.id === me?.uid);
   const cash = <CashHero table={table} row={row} />;
@@ -201,7 +237,29 @@ export default function MarketScreen() {
               />
             </View>
           </View>
+          <View style={styles.tools}>
+            <TextInput
+              accessibilityLabel="Search securities"
+              onChangeText={setQuery}
+              placeholder="Search by name or sector"
+              placeholderTextColor={colors.muted}
+              style={styles.search}
+              value={query}
+            />
+            <Segments
+              value={sort}
+              onChange={setSort}
+              options={[
+                { value: 'name', label: 'A–Z' },
+                { value: 'gainers', label: 'Top gainers' },
+                { value: 'losers', label: 'Top losers' },
+              ]}
+            />
+          </View>
           <View style={styles.list}>
+            {shown.length === 0 ? (
+              <Text style={styles.nothing}>Nothing matches “{query.trim()}”.</Text>
+            ) : null}
             {shown.map((item) => (
               <SecurityRow
                 key={item.id}
@@ -222,7 +280,16 @@ const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   top: { alignItems: 'flex-end', flexDirection: 'row', gap: 56 },
   hero: { flex: 1.3, gap: 4 },
-  heroPhone: { borderBottomColor: colors.line, borderBottomWidth: 1, gap: 2, padding: 16 },
+  heroPhone: {
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    gap: 2,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+  },
+  heroPhoneTop: { alignItems: 'center', flexDirection: 'row', gap: 12 },
+  heroPhoneSide: { alignItems: 'flex-end', flexShrink: 0, gap: 2 },
+  heroSmall: { color: colors.onDeep, fontFamily: font.body, fontSize: 12 },
   heroLabel: { color: colors.onDeep, fontFamily: font.body, fontSize: 14 },
   cash: {
     color: colors.ink,
@@ -232,7 +299,14 @@ const styles = StyleSheet.create({
     fontWeight: '400',
     lineHeight: 76,
   },
-  cashPhone: { fontSize: 42, lineHeight: 50 },
+  cashPhone: {
+    color: colors.ink,
+    fontFamily: font.display,
+    fontSize: 32,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '400',
+    lineHeight: 38,
+  },
   pills: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   section: { gap: 12 },
   sectionTitle: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
@@ -262,6 +336,22 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
   },
   filterRight: { alignItems: 'center', flexDirection: 'row', gap: 14 },
+  tools: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  search: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: 4,
+    borderWidth: 1,
+    color: colors.ink,
+    flexBasis: 240,
+    flexGrow: 1,
+    fontFamily: font.body,
+    fontSize: 15,
+    minHeight: 44,
+    outlineColor: colors.brand,
+    paddingHorizontal: 12,
+  },
+  nothing: { color: colors.muted, fontFamily: font.body, fontSize: 14, paddingVertical: 16 },
   list: { borderTopColor: colors.line, borderTopWidth: 1 },
   row: {
     alignItems: 'center',

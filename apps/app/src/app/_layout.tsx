@@ -3,8 +3,11 @@ import { ActivityIndicator, Platform, Pressable, PressableProps, StyleSheet, Tex
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { HOVER_CSS } from '@/components/hover-css';
+import { OrderNotice } from '@/components/order-notice';
 import { SignIn } from '@/components/sign-in';
+import { TabIcon, TabIconName } from '@/components/tab-icon';
 import { colors, font, hover, useWide } from '@/components/ui';
+import { Welcome } from '@/components/welcome';
 import { Brand, MenuStatus, OfflineNotice, WorldBar } from '@/components/world-bar';
 import { GameProvider, useGame } from '@/game/store';
 
@@ -21,7 +24,7 @@ if (Platform.OS === 'web') {
   document.head.appendChild(looks);
 }
 
-function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
+function TabButton({ children, icon, isFocused, ...props }: TabTriggerSlotProps & { icon: TabIconName }) {
   const wide = useWide();
   return (
     <Pressable
@@ -32,6 +35,7 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
         wide ? styles.topTab : styles.tab,
         isFocused && (wide ? styles.tabActive : styles.tabActivePhone),
       ]}>
+      {wide ? null : <TabIcon name={icon} color={isFocused ? colors.brand : colors.muted} />}
       <Text
         style={[
           wide ? styles.topTabText : styles.tabText,
@@ -58,13 +62,16 @@ function Game() {
         <TabList style={wide ? styles.topMenu : styles.tabs}>
           {wide ? <Brand /> : null}
           <TabTrigger name="market" href="/" asChild>
-            <TabButton>Market</TabButton>
+            <TabButton icon="market">Market</TabButton>
           </TabTrigger>
           <TabTrigger name="portfolio" href="/portfolio" asChild>
-            <TabButton>Portfolio</TabButton>
+            <TabButton icon="portfolio">Portfolio</TabButton>
           </TabTrigger>
           <TabTrigger name="league" href="/league" asChild>
-            <TabButton>League</TabButton>
+            <TabButton icon="league">League</TabButton>
+          </TabTrigger>
+          <TabTrigger name="guide" href="/guide" asChild>
+            <TabButton icon="rules">Rules</TabButton>
           </TabTrigger>
           {/* Reached from a link on the League screen, so it needs no button here. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
@@ -72,6 +79,8 @@ function Game() {
           {wide ? <MenuStatus /> : null}
         </TabList>
       </Tabs>
+      <OrderNotice />
+      <Welcome />
     </View>
   );
 }
@@ -103,8 +112,10 @@ const styles = StyleSheet.create({
     borderTopColor: 'transparent',
     borderTopWidth: 2,
     flex: 1,
+    gap: 2,
     justifyContent: 'center',
-    minHeight: 54,
+    minHeight: 58,
+    paddingVertical: 6,
   },
   topMenu: {
     alignItems: 'stretch',
@@ -127,7 +138,7 @@ const styles = StyleSheet.create({
   },
   tabActive: { borderBottomColor: colors.brand },
   tabActivePhone: { borderTopColor: colors.brand },
-  tabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
+  tabText: { color: colors.muted, fontFamily: font.body, fontSize: 12, fontWeight: '500' },
   tabTextActive: { color: colors.ink, fontWeight: '600' },
   topTabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500', letterSpacing: 0.3 },
   topTabTextActive: { color: colors.ink },

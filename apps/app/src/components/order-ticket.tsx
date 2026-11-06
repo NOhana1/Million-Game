@@ -32,7 +32,7 @@ export function OrderTicket({
   onClose: () => void;
   startSide?: Side;
 }) {
-  const { me, market, world, placeOrder } = useGame();
+  const { me, market, world, placeOrder, showNotice } = useGame();
   const wide = useWide();
   const [side, setSide] = useState<Side>(startSide);
   const [text, setText] = useState('');
@@ -66,11 +66,15 @@ export function OrderTicket({
     setServerProblem(null);
   };
 
-  const send = async (order: NewOrder) => {
+  const send = async (order: NewOrder, what: string) => {
     setSending(true);
     setServerProblem(null);
     try {
       await placeOrder(order);
+      const when = open
+        ? 'today’s closing price'
+        : `the next ${MARKET_LABEL[security.market]} opening price`;
+      showNotice(`${side === 'buy' ? 'Buy' : 'Sell'} order placed: ${what}. It fills at ${when}.`);
       onClose();
     } catch (error) {
       const code = error instanceof ApiProblem ? error.code : 'NETWORK';
@@ -84,11 +88,14 @@ export function OrderTicket({
   const submit = () => {
     setTried(true);
     if (problem) return;
-    send({ id: orderId, securityId: security.id, side, amount: shekelsToAgorot(amount) });
+    send(
+      { id: orderId, securityId: security.id, side, amount: shekelsToAgorot(amount) },
+      `${ils(amount)} of ${security.name}`,
+    );
   };
 
   const sellEverything = () =>
-    send({ id: orderId, securityId: security.id, side: 'sell', amount: 'all' });
+    send({ id: orderId, securityId: security.id, side: 'sell', amount: 'all' }, `all of ${security.name}`);
 
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onClose}>

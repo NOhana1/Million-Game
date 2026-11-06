@@ -288,9 +288,14 @@ export default function LeagueScreen() {
           Showing the top {table.rows.length} of {table.total} players.
         </Text>
       ) : null}
-      <Link href="/admin" style={styles.link} {...hover('link')}>
-        World clock
-      </Link>
+      <View style={styles.links}>
+        <Link href="/guide" style={styles.link} {...hover('link')}>
+          Full rules
+        </Link>
+        <Link href="/admin" style={styles.link} {...hover('link')}>
+          World clock
+        </Link>
+      </View>
     </Page>
   );
 }
@@ -401,5 +406,6 @@ const styles = StyleSheet.create({
     width: SCORE,
   },
   scorePhone: { width: 32 },
+  links: { flexDirection: 'row', gap: 20 },
   link: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
 });
