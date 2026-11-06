@@ -15,6 +15,46 @@ const post = (app: TestApp, name: unknown, token = 'noa') =>
 const me = (app: TestApp, token = 'noa') =>
   app.request('/api/me', { headers: { Authorization: `Bearer ${token}` } });
 
+const setGoal = (app: TestApp, amount: unknown, token = 'noa') =>
+  app.request('/api/me/goal', {
+    method: 'PUT',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ amount }),
+  });
+
+describe('the goal', () => {
+  it('needs sign-in and a player', async () => {
+    const app = testApp();
+    assert.equal((await app.request('/api/me/goal', { method: 'PUT' })).status, 401);
+    assert.equal((await setGoal(app, 200_000_000)).status, 404);
+  });
+
+  it('is saved, shown on /me, and can be changed', async () => {
+    const app = testApp();
+    await post(app, 'Noa');
+    assert.equal(((await (await me(app)).json()) as { goal?: number }).goal, undefined);
+    assert.equal((await setGoal(app, 200_000_000)).status, 200);
+    await setGoal(app, 300_000_000);
+    assert.equal(((await (await me(app)).json()) as { goal: number }).goal, 300_000_000);
+  });
+
+  it('rejects anything but a sensible whole amount', async () => {
+    const app = testApp();
+    await post(app, 'Noa');
+    for (const bad of [0, -5, 1.5, 'lots', null, 100_000_000_001]) {
+      assert.equal((await setGoal(app, bad)).status, 400, String(bad));
+    }
+  });
+
+  it('belongs only to the signed-in player', async () => {
+    const app = testApp();
+    await post(app, 'Noa');
+    await post(app, 'Dana', 'dana');
+    await setGoal(app, 200_000_000);
+    assert.equal(((await (await me(app, 'dana')).json()) as { goal?: number }).goal, undefined);
+  });
+});
+
 describe('players', () => {
   it('rejects a missing or invalid token', async () => {
     const app = testApp();

@@ -43,6 +43,13 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       return { player, created: true };
     },
 
+    async setGoal(uid, goal) {
+      const stored = players.get(uid);
+      if (!stored) return false;
+      stored.goal = goal;
+      return true;
+    },
+
     async placeOrder({ uid, orderId, realNow, decide }) {
       clock ??= firstClock(realNow);
       const history = orders.get(uid) ?? new Map<string, Order>();

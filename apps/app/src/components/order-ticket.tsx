@@ -15,7 +15,7 @@ import {
   toShekels,
 } from '@/game/view';
 
-import { Button, colors, font, ils, money, Segments, Tile, useWide } from './ui';
+import { Button, colors, font, hover, ils, money, Segments, Tile, useWide } from './ui';
 
 const QUICK_AMOUNTS = [
   { label: '25%', share: 0.25 },
@@ -103,7 +103,7 @@ export function OrderTicket({
                 {MARKET_LABEL[security.market]} · {money(displayPrice(security.price), currency)}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" onPress={onClose} hitSlop={10}>
+            <Pressable accessibilityRole="button" onPress={onClose} hitSlop={10} {...hover('link')}>
               <Text style={styles.close}>Close</Text>
             </Pressable>
           </View>
@@ -144,6 +144,7 @@ export function OrderTicket({
                 key={label}
                 accessibilityRole="button"
                 onPress={() => setAmount(String(Math.floor(limit * share)))}
+                {...hover('lift')}
                 style={styles.chip}>
                 <Text style={styles.chipText}>{label}</Text>
               </Pressable>
@@ -181,39 +182,40 @@ export function OrderTicket({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(33, 22, 58, 0.55)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 43, 36, 0.6)' },
   holder: { flex: 1, justifyContent: 'flex-end' },
   holderWide: { alignItems: 'center', justifyContent: 'center' },
   sheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 28,
-    borderTopRightRadius: 28,
+    borderTopLeftRadius: 14,
+    borderTopRightRadius: 14,
     gap: 12,
     padding: 18,
     paddingBottom: 24,
   },
-  sheetWide: { borderRadius: 28, maxWidth: 460, width: '100%' },
+  sheetWide: { borderRadius: 12, maxWidth: 460, width: '100%' },
   header: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   flex: { flex: 1 },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: '600' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
   muted: { color: colors.muted, fontFamily: font.body, fontSize: 13, marginTop: 2 },
-  close: { color: colors.brand, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  close: { color: colors.muted, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
   amount: {
     alignItems: 'center',
-    backgroundColor: colors.page,
-    borderRadius: 18,
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 16,
   },
-  shekel: { color: colors.muted, fontFamily: font.display, fontSize: 30, fontWeight: '600' },
+  shekel: { color: colors.muted, fontFamily: font.display, fontSize: 30, fontWeight: '500' },
   input: {
     color: colors.ink,
     flex: 1,
     fontFamily: font.display,
     fontSize: 34,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
     minWidth: 0,
     outlineColor: 'transparent', // the amount box around it is the visible field
     paddingVertical: 10,
@@ -221,14 +223,15 @@ const styles = StyleSheet.create({
   quick: { flexDirection: 'row', gap: 8 },
   chip: {
     alignItems: 'center',
-    backgroundColor: colors.brandSoft,
-    borderRadius: 14,
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
     minHeight: 44,
   },
-  chipText: { color: colors.brand, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
-  notice: { backgroundColor: colors.warnSoft, borderRadius: 14, padding: 12 },
+  chipText: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  notice: { backgroundColor: colors.warnSoft, borderRadius: 8, padding: 12 },
   noticeText: { color: colors.warnInk, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });

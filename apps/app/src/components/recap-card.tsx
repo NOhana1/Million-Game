@@ -73,12 +73,12 @@ export function RecapCard() {
 const styles = StyleSheet.create({
   card: { gap: 4 },
   wide: { flex: 1 },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 18, fontWeight: '600' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: '500' },
   total: {
     fontFamily: font.display,
-    fontSize: 28,
+    fontSize: 30,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
   },
   totalPct: { fontSize: 16 },
   line: { color: colors.ink, fontFamily: font.body, fontSize: 14, lineHeight: 20 },

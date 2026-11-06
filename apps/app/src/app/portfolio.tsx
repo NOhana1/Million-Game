@@ -2,18 +2,20 @@ import type { Order } from '@portfolio-league/engine';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { HoldingsPie, type Slice } from '@/components/holdings-pie';
 import { OrderTicket } from '@/components/order-ticket';
+import { SLICE_COLORS } from '@/components/palette';
 import {
   Button,
   Card,
-  changeColorOnPlum,
+  changeColorOnDeep,
   colors,
   font,
   Hero,
+  hover,
   ils,
   Page,
   percent,
-  sectorColor,
   SectionTitle,
   Tile,
   useWide,
@@ -61,6 +63,7 @@ export default function PortfolioScreen() {
   const { me, market, orders, signOut } = useGame();
   const wide = useWide();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [active, setActive] = useState<string | null>(null);
 
   if (!me || !market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
 
@@ -73,34 +76,69 @@ export default function PortfolioScreen() {
 
   const side = [styles.column, wide && styles.flex];
 
-  const holdings = (
+  const holdings = [...me.positions].sort((a, b) => b.value - a.value);
+  const slices: Slice[] = holdings.map(({ securityId, value }, index) => ({
+    id: securityId,
+    label: findRow(market, securityId)?.name ?? securityId,
+    value: toShekels(value),
+    color: SLICE_COLORS[index % SLICE_COLORS.length],
+    onPress: () => setSelectedId(securityId),
+  }));
+  if (cash > 0) slices.push({ id: 'cash', label: 'Cash', value: cash, color: colors.line });
+
+  const holdingsCard = (
     <View style={side}>
       <SectionTitle>Holdings</SectionTitle>
       <Card style={styles.list}>
-        {me.positions.length === 0 ? (
+        {holdings.length === 0 ? (
           <Text style={styles.empty}>No holdings yet. Buy something from the Market tab.</Text>
         ) : (
-          me.positions.map(({ securityId, units, value: agorot }) => {
-            const value = toShekels(agorot);
-            const row = findRow(market, securityId);
-            return (
-              <Pressable
-                key={securityId}
-                accessibilityRole="button"
-                accessibilityLabel={`Trade ${row?.name}`}
-                onPress={() => setSelectedId(securityId)}
-                style={styles.row}>
-                {row ? <Tile name={row.name} sector={row.sector} size={36} /> : null}
-                <View style={styles.flex}>
-                  <Text style={styles.name}>{row?.name}</Text>
-                  <Text style={styles.meta}>
-                    {toUnits(units).toFixed(1)} units · {((value / total) * 100).toFixed(1)}%
-                  </Text>
+          <>
+            <HoldingsPie slices={slices} active={active} onActive={setActive} />
+            {slices.map((slice) => {
+              const position = holdings.find((p) => p.securityId === slice.id);
+              const row = findRow(market, slice.id);
+              const look = [styles.row, styles.key, active === slice.id && styles.keyActive];
+              const body = (
+                <>
+                  <View style={[styles.dot, { backgroundColor: slice.color }]} />
+                  {row ? <Tile name={row.name} sector={row.sector} size={36} /> : null}
+                  <View style={styles.flex}>
+                    <Text style={styles.name}>{slice.label}</Text>
+                    <Text style={styles.meta}>
+                      {position ? `${toUnits(position.units).toFixed(1)} units · ` : ''}
+                      {((slice.value / total) * 100).toFixed(1)}%
+                    </Text>
+                  </View>
+                  <Text style={styles.number}>{ils(slice.value)}</Text>
+                </>
+              );
+              return slice.onPress ? (
+                <Pressable
+                  key={slice.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Trade ${slice.label}`}
+                  onPress={slice.onPress}
+                  onHoverIn={() => setActive(slice.id)}
+                  onHoverOut={() => setActive(null)}
+                  onFocus={() => setActive(slice.id)}
+                  onBlur={() => setActive(null)}
+                  {...hover('row')}
+                  style={look}>
+                  {body}
+                </Pressable>
+              ) : (
+                <View
+                  key={slice.id}
+                  onPointerEnter={() => setActive(slice.id)}
+                  onPointerLeave={() => setActive(null)}
+                  {...hover('line')}
+                  style={look}>
+                  {body}
                 </View>
-                <Text style={styles.number}>{ils(value)}</Text>
-              </Pressable>
-            );
-          })
+              );
+            })}
+          </>
         )}
       </Card>
     </View>
@@ -135,22 +173,9 @@ export default function PortfolioScreen() {
         <Hero style={styles.hero}>
           <Text style={styles.heroLabel}>Portfolio value</Text>
           <Text style={styles.total}>{ils(total)}</Text>
-          <Text style={[styles.change, { color: changeColorOnPlum(change) }]}>
+          <Text style={[styles.change, { color: changeColorOnDeep(change) }]}>
             {percent(change)} since you started
           </Text>
-
-          <View style={styles.bar}>
-            {me.positions.map(({ securityId, value }) => (
-              <View
-                key={securityId}
-                style={{
-                  backgroundColor: sectorColor(findRow(market, securityId)?.sector ?? ''),
-                  flex: value,
-                }}
-              />
-            ))}
-            <View style={[styles.barCash, { flex: me.cash + me.reserved }]} />
-          </View>
 
           <View style={styles.split}>
             <View>
@@ -169,7 +194,7 @@ export default function PortfolioScreen() {
         </Hero>
 
         <View style={wide ? styles.columns : styles.column}>
-          {holdings}
+          {holdingsCard}
           {orderLists}
         </View>
 
@@ -188,48 +213,41 @@ const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
   hero: { gap: 2 },
-  heroLabel: { color: colors.onPlum, fontFamily: font.body, fontSize: 14 },
+  heroLabel: { color: colors.onDeep, fontFamily: font.body, fontSize: 14 },
   heroNumber: {
     color: '#FFFFFF',
     fontFamily: font.body,
     fontSize: 16,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
     marginTop: 2,
   },
   total: {
     color: '#FFFFFF',
     fontFamily: font.display,
-    fontSize: 46,
+    fontSize: 44,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-    lineHeight: 54,
+    fontWeight: '500',
+    lineHeight: 52,
   },
-  change: { fontFamily: font.body, fontSize: 15, fontWeight: '600' },
-  bar: {
-    backgroundColor: colors.plumSoft,
-    borderRadius: 6,
-    flexDirection: 'row',
-    gap: 2,
-    height: 12,
-    marginTop: 14,
-    overflow: 'hidden',
-  },
-  barCash: { backgroundColor: colors.plumSoft },
-  split: { columnGap: 28, flexDirection: 'row', flexWrap: 'wrap', marginTop: 14, rowGap: 10 },
-  columns: { alignItems: 'flex-start', flexDirection: 'row', gap: 16 },
+  change: { fontFamily: font.body, fontSize: 15, fontWeight: '500' },
+  split: { columnGap: 36, flexDirection: 'row', flexWrap: 'wrap', marginTop: 16, rowGap: 10 },
+  columns: { alignItems: 'flex-start', flexDirection: 'row', gap: 24 },
   column: { gap: 10, width: '100%' },
-  list: { paddingVertical: 6 },
-  row: { alignItems: 'center', flexDirection: 'row', gap: 10, paddingVertical: 9 },
-  name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  list: { paddingHorizontal: 16, paddingVertical: 12 },
+  row: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingVertical: 10 },
+  key: { borderRadius: 6, marginHorizontal: -8, paddingHorizontal: 8 },
+  keyActive: { backgroundColor: colors.page },
+  dot: { borderRadius: 5, height: 10, width: 10 },
+  name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13, marginTop: 2 },
   number: {
     color: colors.ink,
     fontFamily: font.body,
     fontSize: 15,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
   },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 14, paddingVertical: 10 },
-  signOut: { marginTop: 12 },
+  signOut: { alignSelf: 'flex-start', marginTop: 12 },
 });

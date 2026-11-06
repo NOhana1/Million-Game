@@ -11,19 +11,28 @@ export function OfflineNotice() {
   return <Text style={styles.offline}>Can’t reach the server. Retrying…</Text>;
 }
 
-/** The top of the phone screen. On a computer the sidebar shows this instead. */
+export function Brand() {
+  return (
+    <View style={styles.brandBox}>
+      <View style={styles.mark} />
+      <Text style={styles.brand}>Portfolio League</Text>
+    </View>
+  );
+}
+
+/** The top of the phone screen. On a computer the top menu shows this instead. */
 export function WorldBar() {
   const { world } = useGame();
   const time = useLiveWorldTime();
   return (
     <View style={styles.bar}>
-      <Text style={styles.brand}>Portfolio League</Text>
+      <Brand />
       {world ? <Text style={styles.time}>{formatWorldTime(time)}</Text> : null}
     </View>
   );
 }
 
-export function SidebarStatus() {
+export function MenuStatus() {
   const { world } = useGame();
   const time = useLiveWorldTime();
   if (!world) return null;
@@ -38,28 +47,30 @@ export function SidebarStatus() {
 const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
+    backgroundColor: colors.deep,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 14,
+    paddingVertical: 12,
   },
-  brand: { color: colors.brand, fontFamily: font.display, fontSize: 20, fontWeight: '700' },
+  brandBox: { alignItems: 'center', flexDirection: 'row', gap: 10, marginRight: 20 },
+  mark: { backgroundColor: colors.brass, height: 11, transform: [{ rotate: '45deg' }], width: 11 },
+  brand: { color: '#FFFFFF', fontFamily: font.display, fontSize: 21, fontWeight: '500' },
   time: {
-    color: colors.ink,
+    color: colors.onDeep,
+    fontFamily: font.body,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+  },
+  status: { alignItems: 'flex-end', gap: 2, justifyContent: 'center', marginLeft: 'auto' },
+  statusTime: {
+    color: '#FFFFFF',
     fontFamily: font.body,
     fontSize: 14,
     fontVariant: ['tabular-nums'],
     fontWeight: '500',
   },
-  status: { gap: 4, marginTop: 'auto' },
-  statusTime: {
-    color: '#FFFFFF',
-    fontFamily: font.body,
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-  },
-  statusMarkets: { color: colors.onPlum, fontFamily: font.body, fontSize: 13 },
+  statusMarkets: { color: colors.onDeep, fontFamily: font.body, fontSize: 12 },
   offline: {
     backgroundColor: colors.down,
     color: '#FFFFFF',

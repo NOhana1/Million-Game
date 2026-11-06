@@ -5,7 +5,7 @@ import { api, ApiProblem, ClockChange, ClockResult } from '@/api/client';
 import {
   Button,
   Card,
-  changeColorOnPlum,
+  changeColorOnDeep,
   colors,
   Field,
   font,
@@ -79,7 +79,7 @@ export default function AdminScreen() {
       <Hero style={styles.clock}>
         <Text style={styles.day}>{formatDay(time)}</Text>
         <Text style={styles.time}>{formatClock(time)}</Text>
-        <Text style={[styles.state, { color: changeColorOnPlum(paused ? -1 : 1) }]}>
+        <Text style={[styles.state, { color: changeColorOnDeep(paused ? -1 : 1) }]}>
           {paused ? 'Stopped' : `Moving, ${speed}× real speed`}
         </Text>
         <Text style={styles.day}>
@@ -136,13 +136,13 @@ export default function AdminScreen() {
 
 const styles = StyleSheet.create({
   clock: { alignItems: 'center', gap: 2, paddingVertical: 24 },
-  day: { color: colors.onPlum, fontFamily: font.body, fontSize: 15 },
+  day: { color: colors.onDeep, fontFamily: font.body, fontSize: 15 },
   time: {
     color: '#FFFFFF',
     fontFamily: font.display,
     fontSize: 60,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
     lineHeight: 70,
   },
   state: { fontFamily: font.body, fontSize: 15, fontWeight: '600', marginBottom: 6 },

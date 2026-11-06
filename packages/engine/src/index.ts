@@ -1,5 +1,6 @@
 // Pure game rules live here: no network, no database, no clock reads.
 export * from './calendar.ts';
+export * from './divisions.ts';
 export * from './money.ts';
 export * from './orders.ts';
 export * from './recap.ts';

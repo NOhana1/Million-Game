@@ -12,47 +12,37 @@ import {
   ViewStyle,
 } from 'react-native';
 
-export const colors = {
-  page: '#F4F1FB',
-  card: '#FFFFFF',
-  ink: '#21163A',
-  muted: '#5B5170',
-  line: '#E6E0F3',
-  brand: '#4B2BD6',
-  brandSoft: '#EDE8FF',
-  plum: '#21163A',
-  plumSoft: '#3A2B5C',
-  onPlum: '#D9D0F2',
-  sun: '#FFD84D',
-  up: '#0B7A6F',
-  down: '#C2261C',
-  upOnPlum: '#7CE8CF',
-  downOnPlum: '#FFA99C',
-  warnSoft: '#FFF4CC',
-  warnInk: '#5E4700',
-};
+import { colors } from './palette';
 
-export const font = { display: 'Fredoka, Rubik, sans-serif', body: 'Rubik, sans-serif' };
+export { colors };
+
+/** Gives an element a look from hover-css.ts. Ignored outside the web. */
+export const hover = (kind: string) => ({ dataSet: { hover: kind } }) as object;
+
+// Frank Ruhl Libre has Hebrew of its own. Inter doesn't, so Hebrew names fall through to Heebo.
+export const font = {
+  display: "'Frank Ruhl Libre', Georgia, serif",
+  body: 'Inter, Heebo, -apple-system, sans-serif',
+};
 
 const WIDE_FROM = 900;
 export const useWide = () => useWindowDimensions().width >= WIDE_FROM;
 
-const SECTOR_TILES: Record<string, { back: string; ink: string }> = {
-  Fund: { back: '#4B2BD6', ink: '#FFFFFF' },
-  Banks: { back: '#0B7A6F', ink: '#FFFFFF' },
-  Consumer: { back: '#FF7A45', ink: '#21163A' },
-  Energy: { back: '#FFD84D', ink: '#21163A' },
-  Transport: { back: '#1E7FC2', ink: '#FFFFFF' },
-  Health: { back: '#D6336C', ink: '#FFFFFF' },
-  'Real estate': { back: '#8A5A3C', ink: '#FFFFFF' },
-  Technology: { back: '#19B5A5', ink: '#21163A' },
-  Telecom: { back: '#8FA6FF', ink: '#21163A' },
-  Insurance: { back: '#A23BB5', ink: '#FFFFFF' },
-  Finance: { back: '#2F8F46', ink: '#FFFFFF' },
+const SECTOR_COLORS: Record<string, string> = {
+  Fund: '#12372E',
+  Banks: '#2B4C7E',
+  Consumer: '#8C4A32',
+  Energy: '#8F7228',
+  Transport: '#3D6B7C',
+  Health: '#7E3F52',
+  'Real estate': '#6B5B4B',
+  Technology: '#2F6F62',
+  Telecom: '#56608F',
+  Insurance: '#664E7A',
+  Finance: '#3E6B4A',
 };
-const OTHER_TILE = { back: colors.plumSoft, ink: '#FFFFFF' };
 
-export const sectorColor = (sector: string) => (SECTOR_TILES[sector] ?? OTHER_TILE).back;
+export const sectorColor = (sector: string) => SECTOR_COLORS[sector] ?? colors.deepSoft;
 
 export const ils = (n: number) =>
   `₪${n.toLocaleString('en-US', { maximumFractionDigits: 0 })}`;
@@ -70,11 +60,11 @@ export const percent = (n: number) => {
 export const changeColor = (n: number) =>
   n > 0.004 ? colors.up : n < -0.004 ? colors.down : colors.muted;
 
-export const changeColorOnPlum = (n: number) =>
-  n > 0.004 ? colors.upOnPlum : n < -0.004 ? colors.downOnPlum : colors.onPlum;
+export const changeColorOnDeep = (n: number) =>
+  n > 0.004 ? colors.upOnDeep : n < -0.004 ? colors.downOnDeep : colors.onDeep;
 
-/** A scrolling screen. The phone's floating menu needs room below the last item. */
-export function Page({ children, maxWidth = 1040 }: { children: ReactNode; maxWidth?: number }) {
+/** A scrolling screen. */
+export function Page({ children, maxWidth = 1120 }: { children: ReactNode; maxWidth?: number }) {
   const wide = useWide();
   return (
     <ScrollView style={styles.page}>
@@ -106,8 +96,7 @@ export function SectionTitle({ children }: { children: ReactNode }) {
 }
 
 /** The colored square that makes a security easy to spot. Its color shows the sector. */
-export function Tile({ name, sector, size = 44 }: { name: string; sector: string; size?: number }) {
-  const { back, ink } = SECTOR_TILES[sector] ?? OTHER_TILE;
+export function Tile({ name, sector, size = 40 }: { name: string; sector: string; size?: number }) {
   const initials = name
     .split(' ')
     .slice(0, 2)
@@ -117,9 +106,9 @@ export function Tile({ name, sector, size = 44 }: { name: string; sector: string
     <View
       style={[
         styles.tile,
-        { backgroundColor: back, borderRadius: size * 0.32, height: size, width: size },
+        { backgroundColor: sectorColor(sector), borderRadius: 8, height: size, width: size },
       ]}>
-      <Text style={[styles.tileText, { color: ink, fontSize: size * 0.39 }]}>{initials}</Text>
+      <Text style={[styles.tileText, { fontSize: size * 0.34 }]}>{initials}</Text>
     </View>
   );
 }
@@ -155,13 +144,14 @@ export function Button({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
+      {...hover(solid ? 'solid' : 'quiet')}
       style={({ pressed }) => [
         styles.button,
         solid ? styles.buttonSolid : styles.buttonQuiet,
         disabled && styles.disabled,
         pressed && styles.pressed,
       ]}>
-      <Text style={[styles.buttonText, { color: solid ? '#FFFFFF' : colors.brand }]}>{label}</Text>
+      <Text style={[styles.buttonText, { color: solid ? '#FFFFFF' : colors.ink }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -185,9 +175,10 @@ export function Segments<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            aria-selected={active}
             disabled={disabled}
             onPress={() => onChange(option.value)}
+            {...hover('segment')}
             style={[styles.segment, active && styles.segmentActive, disabled && styles.disabled]}>
             <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
               {option.label}
@@ -201,62 +192,80 @@ export function Segments<T extends string>({
 
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
-  pageColumn: { alignSelf: 'center', gap: 12, width: '100%' },
-  pageWide: { padding: 28 },
-  pagePhone: { padding: 16, paddingBottom: 96 },
-  card: { backgroundColor: colors.card, borderRadius: 20, padding: 16 },
-  hero: { backgroundColor: colors.plum, borderRadius: 24, padding: 18 },
-  pill: {
-    backgroundColor: colors.plumSoft,
-    borderRadius: 99,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  pageColumn: { alignSelf: 'center', gap: 16, width: '100%' },
+  pageWide: { paddingHorizontal: 32, paddingVertical: 28 },
+  pagePhone: { padding: 16, paddingBottom: 28 },
+  card: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: 10,
+    borderWidth: 1,
+    padding: 20,
   },
-  pillBright: { backgroundColor: colors.sun },
-  pillText: { color: '#FFFFFF', fontFamily: font.body, fontSize: 13, fontWeight: '600' },
-  pillTextBright: { color: colors.ink },
+  hero: { backgroundColor: colors.deep, borderRadius: 10, padding: 24 },
+  pill: {
+    borderColor: colors.deepSoft,
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  pillBright: { borderColor: colors.brass },
+  pillText: { color: colors.onDeep, fontFamily: font.body, fontSize: 13, fontWeight: '500' },
+  pillTextBright: { color: colors.brass },
   sectionTitle: {
     color: colors.ink,
     fontFamily: font.display,
-    fontSize: 20,
-    fontWeight: '600',
+    fontSize: 22,
+    fontWeight: '500',
     marginTop: 8,
   },
   tile: { alignItems: 'center', flexShrink: 0, justifyContent: 'center' },
-  tileText: { fontFamily: font.display, fontWeight: '700' },
+  tileText: { color: '#FFFFFF', fontFamily: font.body, fontWeight: '600', letterSpacing: 0.5 },
   field: { gap: 6 },
-  label: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  label: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   input: {
-    backgroundColor: colors.page,
-    borderRadius: 14,
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
     color: colors.ink,
     fontFamily: font.body,
     fontSize: 16,
     outlineColor: colors.brand,
-    padding: 14,
+    padding: 13,
   },
   button: {
     alignItems: 'center',
-    borderRadius: 16,
+    borderRadius: 8,
     justifyContent: 'center',
-    minHeight: 50,
-    paddingHorizontal: 16,
-  },
-  buttonSolid: { backgroundColor: colors.brand },
-  buttonQuiet: { backgroundColor: colors.brandSoft },
-  buttonText: { fontFamily: font.body, fontSize: 16, fontWeight: '600' },
-  disabled: { opacity: 0.45 },
-  pressed: { opacity: 0.75 },
-  segments: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  segment: {
-    alignItems: 'center',
-    backgroundColor: colors.brandSoft,
-    borderRadius: 99,
-    justifyContent: 'center',
-    minHeight: 40,
+    minHeight: 48,
     paddingHorizontal: 18,
   },
-  segmentActive: { backgroundColor: colors.brand },
-  segmentText: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  buttonSolid: { backgroundColor: colors.brand },
+  buttonQuiet: { backgroundColor: colors.card, borderColor: colors.line, borderWidth: 1 },
+  buttonText: { fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  disabled: { opacity: 0.45 },
+  pressed: { opacity: 0.75 },
+  segments: {
+    alignSelf: 'flex-start',
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 2,
+    padding: 3,
+  },
+  segment: {
+    alignItems: 'center',
+    borderRadius: 6,
+    justifyContent: 'center',
+    minHeight: 38,
+    paddingHorizontal: 16,
+  },
+  segmentActive: { backgroundColor: colors.deep },
+  segmentText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   segmentTextActive: { color: '#FFFFFF' },
 });

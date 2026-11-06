@@ -1,7 +1,7 @@
 // Everything the API needs from a database. Routes never touch Firestore directly,
 // so tests and local runs can use the in-memory store.
 
-import type { Agorot, Order, Ranked, Units, WeekRecord } from '@portfolio-league/engine';
+import type { Agorot, Division, Order, Ranked, Units, WeekRecord } from '@portfolio-league/engine';
 
 import type { Clock } from '../clock.ts';
 
@@ -14,6 +14,7 @@ export type Player = {
   pendingOrders: Order[]; // filled orders live in the player's order history
   nextDueAt: number | null; // earliest pending execution, so settlement can find this player
   changedAt: number; // world time of the last change the league must pick up
+  goal?: Agorot; // the portfolio value the player is aiming for
 };
 
 /** A competitor in a league shard: a real player's position, or a whole bot. */
@@ -25,11 +26,19 @@ export type Member = {
   holdings: Record<string, Units>;
   orders: Order[]; // only bots keep orders here
   week: WeekRecord;
+  division?: Division; // missing means the first division
 };
 
 export type Shard = { id: string; members: Record<string, Member> };
 
-export type TableRow = Ranked & { rank: number; name: string; bot: boolean; value: Agorot };
+export type TableRow = Ranked & {
+  rank: number;
+  name: string;
+  bot: boolean;
+  value: Agorot;
+  division: Division;
+  nextDivision?: Division; // on finished weeks only: where this week's result moved them
+};
 
 export type LeagueTable = {
   updatedAt: number;
@@ -37,6 +46,7 @@ export type LeagueTable = {
   previousWeekEndsAt: number | null;
   total: number;
   rows: TableRow[];
+  indexes: Record<string, number>; // each index fund's return this week, in shekels, as ppm
 };
 
 /** Everything one market open or close changes, saved together with the cursor. */
@@ -66,6 +76,8 @@ export type Store = {
   getPlayer(uid: string): Promise<Player | null>;
   /** Creates the player unless one exists, and returns whichever is stored. */
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
+  /** Changes only the goal, so it can't overwrite a fill. False means there's no such player. */
+  setGoal(uid: string, goal: number): Promise<boolean>;
   /**
    * All or nothing. If this order id already exists for the player, returns it unchanged,
    * so a retry or double tap can't place a second order.

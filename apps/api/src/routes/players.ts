@@ -21,6 +21,10 @@ const NewPlayer = z.object({
   name: z.string().trim().min(2).max(24).regex(/^[^\p{Cc}]+$/u),
 });
 
+const MAX_GOAL = 100_000_000_000; // ₪1,000,000,000 in agorot
+
+const Goal = z.object({ amount: z.number().int().positive().max(MAX_GOAL) });
+
 const newPlayer = (uid: string, name: string, now: number, world: number): Player => {
   const { cash, holdings } = newAccount();
   return {
@@ -66,6 +70,14 @@ export function playerRoutes(deps: Deps) {
         value: holdingValue(account, securityId, quotes),
       })),
     });
+  });
+
+  routes.put('/me/goal', signedIn, async (c) => {
+    const { amount } = await readBody(c, Goal);
+    if (!(await deps.store.setGoal(c.get('uid'), amount))) {
+      throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+    }
+    return c.json({ goal: amount });
   });
 
   return routes;

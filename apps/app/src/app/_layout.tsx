@@ -2,18 +2,23 @@ import { Tabs, TabList, TabSlot, TabTrigger, TabTriggerSlotProps } from 'expo-ro
 import { ActivityIndicator, Platform, Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { HOVER_CSS } from '@/components/hover-css';
 import { SignIn } from '@/components/sign-in';
-import { colors, font, useWide } from '@/components/ui';
-import { OfflineNotice, SidebarStatus, WorldBar } from '@/components/world-bar';
+import { colors, font, hover, useWide } from '@/components/ui';
+import { Brand, MenuStatus, OfflineNotice, WorldBar } from '@/components/world-bar';
 import { GameProvider, useGame } from '@/game/store';
 
-// The web build has one fixed page, so the fonts are added to it here. Both also cover Hebrew.
+// The web build has one fixed page, so the fonts are added to it here.
 if (Platform.OS === 'web') {
   const fonts = document.createElement('link');
   fonts.rel = 'stylesheet';
   fonts.href =
-    'https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Rubik:wght@400;500;600;700&display=swap';
+    'https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;600&family=Heebo:wght@400;500;600&family=Inter:wght@400;500;600&display=swap';
   document.head.appendChild(fonts);
+
+  const looks = document.createElement('style');
+  looks.textContent = HOVER_CSS;
+  document.head.appendChild(looks);
 }
 
 function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
@@ -21,8 +26,16 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable
       {...(props as PressableProps)}
-      style={[wide ? styles.sideTab : styles.tab, isFocused && styles.tabActive]}>
-      <Text style={[styles.tabText, isFocused && styles.tabTextActive]}>{children}</Text>
+      {...hover(wide ? 'tab' : 'line')}
+      aria-selected={isFocused}
+      style={[wide ? styles.topTab : styles.tab, isFocused && styles.tabActive]}>
+      <Text
+        style={[
+          wide ? styles.topTabText : styles.tabText,
+          isFocused && (wide ? styles.topTabTextActive : styles.tabTextActive),
+        ]}>
+        {children}
+      </Text>
     </Pressable>
   );
 }
@@ -37,10 +50,10 @@ function Game() {
     <View style={styles.flex}>
       <OfflineNotice />
       {wide ? null : <WorldBar />}
-      <Tabs style={[styles.flex, wide && styles.sideBySide]}>
+      <Tabs style={[styles.flex, wide && styles.menuOnTop]}>
         <TabSlot style={styles.flex} />
-        <TabList style={wide ? styles.sidebar : styles.tabs}>
-          {wide ? <Text style={styles.brand}>Portfolio League</Text> : null}
+        <TabList style={wide ? styles.topMenu : styles.tabs}>
+          {wide ? <Brand /> : null}
           <TabTrigger name="market" href="/" asChild>
             <TabButton>Market</TabButton>
           </TabTrigger>
@@ -52,7 +65,7 @@ function Game() {
           </TabTrigger>
           {/* Reached from a link on the League screen, so it needs no button here. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
-          {wide ? <SidebarStatus /> : null}
+          {wide ? <MenuStatus /> : null}
         </TabList>
       </Tabs>
     </View>
@@ -74,37 +87,42 @@ export default function RootLayout() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
-  sideBySide: { flexDirection: 'row-reverse' },
+  menuOnTop: { flexDirection: 'column-reverse' },
   tabs: {
-    backgroundColor: colors.plum,
-    borderRadius: 22,
-    bottom: 14,
+    backgroundColor: colors.card,
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
     flexDirection: 'row',
-    left: 16,
-    padding: 6,
-    position: 'absolute',
-    right: 16,
   },
-  tab: { alignItems: 'center', borderRadius: 16, flex: 1, justifyContent: 'center', minHeight: 48 },
-  sidebar: {
+  tab: {
+    alignItems: 'center',
+    borderTopColor: 'transparent',
+    borderTopWidth: 2,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 54,
+  },
+  topMenu: {
     alignItems: 'stretch',
-    backgroundColor: colors.plum,
-    flexDirection: 'column',
-    gap: 6,
+    backgroundColor: colors.deep,
+    flexDirection: 'row',
+    gap: 28,
     justifyContent: 'flex-start',
-    padding: 20,
-    width: 240,
+    minHeight: 68,
+    paddingHorizontal: 32,
   },
-  sideTab: { borderRadius: 14, justifyContent: 'center', minHeight: 48, paddingHorizontal: 16 },
-  tabActive: { backgroundColor: colors.sun },
-  tabText: { color: colors.onPlum, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
-  tabTextActive: { color: colors.ink },
-  brand: {
-    color: '#FFFFFF',
-    fontFamily: font.display,
-    fontSize: 24,
-    fontWeight: '700',
-    marginBottom: 20,
+  topTab: {
+    borderBottomColor: 'transparent',
+    borderBottomWidth: 2,
+    borderTopColor: 'transparent',
+    borderTopWidth: 2,
+    justifyContent: 'center',
+    paddingHorizontal: 2,
   },
+  tabActive: { borderBottomColor: colors.brass, borderTopColor: colors.brass },
+  tabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
+  tabTextActive: { color: colors.ink, fontWeight: '600' },
+  topTabText: { color: colors.onDeep, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
+  topTabTextActive: { color: '#FFFFFF' },
   hidden: { display: 'none' },
 });
