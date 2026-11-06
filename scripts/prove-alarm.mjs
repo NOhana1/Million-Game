@@ -68,7 +68,7 @@ async function catchUp() {
 const filledBy = (answers) => answers.reduce((sum, answer) => sum + answer.filled, 0);
 const slotsIn = (answers) => answers.flatMap((answer) => answer.slots);
 
-async function newToken(name) {
+async function newToken() {
   if (!FIREBASE_WEB_KEY) return randomUUID(); // a local API takes any token
   const response = await fetch(
     `https://identitytoolkit.googleapis.com/v1/accounts:signUp?key=${FIREBASE_WEB_KEY}`,
@@ -76,18 +76,19 @@ async function newToken(name) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        email: `${name}-${randomUUID()}@example.com`,
+        email: `proof-${randomUUID()}@example.com`,
         password: randomUUID(),
         returnSecureToken: true,
       }),
     },
   );
-  if (!response.ok) throw new Error(`Couldn't make a throwaway player: ${response.status}`);
-  return (await response.json()).idToken;
+  const json = await response.json();
+  if (!response.ok) throw new Error(`Couldn't make a throwaway player: ${json.error?.message}`);
+  return json.idToken;
 }
 
 async function newPlayer(name) {
-  const token = await newToken(name);
+  const token = await newToken();
   const { cash } = await must('/players', { method: 'POST', auth: token, body: { name } });
   return { token, startCash: cash, orders: [] };
 }
