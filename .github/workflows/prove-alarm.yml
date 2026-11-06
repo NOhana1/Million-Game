@@ -1,0 +1,33 @@
+# The "Prove the alarm" button. Tests the three alarm guarantees on the test project only.
+# It runs when pressed by hand, never on a schedule.
+
+name: Prove the alarm
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: prove-alarm
+
+jobs:
+  prove:
+    name: Prove the three guarantees
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Run the proof
+        run: node scripts/prove-alarm.mjs
+        env:
+          BASE_URL: https://million-game-git-work-portfolio-league.vercel.app
+          # The test project's public web key, the same one in scripts/build-vercel.mjs.
+          FIREBASE_WEB_KEY: AIzaSyDFiMHgZfaOnzOURLEsFONcvNZjc6NuZ6A
+          TICK_SECRET: ${{ secrets.DEV_TICK_SECRET }}
+          CLOCK_SECRET: ${{ secrets.DEV_CLOCK_SECRET }}
+          VERCEL_BYPASS: ${{ secrets.VERCEL_BYPASS }}
