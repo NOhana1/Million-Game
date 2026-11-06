@@ -1,35 +1,43 @@
 import { Link } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 
 import { api, LeagueRow, LeagueTable } from '@/api/client';
-import { Card, changeColor, colors, percent, Segments } from '@/components/ui';
+import { Card, changeColor, colors, font, Hero, Page, percent, Segments } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { useLeague } from '@/game/use-league';
 
 const PPM_PER_PERCENT = 10_000;
 const BOT_SUFFIX = / \(bot\)$/; // the tag below always shows, however narrow the screen
+const PODIUM = 3;
 
 type Week = 'this' | 'last';
 
 function Row({ row, isMe }: { row: LeagueRow; isMe: boolean }) {
   const returnPct = row.returnPpm / PPM_PER_PERCENT;
+  const podium = row.rank <= PODIUM;
   return (
     <View style={[styles.row, isMe && styles.me]}>
-      <Text style={[styles.text, styles.rank]}>{row.rank}</Text>
-      <View style={styles.player}>
-        <Text style={[styles.text, styles.name, isMe && styles.bold]} numberOfLines={1}>
-          {row.name.replace(BOT_SUFFIX, '')}
-        </Text>
-        {row.bot ? <Text style={styles.botTag}>bot</Text> : null}
+      <View style={[styles.rank, podium && styles.rankPodium]}>
+        <Text style={styles.rankText}>{row.rank}</Text>
       </View>
-      <Text style={[styles.text, styles.cell, { color: changeColor(returnPct) }]}>
-        {percent(returnPct)}
-      </Text>
-      <Text style={[styles.text, styles.cell]}>
-        {(row.maxFallPpm / PPM_PER_PERCENT).toFixed(2)}%
-      </Text>
-      <Text style={[styles.text, styles.score, styles.bold]}>{row.score.toFixed(0)}</Text>
+      <View style={styles.player}>
+        <View style={styles.nameLine}>
+          <Text style={styles.name} numberOfLines={1}>
+            {row.name.replace(BOT_SUFFIX, '')}
+            {isMe ? ' (you)' : ''}
+          </Text>
+          {row.bot ? <Text style={styles.botTag}>bot</Text> : null}
+        </View>
+        <Text style={styles.meta}>
+          <Text style={[styles.strong, { color: changeColor(returnPct) }]}>{percent(returnPct)}</Text>
+          {'  '}Max fall {(row.maxFallPpm / PPM_PER_PERCENT).toFixed(2)}%
+        </Text>
+      </View>
+      <View style={styles.scoreBox}>
+        <Text style={styles.score}>{row.score.toFixed(0)}</Text>
+        <Text style={styles.scoreLabel}>score</Text>
+      </View>
     </View>
   );
 }
@@ -48,9 +56,9 @@ export default function LeagueScreen() {
 
   if (!current) {
     return (
-      <View style={styles.page}>
+      <View style={styles.loading}>
         {failed ? (
-          <Text style={styles.subtitle}>Can’t load the table right now.</Text>
+          <Text style={styles.meta}>Can’t load the table right now.</Text>
         ) : (
           <ActivityIndicator color={colors.brand} />
         )}
@@ -59,95 +67,108 @@ export default function LeagueScreen() {
   }
 
   const table = week === 'last' && previous ? previous : current;
-  const onTable = table.rows.some((row) => row.id === me?.uid);
+  const mine = table.rows.find((row) => row.id === me?.uid);
 
   return (
-    <FlatList
-      style={styles.list}
-      contentContainerStyle={styles.content}
-      data={table.rows}
-      keyExtractor={(row) => row.id}
-      renderItem={({ item }) => <Row row={item} isMe={item.id === me?.uid} />}
-      ListHeaderComponent={
-        <View>
-          <Text style={styles.title}>{week === 'last' ? 'Last week’s table' : 'This week’s table'}</Text>
-          <Text style={styles.subtitle}>Score: 85% return rank, 15% stability rank.</Text>
-          {previous ? (
-            <View style={styles.weeks}>
-              <Segments
-                value={week}
-                onChange={setWeek}
-                options={[
-                  { value: 'this', label: 'This week' },
-                  { value: 'last', label: 'Last week' },
-                ]}
-              />
-            </View>
-          ) : null}
-          {!onTable && week === 'this' ? (
-            <Text style={styles.subtitle}>
-              You’ll join the table once you hold a security this week. It updates at each market
-              open and close.
-            </Text>
-          ) : null}
-          <View style={styles.row}>
-            <Text style={[styles.head, styles.rank]}>#</Text>
-            <Text style={[styles.head, styles.flex]}>Player</Text>
-            <Text style={[styles.head, styles.cell]}>Return</Text>
-            <Text style={[styles.head, styles.cell]}>Max fall</Text>
-            <Text style={[styles.head, styles.score]}>Score</Text>
-          </View>
-        </View>
-      }
-      ListEmptyComponent={
+    <Page maxWidth={720}>
+      <Hero style={styles.hero}>
+        <Text style={styles.heroLabel}>{week === 'last' ? 'Last week' : 'This week'}</Text>
+        <Text style={styles.heroTitle}>
+          {mine ? `You’re #${mine.rank} of ${table.total}` : 'You’re not on the table yet'}
+        </Text>
+        <Text style={styles.heroLabel}>
+          {mine || week === 'last'
+            ? 'Score: 85% return rank, 15% stability rank.'
+            : 'Hold a security this week to join. The table updates at each market open and close.'}
+        </Text>
+      </Hero>
+
+      {previous ? (
+        <Segments
+          value={week}
+          onChange={setWeek}
+          options={[
+            { value: 'this', label: 'This week' },
+            { value: 'last', label: 'Last week' },
+          ]}
+        />
+      ) : null}
+
+      {table.rows.length === 0 ? (
         <Card>
-          <Text style={styles.empty}>The table starts at the next market open.</Text>
+          <Text style={styles.meta}>The table starts at the next market open.</Text>
         </Card>
-      }
-      ListFooterComponent={
-        <View style={styles.footer}>
-          {table.total > table.rows.length ? (
-            <Text style={styles.empty}>
-              Showing the top {table.rows.length} of {table.total} players.
-            </Text>
-          ) : null}
-          <Link href="/admin" style={styles.link}>
-            Clock admin
-          </Link>
+      ) : (
+        <View style={styles.rows}>
+          {table.rows.map((row) => (
+            <Row key={row.id} row={row} isMe={row.id === me?.uid} />
+          ))}
         </View>
-      }
-    />
+      )}
+
+      {table.total > table.rows.length ? (
+        <Text style={styles.meta}>
+          Showing the top {table.rows.length} of {table.total} players.
+        </Text>
+      ) : null}
+      <Link href="/admin" style={styles.link}>
+        World clock
+      </Link>
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { backgroundColor: colors.page, flex: 1, padding: 16 },
-  list: { backgroundColor: colors.page, flex: 1 },
-  content: { padding: 16 },
-  title: { color: colors.ink, fontSize: 20, fontWeight: '700' },
-  subtitle: { color: colors.muted, fontSize: 14, marginBottom: 12, marginTop: 2 },
-  weeks: { marginBottom: 12 },
+  loading: { backgroundColor: colors.page, flex: 1, padding: 16 },
+  hero: { gap: 4 },
+  heroLabel: { color: colors.onPlum, fontFamily: font.body, fontSize: 14, lineHeight: 20 },
+  heroTitle: { color: '#FFFFFF', fontFamily: font.display, fontSize: 32, fontWeight: '600' },
+  rows: { gap: 8 },
   row: {
     alignItems: 'center',
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
+    backgroundColor: colors.card,
+    borderRadius: 18,
     flexDirection: 'row',
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 10,
+    gap: 10,
+    padding: 10,
   },
   me: { backgroundColor: colors.brandSoft },
-  head: { color: colors.muted, fontSize: 12, fontWeight: '600' },
-  text: { color: colors.ink, fontSize: 13, fontVariant: ['tabular-nums'] },
-  bold: { fontWeight: '700' },
-  rank: { width: 24 },
-  flex: { flex: 1 },
-  player: { alignItems: 'center', flex: 1, flexDirection: 'row', gap: 4 },
-  name: { flexShrink: 1 },
-  botTag: { color: colors.muted, fontSize: 11 },
-  cell: { textAlign: 'right', width: 62 },
-  score: { textAlign: 'right', width: 40 },
-  empty: { color: colors.muted, fontSize: 14 },
-  footer: { gap: 12, marginTop: 16 },
-  link: { color: colors.brand, fontSize: 14, fontWeight: '600' },
+  rank: {
+    alignItems: 'center',
+    backgroundColor: colors.page,
+    borderRadius: 12,
+    height: 40,
+    justifyContent: 'center',
+    width: 40,
+  },
+  rankPodium: { backgroundColor: colors.sun },
+  rankText: { color: colors.ink, fontFamily: font.display, fontSize: 17, fontWeight: '700' },
+  player: { flex: 1, minWidth: 0 },
+  nameLine: { alignItems: 'center', flexDirection: 'row', gap: 6 },
+  name: {
+    color: colors.ink,
+    flexShrink: 1,
+    fontFamily: font.body,
+    fontSize: 15,
+    fontWeight: '600',
+  },
+  botTag: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
+  meta: {
+    color: colors.muted,
+    fontFamily: font.body,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    marginTop: 2,
+  },
+  strong: { fontWeight: '600' },
+  scoreBox: { alignItems: 'flex-end', minWidth: 44 },
+  score: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '600' },
+  scoreLabel: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
+  link: {
+    color: colors.brand,
+    fontFamily: font.body,
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 8,
+  },
 });

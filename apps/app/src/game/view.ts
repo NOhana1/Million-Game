@@ -21,7 +21,7 @@ import {
   UNIT_SCALE,
 } from '@portfolio-league/engine';
 
-import type { MarketData, MarketRow, Me } from '@/api/client';
+import type { MarketData, MarketRow, Me, WorldData } from '@/api/client';
 
 export const START_SHEKELS = START_CASH / AGOROT_PER_SHEKEL;
 
@@ -38,6 +38,40 @@ const worldTimeFormat = new Intl.DateTimeFormat('en-GB', {
 });
 
 export const formatWorldTime = (ms: number) => worldTimeFormat.format(ms);
+
+const clockFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Jerusalem',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
+});
+
+const dayFormat = new Intl.DateTimeFormat('en-GB', {
+  timeZone: 'Asia/Jerusalem',
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+export const formatClock = (ms: number) => clockFormat.format(ms);
+export const formatDay = (ms: number) => dayFormat.format(ms);
+
+export function marketsText(world: WorldData) {
+  const { TASE, US } = world.markets;
+  if (TASE.open && US.open) return 'Both markets open';
+  if (!TASE.open && !US.open) return 'Both markets closed';
+  return `${MARKET_LABEL[TASE.open ? 'TASE' : 'US']} open`;
+}
+
+/** What happens next on the world clock, such as "Tel Aviv closes" or "US opens". */
+export function nextEvent(world: WorldData) {
+  const at = Math.min(world.markets.TASE.nextChange, world.markets.US.nextChange);
+  const events = (['TASE', 'US'] as const)
+    .filter((market) => world.markets[market].nextChange === at)
+    .map((market) => `${MARKET_LABEL[market]} ${world.markets[market].open ? 'closes' : 'opens'}`);
+  return { at, text: events.join(' and ') };
+}
 
 export const toShekels = (agorot: number) => agorot / AGOROT_PER_SHEKEL;
 export const toUnits = (units: number) => units / UNIT_SCALE;

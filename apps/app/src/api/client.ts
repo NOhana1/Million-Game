@@ -12,6 +12,7 @@ export type MarketData = {
 
 export type WorldData = {
   worldTime: number;
+  clock: { speed: number; paused: boolean };
   markets: Record<Market, { open: boolean; nextChange: number }>;
 };
 
@@ -51,9 +52,13 @@ export type LeagueTable = {
 export type ClockChange =
   | { action: 'advance'; to: 'next' }
   | { action: 'pause' }
-  | { action: 'resume' };
+  | { action: 'resume' }
+  | { action: 'speed'; speed: number };
 
-export type ClockResult = { worldTime: number; clock: { paused: boolean } };
+export type ClockResult = {
+  worldTime: number;
+  settlement: { status: 'idle' | 'busy' | 'finished' | 'partial'; filled: number };
+};
 
 export type NewOrder = {
   id: string;
@@ -93,8 +98,9 @@ async function call<T>(method: string, path: string, { token, body }: Options = 
 }
 
 export const api = {
-  world: () => call<WorldData>('GET', '/world'),
-  market: () => call<MarketData>('GET', '/market'),
+  // A changing `fresh` value skips the CDN's copy. Only used right after moving the clock.
+  world: (fresh?: number) => call<WorldData>('GET', `/world${fresh ? `?fresh=${fresh}` : ''}`),
+  market: (fresh?: number) => call<MarketData>('GET', `/market${fresh ? `?fresh=${fresh}` : ''}`),
   me: (token: string) => call<Me>('GET', '/me', { token }),
   orders: (token: string) =>
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),

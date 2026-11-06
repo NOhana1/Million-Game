@@ -1,59 +1,72 @@
-import type { Market } from '@portfolio-league/engine';
 import { StyleSheet, Text, View } from 'react-native';
 
-import { useGame } from '@/game/store';
-import { displayFx, formatWorldTime, MARKET_LABEL } from '@/game/view';
+import { useGame, useLiveWorldTime } from '@/game/store';
+import { formatWorldTime, marketsText } from '@/game/view';
 
-import { colors } from './ui';
+import { colors, font } from './ui';
 
-function MarketStatus({ market, open }: { market: Market; open: boolean }) {
+export function OfflineNotice() {
+  const { offline } = useGame();
+  if (!offline) return null;
+  return <Text style={styles.offline}>Can’t reach the server. Retrying…</Text>;
+}
+
+/** The top of the phone screen. On a computer the sidebar shows this instead. */
+export function WorldBar() {
+  const { world } = useGame();
+  const time = useLiveWorldTime();
   return (
-    <View style={styles.status}>
-      <View style={[styles.dot, { backgroundColor: open ? colors.up : '#A4ADA7' }]} />
-      <Text style={styles.statusText}>
-        {MARKET_LABEL[market]} {open ? 'open' : 'closed'}
-      </Text>
+    <View style={styles.bar}>
+      <Text style={styles.brand}>Portfolio League</Text>
+      {world ? <Text style={styles.time}>{formatWorldTime(time)}</Text> : null}
     </View>
   );
 }
 
-export function WorldBar() {
-  const { world, market, offline } = useGame();
+export function SidebarStatus() {
+  const { world } = useGame();
+  const time = useLiveWorldTime();
+  if (!world) return null;
   return (
-    <View style={styles.bar}>
-      <View style={styles.row}>
-        <Text style={styles.brand}>Portfolio League</Text>
-        {world ? <Text style={styles.time}>{formatWorldTime(world.worldTime)}</Text> : null}
-      </View>
-      {world ? (
-        <View style={styles.statuses}>
-          <MarketStatus market="TASE" open={world.markets.TASE.open} />
-          <MarketStatus market="US" open={world.markets.US.open} />
-          {market ? (
-            <Text style={styles.statusText}>$1 = ₪{displayFx(market.usdIls).toFixed(3)}</Text>
-          ) : null}
-        </View>
-      ) : null}
-      {offline ? <Text style={styles.offline}>Can’t reach the server. Retrying…</Text> : null}
+    <View style={styles.status}>
+      <Text style={styles.statusTime}>{formatWorldTime(time)}</Text>
+      <Text style={styles.statusMarkets}>{marketsText(world)}</Text>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   bar: {
-    backgroundColor: colors.card,
-    borderBottomColor: colors.line,
-    borderBottomWidth: 1,
-    gap: 8,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 14,
   },
-  row: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  brand: { color: colors.brand, fontSize: 18, fontWeight: '800' },
-  time: { color: colors.ink, fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '600' },
-  statuses: { alignItems: 'center', columnGap: 14, flexDirection: 'row', flexWrap: 'wrap' },
-  status: { alignItems: 'center', flexDirection: 'row', gap: 6 },
-  dot: { borderRadius: 4, height: 8, width: 8 },
-  statusText: { color: colors.muted, fontSize: 13 },
-  offline: { color: colors.down, fontSize: 13, fontWeight: '600' },
+  brand: { color: colors.brand, fontFamily: font.display, fontSize: 20, fontWeight: '700' },
+  time: {
+    color: colors.ink,
+    fontFamily: font.body,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '500',
+  },
+  status: { gap: 4, marginTop: 'auto' },
+  statusTime: {
+    color: '#FFFFFF',
+    fontFamily: font.body,
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+  },
+  statusMarkets: { color: colors.onPlum, fontFamily: font.body, fontSize: 13 },
+  offline: {
+    backgroundColor: colors.down,
+    color: '#FFFFFF',
+    fontFamily: font.body,
+    fontSize: 13,
+    fontWeight: '600',
+    padding: 8,
+    textAlign: 'center',
+  },
 });
