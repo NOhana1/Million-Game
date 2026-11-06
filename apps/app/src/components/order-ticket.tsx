@@ -12,13 +12,29 @@ import {
   maxOrderAmount,
   orderProblem,
   problemText,
+  toShekels,
 } from '@/game/view';
 
-import { Button, colors, ils, money, Segments } from './ui';
+import { Button, colors, font, ils, money, Segments, Tile, useWide } from './ui';
 
-export function OrderTicket({ security, onClose }: { security: MarketRow; onClose: () => void }) {
+const QUICK_AMOUNTS = [
+  { label: '25%', share: 0.25 },
+  { label: '50%', share: 0.5 },
+  { label: 'Most', share: 1 },
+];
+
+export function OrderTicket({
+  security,
+  onClose,
+  startSide = 'buy',
+}: {
+  security: MarketRow;
+  onClose: () => void;
+  startSide?: Side;
+}) {
   const { me, market, world, placeOrder } = useGame();
-  const [side, setSide] = useState<Side>('buy');
+  const wide = useWide();
+  const [side, setSide] = useState<Side>(startSide);
   const [text, setText] = useState('');
   const [tried, setTried] = useState(false);
   const [sending, setSending] = useState(false);
@@ -33,6 +49,16 @@ export function OrderTicket({ security, onClose }: { security: MarketRow; onClos
   const problem = orderProblem(me, market, security, side, amount);
   const open = world.markets[security.market].open;
   const currency = security.market === 'US' ? '$' : '₪';
+  const held = me.positions.find((p) => p.securityId === security.id);
+  const spare =
+    side === 'buy'
+      ? `You can spend ${ils(toShekels(me.cash))}`
+      : `You hold ${ils(toShekels(held?.value ?? 0))}`;
+
+  const setAmount = (value: string) => {
+    setText(value);
+    changeOrder();
+  };
 
   const changeOrder = () => {
     setOrderId(newId());
@@ -66,18 +92,18 @@ export function OrderTicket({ security, onClose }: { security: MarketRow; onClos
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onClose}>
       <Pressable accessibilityLabel="Close" style={styles.backdrop} onPress={onClose} />
-      <View style={styles.center} pointerEvents="box-none">
-        <View style={styles.sheet}>
+      <View style={[styles.holder, wide && styles.holderWide]} pointerEvents="box-none">
+        <View style={[styles.sheet, wide && styles.sheetWide]}>
           <View style={styles.header}>
+            <Tile name={security.name} sector={security.sector} />
             <View style={styles.flex}>
               <Text style={styles.title}>{security.name}</Text>
               <Text style={styles.muted}>
-                {security.id} · {MARKET_LABEL[security.market]} · last{' '}
-                {money(displayPrice(security.price), currency)}
+                {MARKET_LABEL[security.market]} · {money(displayPrice(security.price), currency)}
               </Text>
             </View>
             <Pressable accessibilityRole="button" onPress={onClose} hitSlop={10}>
-              <Text style={styles.close}>Cancel</Text>
+              <Text style={styles.close}>Close</Text>
             </Pressable>
           </View>
 
@@ -86,7 +112,7 @@ export function OrderTicket({ security, onClose }: { security: MarketRow; onClos
             onChange={(value) => {
               setSide(value);
               setTried(false);
-              changeOrder();
+              setAmount('');
             }}
             options={[
               { value: 'buy', label: 'Buy' },
@@ -94,30 +120,34 @@ export function OrderTicket({ security, onClose }: { security: MarketRow; onClos
             ]}
           />
 
-          <Text style={styles.label}>Amount in shekels</Text>
-          <TextInput
-            accessibilityLabel="Amount in shekels"
-            autoFocus
-            inputMode="decimal"
-            onChangeText={(value) => {
-              setText(value);
-              changeOrder();
-            }}
-            placeholder="0"
-            placeholderTextColor="#9AA39E"
-            style={styles.input}
-            value={text}
-          />
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => {
-              setText(String(limit));
-              changeOrder();
-            }}>
-            <Text style={styles.limit}>
-              {side === 'buy' ? 'Most you can buy' : 'Most you can sell'}: {ils(limit)}
-            </Text>
-          </Pressable>
+          <View style={styles.amount}>
+            <Text style={styles.shekel}>₪</Text>
+            <TextInput
+              accessibilityLabel="Amount in shekels"
+              autoFocus
+              inputMode="decimal"
+              onChangeText={setAmount}
+              placeholder="0"
+              placeholderTextColor={colors.muted}
+              style={styles.input}
+              value={text}
+            />
+          </View>
+          <Text style={styles.muted}>
+            {spare}. Most for this order: {ils(limit)}.
+          </Text>
+
+          <View style={styles.quick}>
+            {QUICK_AMOUNTS.map(({ label, share }) => (
+              <Pressable
+                key={label}
+                accessibilityRole="button"
+                onPress={() => setAmount(String(Math.floor(limit * share)))}
+                style={styles.chip}>
+                <Text style={styles.chipText}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
 
           <View style={styles.notice}>
             <Text style={styles.noticeText}>
@@ -131,7 +161,7 @@ export function OrderTicket({ security, onClose }: { security: MarketRow; onClos
           {tried && problem ? <Text style={styles.error}>{problem}</Text> : null}
           {serverProblem ? <Text style={styles.error}>{serverProblem}</Text> : null}
           <Button
-            label={side === 'buy' ? 'Place buy order' : 'Place sell order'}
+            label={`${side === 'buy' ? 'Buy' : 'Sell'}${amount > 0 ? ` ${ils(amount)}` : ''}`}
             onPress={submit}
             disabled={sending}
           />
@@ -150,34 +180,54 @@ export function OrderTicket({ security, onClose }: { security: MarketRow; onClos
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 25, 20, 0.45)' },
-  center: { alignItems: 'center', flex: 1, justifyContent: 'center', padding: 16 },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(33, 22, 58, 0.55)' },
+  holder: { flex: 1, justifyContent: 'flex-end' },
+  holderWide: { alignItems: 'center', justifyContent: 'center' },
   sheet: {
     backgroundColor: colors.card,
-    borderRadius: 14,
+    borderTopLeftRadius: 28,
+    borderTopRightRadius: 28,
     gap: 12,
-    maxWidth: 440,
     padding: 18,
-    width: '100%',
+    paddingBottom: 24,
   },
-  header: { alignItems: 'flex-start', flexDirection: 'row', gap: 12 },
+  sheetWide: { borderRadius: 28, maxWidth: 460, width: '100%' },
+  header: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   flex: { flex: 1 },
-  title: { color: colors.ink, fontSize: 18, fontWeight: '700' },
-  muted: { color: colors.muted, fontSize: 13, marginTop: 2 },
-  close: { color: colors.brand, fontSize: 15, fontWeight: '600' },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '600' },
-  input: {
-    borderColor: colors.line,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: colors.ink,
-    fontSize: 20,
-    fontVariant: ['tabular-nums'],
-    marginTop: -6,
-    padding: 12,
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: '600' },
+  muted: { color: colors.muted, fontFamily: font.body, fontSize: 13, marginTop: 2 },
+  close: { color: colors.brand, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  amount: {
+    alignItems: 'center',
+    backgroundColor: colors.page,
+    borderRadius: 18,
+    flexDirection: 'row',
+    gap: 6,
+    paddingHorizontal: 16,
   },
-  limit: { color: colors.brand, fontSize: 13, fontWeight: '600', marginTop: -4 },
-  notice: { backgroundColor: colors.warnSoft, borderRadius: 10, padding: 12 },
-  noticeText: { color: colors.warnInk, fontSize: 13, lineHeight: 19 },
-  error: { color: colors.down, fontSize: 14, fontWeight: '600' },
+  shekel: { color: colors.muted, fontFamily: font.display, fontSize: 30, fontWeight: '600' },
+  input: {
+    color: colors.ink,
+    flex: 1,
+    fontFamily: font.display,
+    fontSize: 34,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    minWidth: 0,
+    outlineColor: 'transparent', // the amount box around it is the visible field
+    paddingVertical: 10,
+  },
+  quick: { flexDirection: 'row', gap: 8 },
+  chip: {
+    alignItems: 'center',
+    backgroundColor: colors.brandSoft,
+    borderRadius: 14,
+    flex: 1,
+    justifyContent: 'center',
+    minHeight: 44,
+  },
+  chipText: { color: colors.brand, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  notice: { backgroundColor: colors.warnSoft, borderRadius: 14, padding: 12 },
+  noticeText: { color: colors.warnInk, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
+  error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });

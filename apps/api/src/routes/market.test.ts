@@ -50,6 +50,13 @@ describe('market', () => {
     assert.equal(body.markets.US.open, false);
   });
 
+  it('tells the app how fast the clock runs, so it can tick smoothly', async () => {
+    const body = await json(await testApp().request('/api/world'));
+    assert.equal(typeof body.clock.speed, 'number');
+    assert.equal(body.clock.paused, true); // the test world starts stopped
+    assert.equal(body.clock.anchorWorld, undefined);
+  });
+
   it('lets the CDN cache public data', async () => {
     const app = testApp();
     for (const path of ['/api/world', '/api/market', '/api/market/TAIX/history']) {

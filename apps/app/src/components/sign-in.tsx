@@ -1,15 +1,24 @@
 import { useState } from 'react';
-import { StyleSheet, Text, TextInput, View } from 'react-native';
+import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { signInProblem, usesAccounts } from '@/api/session';
 import { useGame } from '@/game/store';
 
-import { Button, Card, colors, Segments } from './ui';
+import { Button, Card, colors, Field, font, Segments, Tile, useWide } from './ui';
+
+const SAMPLE_TILES = [
+  { name: 'Tel Aviv', sector: 'Fund' },
+  { name: 'Sharon Bank', sector: 'Banks' },
+  { name: 'Negev Solar', sector: 'Energy' },
+  { name: 'Arava Pharma', sector: 'Health' },
+  { name: 'HaGalil Foods', sector: 'Consumer' },
+];
 
 type Mode = 'create' | 'signIn';
 
 export function SignIn() {
   const { status, signUp, signIn, chooseName } = useGame();
+  const wide = useWide();
   const [mode, setMode] = useState<Mode>('create');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -41,13 +50,23 @@ export function SignIn() {
   };
 
   return (
-    <View style={styles.page}>
-      <View style={styles.column}>
-        <Text style={styles.brand}>Portfolio League</Text>
-        <Text style={styles.lead}>
-          Start with ₪1,000,000, trade Tel Aviv and US securities, and compete on the weekly table.
-        </Text>
-        <Card style={styles.card}>
+    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
+      <View style={[styles.layout, wide && styles.layoutWide]}>
+        <View style={[styles.intro, wide && styles.half]}>
+          <Text style={styles.brand}>Portfolio League</Text>
+          <Text style={styles.money}>₪1,000,000</Text>
+          <Text style={styles.lead}>
+            Virtual money, real competition. Trade Tel Aviv and US securities and climb the weekly
+            table.
+          </Text>
+          <View style={styles.tiles}>
+            {SAMPLE_TILES.map((tile) => (
+              <Tile key={tile.name} {...tile} />
+            ))}
+          </View>
+        </View>
+
+        <Card style={[styles.card, wide && styles.half]}>
           {showAccount ? (
             <>
               <Segments
@@ -61,43 +80,34 @@ export function SignIn() {
                   { value: 'signIn', label: 'Sign in' },
                 ]}
               />
-              <Text style={styles.label}>Email</Text>
-              <TextInput
-                accessibilityLabel="Email"
+              <Field
+                label="Email"
                 autoCapitalize="none"
                 autoComplete="email"
                 inputMode="email"
                 onChangeText={setEmail}
-                style={styles.input}
                 value={email}
               />
-              <Text style={styles.label}>Password</Text>
-              <TextInput
-                accessibilityLabel="Password"
+              <Field
+                label="Password"
                 autoCapitalize="none"
                 onChangeText={setPassword}
                 onSubmitEditing={submit}
                 secureTextEntry
-                style={styles.input}
                 value={password}
               />
             </>
           ) : null}
           {showName ? (
-            <>
-              <Text style={styles.label}>Your player name</Text>
-              <TextInput
-                accessibilityLabel="Your player name"
-                autoFocus={!showAccount}
-                maxLength={24}
-                onChangeText={setName}
-                onSubmitEditing={submit}
-                placeholder="For example, Noa"
-                placeholderTextColor="#9AA39E"
-                style={styles.input}
-                value={name}
-              />
-            </>
+            <Field
+              label="Your player name"
+              autoFocus={!showAccount}
+              maxLength={24}
+              onChangeText={setName}
+              onSubmitEditing={submit}
+              placeholder="For example, Noa"
+              value={name}
+            />
           ) : null}
           {problem ? <Text style={styles.error}>{problem}</Text> : null}
           <Button
@@ -107,30 +117,27 @@ export function SignIn() {
           />
         </Card>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  page: {
-    alignItems: 'center',
-    backgroundColor: colors.page,
-    flex: 1,
-    justifyContent: 'center',
-    padding: 16,
+  page: { backgroundColor: colors.plum, flex: 1 },
+  content: { alignItems: 'center', flexGrow: 1, justifyContent: 'center', padding: 20 },
+  layout: { gap: 24, maxWidth: 420, width: '100%' },
+  layoutWide: { alignItems: 'center', flexDirection: 'row', gap: 56, maxWidth: 920 },
+  half: { flex: 1 },
+  intro: { gap: 8, width: '100%' },
+  brand: { color: colors.sun, fontFamily: font.display, fontSize: 24, fontWeight: '700' },
+  money: {
+    color: '#FFFFFF',
+    fontFamily: font.display,
+    fontSize: 58,
+    fontWeight: '600',
+    lineHeight: 66,
   },
-  column: { gap: 12, maxWidth: 420, width: '100%' },
-  brand: { color: colors.brand, fontSize: 32, fontWeight: '800' },
-  lead: { color: colors.muted, fontSize: 16, lineHeight: 24 },
-  card: { gap: 12, marginTop: 8 },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '600' },
-  error: { color: colors.down, fontSize: 14, fontWeight: '600' },
-  input: {
-    borderColor: colors.line,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: colors.ink,
-    fontSize: 16,
-    padding: 12,
-  },
+  lead: { color: colors.onPlum, fontFamily: font.body, fontSize: 17, lineHeight: 25 },
+  tiles: { flexDirection: 'row', gap: 8, marginTop: 10 },
+  card: { borderRadius: 28, gap: 14, padding: 20, width: '100%' },
+  error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });

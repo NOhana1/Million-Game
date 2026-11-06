@@ -14,8 +14,13 @@ export function marketRoutes(deps: Deps) {
   const now = async () => worldTime(await deps.store.getClock(deps.now()), deps.now());
 
   routes.get('/world', async (c) => {
+    const realNow = deps.now();
+    const clock = await deps.store.getClock(realNow);
     c.header('Cache-Control', cachedFor(5));
-    return c.json(worldStatus(await now()));
+    return c.json({
+      ...worldStatus(worldTime(clock, realNow)),
+      clock: { speed: clock.speed, paused: clock.paused },
+    });
   });
 
   routes.get('/market', async (c) => {

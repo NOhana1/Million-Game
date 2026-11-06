@@ -1,28 +1,53 @@
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 
-import { api, ApiProblem, ClockChange } from '@/api/client';
-import { Button, Card, colors } from '@/components/ui';
-import { useGame } from '@/game/store';
-import { formatWorldTime } from '@/game/view';
+import { api, ApiProblem, ClockChange, ClockResult } from '@/api/client';
+import {
+  Button,
+  Card,
+  changeColorOnPlum,
+  colors,
+  Field,
+  font,
+  Hero,
+  Page,
+  Segments,
+} from '@/components/ui';
+import { useGame, useLiveWorldTime } from '@/game/store';
+import { formatClock, formatDay, formatWorldTime, MARKET_LABEL, nextEvent } from '@/game/view';
+
+const SPEEDS = [
+  { value: '1', label: 'Real time' },
+  { value: '7', label: 'Normal 7×' },
+  { value: '30', label: 'Fast 30×' },
+  { value: '60', label: 'Fastest 60×' },
+];
+const MAX_LOG = 5;
+
+const fillText = ({ settlement: { filled, status } }: ClockResult) => {
+  const orders = filled === 1 ? '1 order filled' : `${filled} orders filled`;
+  return status === 'finished' || status === 'idle' ? orders : `${orders}, more on the way`;
+};
 
 // The clock is shared by every player, so moving it needs the secret clock code. The code stays
 // in memory on this screen and is never saved. The server makes the real check.
 export default function AdminScreen() {
-  const { refresh } = useGame();
+  const { world, clockMoved } = useGame();
+  const time = useLiveWorldTime();
   const [code, setCode] = useState('');
   const [sending, setSending] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  const [log, setLog] = useState<string[]>([]);
   const [problem, setProblem] = useState<string | null>(null);
 
-  const move = async (change: ClockChange) => {
+  if (!world) return null;
+
+  const move = async (change: ClockChange, describe: (result: ClockResult) => string) => {
     setSending(true);
-    setMessage(null);
     setProblem(null);
     try {
-      const { worldTime, clock } = await api.moveClock(code.trim(), change);
-      setMessage(`Clock is at ${formatWorldTime(worldTime)}${clock.paused ? ', paused' : ''}.`);
-      await refresh();
+      const result = await api.moveClock(code.trim(), change);
+      setLog((lines) => [describe(result), ...lines].slice(0, MAX_LOG));
+      await clockMoved();
     } catch (error) {
       const wrongCode = error instanceof ApiProblem && error.status === 401;
       setProblem(wrongCode ? 'That code isn’t right.' : 'Couldn’t move the clock. Please try again.');
@@ -30,72 +55,101 @@ export default function AdminScreen() {
     setSending(false);
   };
 
+  const { paused, speed } = world.clock;
+  const next = nextEvent(world);
   const disabled = sending || code.trim() === '';
 
+  const jump = () =>
+    move({ action: 'advance', to: 'next' }, (result) =>
+      `${formatWorldTime(time)} → ${formatWorldTime(result.worldTime)}. ${next.text}. ${fillText(result)}.`,
+    );
+
+  const pauseOrPlay = () =>
+    paused
+      ? move({ action: 'resume' }, () => `Time is moving again from ${formatWorldTime(time)}.`)
+      : move({ action: 'pause' }, () => `Time stopped at ${formatWorldTime(time)}.`);
+
+  const changeSpeed = (value: string) =>
+    move({ action: 'speed', speed: Number(value) }, () =>
+      value === '1' ? 'Time now moves at real speed.' : `Time now moves ${value}× faster.`,
+    );
+
   return (
-    <ScrollView style={styles.page} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Clock admin</Text>
-      <Text style={styles.subtitle}>
-        All players share one clock, so these controls move it for everyone.
-      </Text>
+    <Page maxWidth={560}>
+      <Hero style={styles.clock}>
+        <Text style={styles.day}>{formatDay(time)}</Text>
+        <Text style={styles.time}>{formatClock(time)}</Text>
+        <Text style={[styles.state, { color: changeColorOnPlum(paused ? -1 : 1) }]}>
+          {paused ? 'Stopped' : `Moving, ${speed}× real speed`}
+        </Text>
+        <Text style={styles.day}>
+          {MARKET_LABEL.TASE} {world.markets.TASE.open ? 'open' : 'closed'} · {MARKET_LABEL.US}{' '}
+          {world.markets.US.open ? 'open' : 'closed'}
+        </Text>
+      </Hero>
+      <Text style={styles.subtitle}>Every player shares this clock. Changes here move it for everyone.</Text>
+
       <Card style={styles.card}>
-        <Text style={styles.label}>Clock code</Text>
-        <TextInput
-          accessibilityLabel="Clock code"
+        <Field
+          label="Clock code"
           autoCapitalize="none"
           autoCorrect={false}
           onChangeText={setCode}
+          placeholder="Enter the code to use the controls"
           secureTextEntry
-          style={styles.input}
           value={code}
         />
         <Button
-          label="Next open/close"
-          onPress={() => move({ action: 'advance', to: 'next' })}
+          label={`Jump to ${formatWorldTime(next.at)}: ${next.text}`}
+          onPress={jump}
           disabled={disabled}
         />
-        <View style={styles.buttons}>
-          <View style={styles.flex}>
-            <Button
-              variant="quiet"
-              label="Pause"
-              onPress={() => move({ action: 'pause' })}
-              disabled={disabled}
-            />
-          </View>
-          <View style={styles.flex}>
-            <Button
-              variant="quiet"
-              label="Resume"
-              onPress={() => move({ action: 'resume' })}
-              disabled={disabled}
-            />
-          </View>
-        </View>
-        {message ? <Text style={styles.message}>{message}</Text> : null}
+        <Button
+          variant="quiet"
+          label={paused ? 'Start time' : 'Stop time'}
+          onPress={pauseOrPlay}
+          disabled={disabled}
+        />
+        <Text style={styles.label}>Speed</Text>
+        <Segments
+          value={String(speed)}
+          onChange={changeSpeed}
+          options={SPEEDS}
+          disabled={disabled}
+        />
         {problem ? <Text style={styles.error}>{problem}</Text> : null}
       </Card>
-    </ScrollView>
+
+      {log.length > 0 ? (
+        <Card style={styles.card}>
+          <Text style={styles.label}>What just happened</Text>
+          {log.map((line, index) => (
+            <Text key={`${index}-${line}`} style={index === 0 ? styles.latest : styles.older}>
+              {line}
+            </Text>
+          ))}
+        </Card>
+      ) : null}
+    </Page>
   );
 }
 
 const styles = StyleSheet.create({
-  page: { backgroundColor: colors.page, flex: 1 },
-  content: { padding: 16 },
-  title: { color: colors.ink, fontSize: 20, fontWeight: '700' },
-  subtitle: { color: colors.muted, fontSize: 14, marginBottom: 12, marginTop: 2 },
-  card: { gap: 12 },
-  label: { color: colors.ink, fontSize: 14, fontWeight: '600' },
-  input: {
-    borderColor: colors.line,
-    borderRadius: 10,
-    borderWidth: 1,
-    color: colors.ink,
-    fontSize: 16,
-    padding: 12,
+  clock: { alignItems: 'center', gap: 2, paddingVertical: 24 },
+  day: { color: colors.onPlum, fontFamily: font.body, fontSize: 15 },
+  time: {
+    color: '#FFFFFF',
+    fontFamily: font.display,
+    fontSize: 60,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    lineHeight: 70,
   },
-  buttons: { flexDirection: 'row', gap: 8 },
-  flex: { flex: 1 },
-  message: { color: colors.up, fontSize: 14, fontWeight: '600' },
-  error: { color: colors.down, fontSize: 14, fontWeight: '600' },
+  state: { fontFamily: font.body, fontSize: 15, fontWeight: '600', marginBottom: 6 },
+  subtitle: { color: colors.muted, fontFamily: font.body, fontSize: 14, textAlign: 'center' },
+  card: { gap: 12 },
+  label: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  latest: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  older: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
+  error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });
