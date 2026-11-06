@@ -33,6 +33,7 @@ type Game = {
   chooseName(name: string): Promise<void>;
   signOut(): Promise<void>;
   placeOrder(order: NewOrder): Promise<void>;
+  setGoal(amount: number): Promise<void>;
   clockMoved(): Promise<void>;
 };
 
@@ -137,6 +138,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [refreshOwn],
   );
 
+  const setGoal = useCallback(
+    async (amount: number) => {
+      const token = await currentToken();
+      if (!token) return;
+      await api.setGoal(token, amount);
+      await refreshOwn();
+    },
+    [refreshOwn],
+  );
+
   const clockMoved = useCallback(async () => {
     skipCacheUntil.current = Date.now() + SKIP_CACHE_AFTER_MOVE_MS;
     await Promise.all([refreshShared(), refreshOwn()]);
@@ -155,6 +166,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       chooseName,
       signOut,
       placeOrder,
+      setGoal,
       clockMoved,
     }),
     [
@@ -169,6 +181,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       chooseName,
       signOut,
       placeOrder,
+      setGoal,
       clockMoved,
     ],
   );

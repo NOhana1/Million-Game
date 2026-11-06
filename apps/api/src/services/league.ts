@@ -3,8 +3,12 @@
 // not the number of players.
 
 import {
+  divisionMoves,
+  FIRST_DIVISION,
   holdsSecurity,
+  INDEX_FUNDS,
   nextWeek,
+  partsPerMillion,
   portfolioValue,
   type QuoteSource,
   recordValue,
@@ -13,12 +17,14 @@ import {
   settleDueOrders,
   startWeek,
   weeklyTable,
+  weekStartFor,
+  WORLD_START,
 } from '@portfolio-league/engine';
 
 import type { PriceFeed } from '../market/feed.ts';
 import { priceSteps, quotesAt } from '../market/quotes.ts';
 import { toAccount } from '../player.ts';
-import type { LeagueTable, Member, Player, Shard, SlotSave } from '../store/types.ts';
+import type { LeagueTable, Member, Player, Shard, SlotSave, TableRow } from '../store/types.ts';
 import { botActs, createBots, memberAccount } from './bots.ts';
 
 const SHARD_SIZE = 1000; // well under Firestore's 1 MB per document
@@ -74,24 +80,50 @@ function syncPlayer(shards: Shard[], player: Player, slot: number, quotes: Quote
   };
 }
 
-function tableOf(members: readonly Member[], quotes: QuoteSource, slot: number): LeagueTable {
+/** Every ranked player, best first. Division moves need all of them, not just the shown rows. */
+function rowsOf(members: readonly Member[], quotes: QuoteSource): TableRow[] {
   const byId = new Map(members.map((member) => [member.id, member]));
   const values = new Map(members.map((m) => [m.id, portfolioValue(memberAccount(m), quotes)]));
   const ranked = weeklyTable(
     members.map((m) => ({ id: m.id, week: m.week, value: values.get(m.id) ?? 0 })),
   );
+  return ranked.map((row, index) => ({
+    ...row,
+    rank: index + 1,
+    name: byId.get(row.id)?.name ?? '',
+    bot: byId.get(row.id)?.bot ?? false,
+    value: values.get(row.id) ?? 0,
+    division: byId.get(row.id)?.division ?? FIRST_DIVISION,
+  }));
+}
+
+/** In shekels, so US funds include the dollar's move, the same as a player's return. */
+function indexReturns(feed: PriceFeed, weekEndsAt: number, quotes: QuoteSource) {
+  const atStart = quotesAt(feed, Math.max(weekStartFor(weekEndsAt), WORLD_START));
+  const worth = (source: QuoteSource, id: string) => source(id).price * source(id).fx;
+  return Object.fromEntries(
+    INDEX_FUNDS.map((id) => {
+      const start = worth(atStart, id);
+      return [id, partsPerMillion(worth(quotes, id) - start, start)];
+    }),
+  );
+}
+
+function tableOf(
+  feed: PriceFeed,
+  members: readonly Member[],
+  rows: readonly TableRow[],
+  quotes: QuoteSource,
+  slot: number,
+): LeagueTable {
+  const weekEndsAt = members[0]?.week.endsAt ?? slot;
   return {
     updatedAt: slot,
-    weekEndsAt: members[0]?.week.endsAt ?? slot,
+    weekEndsAt,
     previousWeekEndsAt: null,
-    total: ranked.length,
-    rows: ranked.slice(0, TABLE_ROWS).map((row, index) => ({
-      ...row,
-      rank: index + 1,
-      name: byId.get(row.id)?.name ?? '',
-      bot: byId.get(row.id)?.bot ?? false,
-      value: values.get(row.id) ?? 0,
-    })),
+    total: rows.length,
+    rows: rows.slice(0, TABLE_ROWS),
+    indexes: indexReturns(feed, weekEndsAt, quotes),
   };
 }
 
@@ -116,10 +148,19 @@ export function finishSlot(
   members().forEach(record);
 
   const weekEnded = members().some((member) => member.week.endsAt <= slot);
-  const finishedWeek = weekEnded ? tableOf(members(), quotes, slot) : undefined;
+  let finishedWeek: LeagueTable | undefined;
   if (weekEnded) {
+    const rows = rowsOf(members(), quotes);
+    const moves = divisionMoves(rows);
+    const results = rows.map((row) => ({
+      ...row,
+      nextDivision: moves.get(row.id) ?? row.division,
+    }));
+    finishedWeek = tableOf(feed, members(), results, quotes, slot);
     for (const member of members()) {
       const account = memberAccount(member);
+      const division = moves.get(member.id);
+      if (division) member.division = division;
       member.week = nextWeek(member.week, portfolioValue(account, quotes), holdsSecurity(account));
     }
   }
@@ -130,7 +171,7 @@ export function finishSlot(
     member.orders = account.orders;
   }
 
-  const table = tableOf(members(), quotes, slot);
+  const table = tableOf(feed, members(), rowsOf(members(), quotes), quotes, slot);
   table.previousWeekEndsAt = finishedWeek?.weekEndsAt ?? previousWeekEndsAt;
   return { shards, table, ...(finishedWeek ? { finishedWeek } : {}) };
 }

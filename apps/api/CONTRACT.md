@@ -20,7 +20,11 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `GET /market` | No | 5s | All securities with `price`, `priceDayAgo`, `usdIls` and `usdIlsDayAgo` |
 | `GET /market/:id/history` | No | 60s | Chart points for the last 5 world days, ending at the current price |
 
-`GET /me` also returns `worldTime`, `reserved` (cash held for pending buys), `value` (whole portfolio) and `positions`.
+`GET /me` also returns `worldTime`, `reserved` (cash held for pending buys), `value` (whole portfolio), `positions`, and `goal` once the player has set one.
+
+| Method and path | Sign-in | Cached | Purpose |
+|---|---|---|---|
+| `PUT /me/goal` | Yes | No | Sets the player's long-term goal. Body `{ "amount": 200000000 }` in agorot, up to ₪1,000,000,000. Returns `{ "goal": 200000000 }`. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 
 ## Orders
 
@@ -52,9 +56,13 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `GET /league` | No | 30s | This week's table, updated at each market open and close |
 | `GET /league/weeks/:endsAt` | No | 5min | A finished week's final table. 404 `UNKNOWN_WEEK` if there's none |
 
-Both return `{ updatedAt, weekEndsAt, previousWeekEndsAt, total, rows }`. Before the first market event, `rows` is empty and the times are null.
+Both return `{ updatedAt, weekEndsAt, previousWeekEndsAt, total, rows, indexes }`. Before the first market event, `rows` is empty and the times are null.
 
-Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, stabilityRank, score }`.
+Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, stabilityRank, score, division }`.
+
+- **`division`** is `bronze`, `silver`, `gold` or `diamond`: the division the player competes in that week.
+- **`nextDivision`** appears on finished weeks only: where that week's result moved them.
+- **`indexes`** maps each index fund's id to its return this week, in shekels, in parts per million. It's empty before the first market event.
 
 - **Is the signed-in player on the table?** Compare `id` with their Firebase user id.
 - **Rows stop at 500.** `total` is the full count.

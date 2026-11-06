@@ -190,7 +190,7 @@ function storeContract(name: string, makeStore: () => Store) {
       const store = makeStore();
       const owner = randomUUID();
       const start = (await store.startSettlement(lease(owner, 3_000_000_000_000_000))) ?? 0;
-      const table = { updatedAt: 1, weekEndsAt: start, previousWeekEndsAt: null, total: 0, rows: [] };
+      const table = { updatedAt: 1, weekEndsAt: start, previousWeekEndsAt: null, total: 0, rows: [], indexes: {} };
       const shard = { id: 'contract-test', members: {} };
       assert.equal(await store.saveSlot('someone-else', start + 1, { shards: [shard], table }), false);
       assert.ok(!(await store.getShards()).some((s) => s.id === 'contract-test'));
@@ -213,6 +213,16 @@ function storeContract(name: string, makeStore: () => Store) {
         (await store.playersChangedSince(since)).some((p) => p.uid === uid);
       assert.equal(await found(3), true);
       assert.equal(await found(4), false);
+    });
+
+    it('sets a goal without touching anything else', async () => {
+      const store = makeStore();
+      const uid = randomUUID();
+      assert.equal(await store.setGoal(uid, 5), false);
+      await store.createPlayer(player(uid));
+      assert.equal(await store.setGoal(uid, 200_000_000), true);
+      const stored = await store.getPlayer(uid);
+      assert.deepEqual(stored, { ...player(uid), goal: 200_000_000 });
     });
 
     it('never moves the cursor backwards', async () => {

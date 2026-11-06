@@ -6,7 +6,8 @@ import { FieldPath, type Firestore } from 'firebase-admin/firestore';
 import { type Clock, firstClock } from '../clock.ts';
 import type { LeagueTable, Player, Shard, Store } from './types.ts';
 
-const ALREADY_EXISTS = 6; // gRPC status code
+const NOT_FOUND = 5; // gRPC status codes
+const ALREADY_EXISTS = 6;
 
 type Settlement = { cursor?: number; leaseOwner?: string | null; leaseUntil?: number };
 
@@ -54,6 +55,16 @@ export function firestoreStore(db: Firestore): Store {
         if ((error as { code?: unknown }).code !== ALREADY_EXISTS) throw error;
         const stored = await playerDoc(player.uid).get();
         return { player: stored.data() as Player, created: false };
+      }
+    },
+
+    async setGoal(uid, goal) {
+      try {
+        await playerDoc(uid).update({ goal });
+        return true;
+      } catch (error) {
+        if ((error as { code?: unknown }).code !== NOT_FOUND) throw error;
+        return false;
       }
     },
 

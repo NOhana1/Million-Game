@@ -2,12 +2,15 @@ import type { Market } from '@portfolio-league/engine';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { MarketRow } from '@/api/client';
+import type { LeagueRow, LeagueTable, MarketRow } from '@/api/client';
+import { GoalBar } from '@/components/goal';
+import { MarketCompare, WeekResult } from '@/components/league-cards';
 import { OrderTicket } from '@/components/order-ticket';
 import { RecapCard } from '@/components/recap-card';
 import {
   changeColor,
   colors,
+  DivisionTag,
   font,
   Hero,
   ils,
@@ -21,15 +24,13 @@ import {
 } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { useLeague } from '@/game/use-league';
-import { displayFx, displayPrice, marketsText, toShekels } from '@/game/view';
+import { displayFx, displayPrice, DIVISION_LABEL, marketsText, toShekels } from '@/game/view';
 
 type Filter = 'all' | Market;
 
-function CashHero() {
+function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }) {
   const { me, world } = useGame();
-  const { table } = useLeague();
   if (!me || !world) return null;
-  const row = table?.rows.find((r) => r.id === me.uid);
   return (
     <Hero style={styles.hero}>
       <Text style={styles.heroLabel}>You can spend</Text>
@@ -38,9 +39,11 @@ function CashHero() {
         <Text style={styles.heroLabel}>{ils(toShekels(me.reserved))} is waiting in your orders</Text>
       ) : null}
       <View style={styles.pills}>
+        {row ? <DivisionTag division={row.division} label={DIVISION_LABEL[row.division]} /> : null}
         {row && table ? <Pill bright label={`#${row.rank} of ${table.total} this week`} /> : null}
         <Pill label={marketsText(world)} />
       </View>
+      <GoalBar />
     </Hero>
   );
 }
@@ -72,7 +75,8 @@ function SecurityRow({ item, onPress }: { item: MarketRow; onPress: () => void }
 }
 
 export default function MarketScreen() {
-  const { market } = useGame();
+  const { market, me } = useGame();
+  const { table, previous } = useLeague();
   const wide = useWide();
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -81,24 +85,26 @@ export default function MarketScreen() {
 
   const shown = market.securities.filter((x) => filter === 'all' || x.market === filter);
   const selected = market.securities.find((x) => x.id === selectedId);
+  const row = table?.rows.find((r) => r.id === me?.uid);
+  const cash = <CashHero table={table} row={row} />;
 
   return (
     <View style={styles.page}>
       {/* On a phone the cash sits outside the scrolling part, so it stays in view. */}
       {wide ? null : (
-        <View style={styles.pinned}>
-          <CashHero />
-        </View>
+        <View style={styles.pinned}>{cash}</View>
       )}
       <Page>
+        <WeekResult previous={previous} />
         {wide ? (
           <View style={styles.top}>
-            <CashHero />
+            {cash}
             <RecapCard />
           </View>
         ) : (
           <RecapCard />
         )}
+        <MarketCompare table={table} row={row} />
         <View style={styles.filter}>
           <Segments
             value={filter}

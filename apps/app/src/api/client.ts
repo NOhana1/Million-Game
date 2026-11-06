@@ -1,6 +1,6 @@
 // The only file that talks to the server. Shapes follow apps/api/CONTRACT.md.
 
-import type { Market, Order, Side, WorldSecurity } from '@portfolio-league/engine';
+import type { Division, Market, Order, Side, WorldSecurity } from '@portfolio-league/engine';
 
 export type MarketRow = WorldSecurity & { price: number; priceDayAgo: number };
 export type MarketData = {
@@ -28,6 +28,7 @@ export type Me = {
   reserved: number;
   value: number;
   positions: Position[];
+  goal?: number;
 };
 
 export type LeagueRow = {
@@ -39,6 +40,8 @@ export type LeagueRow = {
   returnPpm: number;
   maxFallPpm: number;
   score: number;
+  division: Division;
+  nextDivision?: Division;
 };
 
 export type LeagueTable = {
@@ -47,6 +50,7 @@ export type LeagueTable = {
   previousWeekEndsAt: number | null;
   total: number;
   rows: LeagueRow[];
+  indexes: Record<string, number>;
 };
 
 export type ClockChange =
@@ -106,6 +110,8 @@ export const api = {
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
   createPlayer: (token: string, name: string) =>
     call<unknown>('POST', '/players', { token, body: { name } }),
+  setGoal: (token: string, amount: number) =>
+    call<unknown>('PUT', '/me/goal', { token, body: { amount } }),
   placeOrder: (token: string, order: NewOrder) =>
     call<Order>('POST', '/orders', { token, body: order }),
   league: () => call<LeagueTable>('GET', '/league'),

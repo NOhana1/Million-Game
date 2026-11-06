@@ -11,7 +11,14 @@ export function leagueRoutes(deps: Deps) {
     c.header('Cache-Control', cachedFor(30));
     const table = await deps.store.getTable();
     return c.json(
-      table ?? { updatedAt: null, weekEndsAt: null, previousWeekEndsAt: null, total: 0, rows: [] },
+      table ?? {
+        updatedAt: null,
+        weekEndsAt: null,
+        previousWeekEndsAt: null,
+        total: 0,
+        rows: [],
+        indexes: {},
+      },
     );
   });
 

@@ -11,6 +11,7 @@ A weekly virtual trading game. Each player gets ₪1,000,000, buys and sells 20 
 - **A rules engine with no outside dependencies** (`packages/engine`). The rules are the product, and money must never be wrong, so they sit in one tested place. All money is whole numbers, and every calculation rounds down, so rounding can't create money.
 - **All writes go through the server.** The browser can read only its own player and orders. It can never write to the database.
 - **20 labelled bots** in five styles, so a new player sees a real table and not an empty one.
+- **Divisions, a personal goal, a market comparison and a weekly top 3,** so there's a reason to come back. See [the daily feature](#the-daily-feature-divisions).
 
 ```
 Browser ──► Vercel static site (Expo web export)
@@ -28,6 +29,7 @@ Alarm ── POST /api/tick (secret) ──► same function
 | **Orders filling by themselves on the live game** | Not until the alarm is connected. Until then, orders fill only when someone uses the World clock screen, and the table stays empty until the first fill round |
 | Cold start with real prices | Not measured. Prices rebuild from the start of the world, about 0.2 seconds per game week on my Mac, so it grows with game time |
 | Thousands of players at once | Not load tested |
+| Divisions on the live game | Tested with automated tests and in a browser on a local server. They only move on live once weeks close, which needs the alarm |
 
 ## How I built the world
 
@@ -54,21 +56,33 @@ Moving the clock also fills every order that became due, oldest first. A jump ov
 
 The code can only move the clock. It can't touch players or orders. The server checks it, and the screen keeps it in memory only. Anyone can see the World clock link, but it does nothing without the code.
 
-## The daily feature: Daily Recap
+## The daily feature: Divisions
 
-The first thing on the Market screen is what happened since yesterday: your change, your best and worst holdings, how each market moved, and which orders filled.
+Every player starts in **Bronze** and can climb to **Silver, Gold and Diamond**. When a week ends, the top 25% of each division move up and the bottom 25% move down. The League screen shows who's on course to move, with a countdown to the end of the week.
 
-**Why this one.** The game is weekly, and fills happen at the close or the next open. So a player's natural question each day is "what happened to my money?" The recap answers it in one glance, and it can't change a result, because it only reads existing data. It also doesn't push people to trade every day, and for a financial education product I think that matters.
+**Why this one.** A player who has bought their stocks has nothing to do, and nothing to lose by staying away. And a weekly table has a second problem: most players know by midweek that they've lost.
 
-**Honest limit.** Of the options I weighed, this is the weakest at pulling people back. A daily head-to-head contest would pull harder, but it rewards short-term trading. I chose the recap on purpose. It's also simplified: it values today's holdings against prices 24 game hours ago, so something bought today counts for the whole day.
+Divisions fix both, because of how the game clock runs. At normal speed, one game week takes one real day. So every real day ends with a result that lasts: you moved up, you held on, or you dropped. If today went badly, tomorrow is a fresh start. It also works for a single player, because the bots fill the division, and it rewards a good result, not trading more.
+
+**Three smaller features support it:**
+
+| Feature | What it does | Why |
+|---|---|---|
+| **Personal goal** | You choose a target for your portfolio, and a progress bar stays on the Market screen | Divisions give a daily reason to return. This gives a long-term one |
+| **You vs the market** | Your last day and this week, next to the three index funds, all in shekels | Beating the market is the honest measure of how you're doing, and it teaches how hard that is |
+| **Last week's top 3** | The winners and their returns, on the League screen | Gives everyone something to aim for. What they held stays private |
+
+The Daily Recap stays too, as the first thing on the Market screen: your last day, your best and worst holdings, and your fills.
+
+**Honest limits.** I found no number that shows how much leagues help on their own, so this is a judgement, not a proven result. Because return carries 85% of the score, Divisions also reward big bets, as the table already does. And a web link has no push notifications, so nothing reminds a player to come back.
 
 **How I'd know it works.** Nothing is measured yet. The plan:
 
-- Hide the recap from a random 10% of players, as a control group.
-- **Main measure:** the share of players who come back the next trading day, compared with the control group.
-- **Supporting measures:** days active per week, and how many players are still active in week 2.
-- **Guardrail:** orders per player. If the recap works only by making people trade more, that's not the win I want.
-- Run it for at least two game weeks before deciding. If the return rate doesn't beat the control group, I'd replace the feature.
+- Hide Divisions from a random 10% of players, as a control group.
+- **Main measure:** the share of players who come back the next real day, compared with the control group.
+- **Supporting measures:** days active per week, and how many players are still active after two weeks.
+- **Guardrails:** orders per player, and the share of portfolios in the riskiest securities. If Divisions work only by making people trade more or gamble more, that's not the win I want.
+- Run it for at least two real weeks before deciding. If the return rate doesn't beat the control group, I'd replace the feature.
 
 ## Rules I completed
 
@@ -104,6 +118,9 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Joining mid-week | Counts from when you joined | Your return is measured from your own start value |
 | Holidays | None | The world is generated |
 | Trading hours | Set in each market's own time zone | The gap between Israel and New York changes during the year |
+| Division moves | The score stays the one from the brief, across all players. Moves depend only on your place among players in your own division | The brief's scoring stays untouched, and each division still feels like its own contest |
+| Small divisions | The top quarter rounds up and the bottom quarter rounds down, so a division of 1 to 3 still sends one player up, and nobody down | Nobody gets stuck because a division is nearly empty |
+| Who moves | Only players on the table. Someone who held nothing that week stays where they are | Sitting in cash shouldn't move you in either direction |
 
 ## Rules I think are bad or exploitable
 
@@ -118,7 +135,8 @@ The main decisions are below. All of them, with code references, are in [`packag
 ## What I gave up, and why
 
 - **Real market data:** see the world section above.
-- **A stronger daily feature:** see the daily feature section above.
+- **Showing what winners hold.** It would teach more, but it would make players' portfolios public, so the top 3 shows results only.
+- **Real S&P 500 and Nasdaq numbers.** The game's prices are invented, so a real index would mean nothing next to them. The comparison uses the game's own index funds.
 - **Native apps.** The brief asks for a browser link, so only web has been tested. Some code assumes the browser.
 - **Hebrew and right-to-left layout.** The app is in English. The required work came first.
 - **Firebase custom claims for the clock.** One secret that can only move the clock is simpler and does the same job here.
@@ -132,9 +150,9 @@ The main decisions are below. All of them, with code references, are in [`packag
 |---|---|
 | Bursts at market open | Market data is cached at the CDN for 5 seconds and the table for 30, so a crowd mostly doesn't reach the database. Polling stops when a tab is hidden |
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
-| Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result |
+| Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 183 engine tests and 124 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 189 engine tests and 139 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
@@ -146,6 +164,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 - The free Firestore plan allows 50k reads and 20k writes a day, or roughly 4,000 orders. Thousands of real players would need a paid plan.
 - Fills appear up to one alarm interval late, but they always use the correct price and time.
 - A player with a due order that hasn't filled yet can't place another until it does.
+- The table shows the top 500 players. A player below that doesn't see their division yet.
 - `saveSlot` writes everything in one transaction, which is fine up to about 20,000 players and then needs splitting.
 
 ## Running it locally

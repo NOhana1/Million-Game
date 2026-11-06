@@ -220,6 +220,132 @@ describe('a new week', () => {
   });
 });
 
+describe('divisions', () => {
+  const lastWeek = async (w: World) => {
+    const { previousWeekEndsAt } = await table(w);
+    const response = await w.app.request(`/api/league/weeks/${previousWeekEndsAt}`);
+    return (await response.json()) as LeagueTable;
+  };
+
+  it('starts everyone in bronze', async () => {
+    const w = world();
+    await join(w, 'trader');
+    await buy(w, 'trader');
+    await runTo(w, TUESDAY);
+    const { rows } = await table(w);
+    assert.ok(rows.length > 0);
+    assert.ok(rows.every((row) => row.division === 'bronze'));
+  });
+
+  it('moves the top quarter up when the week ends, and records it on the finished week', async () => {
+    const w = world();
+    await runTo(w, NEXT_WEEK);
+    const finished = await lastWeek(w);
+    const best = finished.rows.slice(0, Math.ceil(finished.total / 4));
+    assert.ok(best.length > 0);
+    assert.ok(best.every((row) => row.division === 'bronze' && row.nextDivision === 'silver'));
+    assert.ok(finished.rows.slice(best.length).every((row) => row.nextDivision === 'bronze'));
+    for (const row of best) assert.equal((await member(w, row.id)).division, 'silver');
+  });
+
+  it('shows the new division on the next table', async () => {
+    const w = world();
+    await runTo(w, NEXT_WEEK);
+    const finished = await lastWeek(w);
+    const { rows } = await table(w);
+    for (const row of rows) {
+      const result = finished.rows.find((r) => r.id === row.id);
+      assert.equal(row.division, result?.nextDivision);
+    }
+  });
+
+  it('leaves a player who held nothing where they are', async () => {
+    const w = world();
+    await join(w, 'saver');
+    await runTo(w, TUESDAY);
+    await runTo(w, NEXT_WEEK);
+    assert.equal((await member(w, 'saver')).division, undefined);
+  });
+
+  it('moves players once, however many runs reach the same week', async () => {
+    const onTime = world();
+    await runTo(onTime, WEEK_END);
+    await runTo(onTime, NEXT_WEEK);
+
+    const late = world();
+    await runTo(late, NEXT_WEEK);
+    await settle(late.deps);
+    await settle(late.deps);
+
+    const divisions = async (w: World) =>
+      Object.fromEntries((await members(w)).map((m) => [m.id, m.division]));
+    assert.deepEqual(await divisions(late), await divisions(onTime));
+  });
+
+  it('moves players once when a run dies before saving the end of the week', async () => {
+    const w = world();
+    await runTo(w, WEEK_END - HOUR);
+    const save = w.store.saveSlot;
+    w.store.saveSlot = async () => {
+      throw new Error('crashed');
+    };
+    w.at(NEXT_WEEK);
+    await assert.rejects(settle(w.deps));
+    w.store.saveSlot = save;
+    await settle(w.deps);
+
+    const clean = world();
+    await runTo(clean, WEEK_END - HOUR);
+    await runTo(clean, NEXT_WEEK);
+    const divisions = async (x: World) =>
+      Object.fromEntries((await members(x)).map((m) => [m.id, m.division]));
+    assert.deepEqual(await divisions(w), await divisions(clean));
+  });
+});
+
+describe('the goal', () => {
+  it('stays through an order and its fill', async () => {
+    const w = world();
+    await join(w, 'trader');
+    await w.store.setGoal('trader', 200_000_000);
+    await buy(w, 'trader');
+    await runTo(w, TUESDAY);
+    const stored = await w.store.getPlayer('trader');
+    assert.equal(stored?.goal, 200_000_000);
+    assert.ok(Object.keys(stored?.holdings ?? {}).length > 0);
+  });
+});
+
+describe('index funds on the table', () => {
+  const fundReturn = (id: string, from: number, to: number) => {
+    const start = quotesAt(feed, from)(id);
+    const end = quotesAt(feed, to)(id);
+    return end.price * end.fx / (start.price * start.fx) - 1;
+  };
+
+  it('has none before the first market event', async () => {
+    assert.deepEqual((await table(world())).indexes, {});
+  });
+
+  it('measures each fund in shekels, from the start of the world in the first week', async () => {
+    const w = world();
+    await runTo(w, TUESDAY);
+    const { indexes, updatedAt } = await table(w);
+    assert.deepEqual(Object.keys(indexes).sort(), ['TAIX', 'USIX', 'USTX']);
+    for (const id of Object.keys(indexes)) {
+      const expected = fundReturn(id, WORLD_START, updatedAt as number);
+      assert.ok(Math.abs((indexes[id] as number) / 1e6 - expected) < 1e-5, id);
+    }
+  });
+
+  it('starts again from zero when a new week starts', async () => {
+    const w = world();
+    await runTo(w, WEEK_END);
+    const { indexes } = await table(w);
+    assert.ok(Object.values(indexes).every((ppm) => ppm === 0));
+  });
+});
+
 describe('the league stays correct when things go wrong', () => {
   const ids = ['00000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000002'];
   const script = async (w: World) => {

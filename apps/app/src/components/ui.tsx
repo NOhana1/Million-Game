@@ -1,3 +1,4 @@
+import type { Division } from '@portfolio-league/engine';
 import { ReactNode } from 'react';
 import {
   Pressable,
@@ -97,6 +98,21 @@ export function Pill({ label, bright }: { label: string; bright?: boolean }) {
   return (
     <View style={[styles.pill, bright && styles.pillBright]}>
       <Text style={[styles.pillText, bright && styles.pillTextBright]}>{label}</Text>
+    </View>
+  );
+}
+
+const DIVISION_COLORS: Record<Division, string> = {
+  bronze: '#E0A06B',
+  silver: '#CBD3E0',
+  gold: colors.sun,
+  diamond: '#8FE3F7',
+};
+
+export function DivisionTag({ division, label }: { division: Division; label: string }) {
+  return (
+    <View style={[styles.pill, { backgroundColor: DIVISION_COLORS[division] }]}>
+      <Text style={[styles.pillText, styles.pillTextBright]}>{label}</Text>
     </View>
   );
 }

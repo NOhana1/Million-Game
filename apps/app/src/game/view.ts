@@ -5,7 +5,9 @@ import {
   type Account,
   AGOROT_PER_SHEKEL,
   dailyRecap,
+  type Division,
   FX_SCALE,
+  INDEX_FUNDS,
   type Market,
   maxOrderAmount as engineMaxOrderAmount,
   type Order,
@@ -121,6 +123,41 @@ export function marketMoves(market: MarketData) {
     ? [{ label: 'Dollar', ppm: change(market.usdIls, market.usdIlsDayAgo) }]
     : [];
   return [...fund('Tel Aviv', 'TAIX'), ...fund('US', 'USIX'), ...dollar];
+}
+
+/** Each index fund's move over the last day, in shekels, to compare with a portfolio. */
+export function indexFunds(market: MarketData) {
+  const now = quotes(market);
+  const before = quotes(market, true);
+  const worth = (source: QuoteSource, id: string) => source(id).price * source(id).fx;
+  return INDEX_FUNDS.flatMap((id) => {
+    const row = findRow(market, id);
+    return row ? [{ id, name: row.name, dayPpm: change(worth(now, id), worth(before, id)) }] : [];
+  });
+}
+
+export const DIVISION_LABEL: Record<Division, string> = {
+  bronze: 'Bronze',
+  silver: 'Silver',
+  gold: 'Gold',
+  diamond: 'Diamond',
+};
+
+/** How far along the way from the starting cash to the goal, from 0 to 100. */
+export function goalProgress(value: number, goal: number) {
+  const part = goal > START_CASH ? (value - START_CASH) / (goal - START_CASH) : value / goal;
+  return Math.min(100, Math.max(0, part * 100));
+}
+
+const MINUTE_MS = 60_000;
+
+/** Real time left in the week, which depends on how fast the clock is running. */
+export function weekEndsIn(world: WorldData, weekEndsAt: number, now: number) {
+  if (world.clock.paused) return 'The clock is stopped';
+  const minutes = Math.ceil((weekEndsAt - now) / world.clock.speed / MINUTE_MS);
+  if (minutes <= 0) return 'The week is closing';
+  const hours = Math.floor(minutes / 60);
+  return `Week ends in ${hours > 0 ? `${hours}h ` : ''}${minutes % 60}m`;
 }
 
 export const maxOrderAmount = (me: Me, market: MarketData, row: MarketRow, side: Side) =>

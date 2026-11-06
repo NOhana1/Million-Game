@@ -30,6 +30,9 @@ const row = (
 
 export const FUND_SECTOR = 'Fund';
 
+/** The funds players compare themselves with. They stand in for the market as a whole. */
+export const INDEX_FUNDS = ['USIX', 'USTX', 'TAIX'] as const;
+
 export const SECURITIES: readonly WorldSecurity[] = [
   row('TAIX', 'Tel Aviv Broad Index Fund', FUND_SECTOR, 'TASE', 212.4, 0.008),
   row('SHRN', 'Sharon Bank', 'Banks', 'TASE', 34.15, 0.015),

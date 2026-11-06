@@ -125,9 +125,31 @@ This is not a game rule. It only describes the past, so it can't change a result
 | D3 | Best and worst are by percentage, not by shekels | A small holding can be the best performer |
 | D4 | The Tel Aviv and US moves use the two broad index funds | They stand in for each market |
 
+## Divisions
+
+These don't change the score. They add a rank that lasts between weeks.
+
+| # | Choice | Why |
+|---|---|---|
+| V1 | Four divisions: Bronze, Silver, Gold, Diamond. Everyone starts in Bronze | Few enough to climb in a short game |
+| V2 | At the week's end, the top 25% of each division move up one and the bottom 25% move down one. Bronze can't drop and Diamond can't rise | A clear rule that fits in one sentence |
+| V3 | Places come from the normal weekly table, read one division at a time | The brief's score stays the only score |
+| V4 | The top quarter rounds up and the bottom rounds down | A small division still sends someone up, and nobody moves twice |
+| V5 | Only players on the table move (A26) | Sitting in cash moves you in neither direction |
+| V6 | Moves are saved in the same write as the week's result | A retry can't move anyone twice |
+
+## Comparing with the market
+
+| # | Choice | Why |
+|---|---|---|
+| I1 | The comparison uses the game's three index funds, not real indexes | Prices are invented, so real numbers would mean nothing here |
+| I2 | Fund returns are in shekels, so US funds include the dollar's move | A player's return is in shekels too |
+| I3 | "This week" starts at the previous Friday US close, or at the start of the world | The same start as the week in A23. A mid-week joiner's own return still starts when they joined (A27), so their comparison is only a guide |
+
 ## Worth raising in the README
 
 - All-cash scores perfectly on stability. A26 only removes players who held nothing all week, so banking a win and sitting in cash still works.
+- Divisions reward big bets, because return carries 85% of the score.
 
 ## Not in the engine yet
 
