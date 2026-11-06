@@ -2,8 +2,9 @@ import { Tabs, TabList, TabSlot, TabTrigger, TabTriggerSlotProps } from 'expo-ro
 import { ActivityIndicator, Platform, Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
+import { HOVER_CSS } from '@/components/hover-css';
 import { SignIn } from '@/components/sign-in';
-import { colors, font, useWide } from '@/components/ui';
+import { colors, font, hover, useWide } from '@/components/ui';
 import { Brand, MenuStatus, OfflineNotice, WorldBar } from '@/components/world-bar';
 import { GameProvider, useGame } from '@/game/store';
 
@@ -14,6 +15,10 @@ if (Platform.OS === 'web') {
   fonts.href =
     'https://fonts.googleapis.com/css2?family=Frank+Ruhl+Libre:wght@400;500;600&family=Heebo:wght@400;500;600&family=Inter:wght@400;500;600&display=swap';
   document.head.appendChild(fonts);
+
+  const looks = document.createElement('style');
+  looks.textContent = HOVER_CSS;
+  document.head.appendChild(looks);
 }
 
 function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
@@ -21,6 +26,8 @@ function TabButton({ children, isFocused, ...props }: TabTriggerSlotProps) {
   return (
     <Pressable
       {...(props as PressableProps)}
+      {...hover(wide ? 'tab' : 'line')}
+      aria-selected={isFocused}
       style={[wide ? styles.topTab : styles.tab, isFocused && styles.tabActive]}>
       <Text
         style={[

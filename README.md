@@ -26,10 +26,10 @@ Alarm ── POST /api/tick (secret) ──► same function
 
 | What | State |
 |---|---|
-| **Orders filling by themselves on the live game** | Not until the alarm is connected. Until then, orders fill only when someone uses the World clock screen, and the table stays empty until the first fill round |
+| Orders filling by themselves on the live game | Working. cron-job.org knocks every minute, GitHub is the backup, and a real order filled with nobody pressing anything |
 | Cold start with real prices | Not measured. Prices rebuild from the start of the world, about 0.2 seconds per game week on my Mac, so it grows with game time |
 | Thousands of players at once | Not load tested |
-| Divisions on the live game | Tested with automated tests and in a browser on a local server. They only move on live once weeks close, which needs the alarm |
+| Divisions on the live game | Tested with automated tests, in a browser and on the test site. Divisions first move on live when a game week closes after this version went live |
 
 ## How I built the world
 

@@ -12,26 +12,12 @@ import {
   ViewStyle,
 } from 'react-native';
 
-export const colors = {
-  page: '#F4F5F2',
-  card: '#FFFFFF',
-  ink: '#15211D',
-  muted: '#5C6863',
-  line: '#DFE3DD',
-  brand: '#12372E',
-  brandSoft: '#E9EEEA',
-  deep: '#0F2B24',
-  deepSoft: '#25493F',
-  onDeep: '#C4D1CA',
-  brass: '#C8A558',
-  brassInk: '#8A6A1F',
-  up: '#0E7A53',
-  down: '#B3261E',
-  upOnDeep: '#7FD9B0',
-  downOnDeep: '#F5A79C',
-  warnSoft: '#F7F1E1',
-  warnInk: '#5B4712',
-};
+import { colors } from './palette';
+
+export { colors };
+
+/** Gives an element a look from hover-css.ts. Ignored outside the web. */
+export const hover = (kind: string) => ({ dataSet: { hover: kind } }) as object;
 
 // Frank Ruhl Libre has Hebrew of its own. Inter doesn't, so Hebrew names fall through to Heebo.
 export const font = {
@@ -158,6 +144,7 @@ export function Button({
       accessibilityRole="button"
       disabled={disabled}
       onPress={onPress}
+      {...hover(solid ? 'solid' : 'quiet')}
       style={({ pressed }) => [
         styles.button,
         solid ? styles.buttonSolid : styles.buttonQuiet,
@@ -188,9 +175,10 @@ export function Segments<T extends string>({
           <Pressable
             key={option.value}
             accessibilityRole="button"
-            accessibilityState={{ selected: active }}
+            aria-selected={active}
             disabled={disabled}
             onPress={() => onChange(option.value)}
+            {...hover('segment')}
             style={[styles.segment, active && styles.segmentActive, disabled && styles.disabled]}>
             <Text style={[styles.segmentText, active && styles.segmentTextActive]}>
               {option.label}

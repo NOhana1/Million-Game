@@ -2,7 +2,7 @@ import { shekelsToAgorot } from '@portfolio-league/engine';
 import { useState } from 'react';
 import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { Button, Card, colors, Field, font, ils } from '@/components/ui';
+import { Button, Card, colors, Field, font, hover, ils } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { goalProgress, toShekels } from '@/game/view';
 
@@ -72,6 +72,7 @@ export function GoalBar() {
         accessibilityRole="button"
         accessibilityLabel={goal ? 'Change your goal' : 'Set your goal'}
         onPress={() => setEditing(true)}
+        {...hover('deep')}
         style={({ pressed }) => [styles.bar, pressed && styles.pressed]}>
         {goal ? (
           <>

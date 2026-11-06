@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 
 import type { LeagueRow, LeagueTable } from '@/api/client';
 import { DivisionBadge } from '@/components/division-badge';
-import { Card, changeColor, colors, font, percent } from '@/components/ui';
+import { Card, changeColor, colors, font, hover, percent } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, indexFunds, ppmToPercent, recapFor } from '@/game/view';
 
@@ -95,19 +95,24 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
   return (
     <Card style={styles.card}>
       <Text style={styles.title}>Last week’s top {TOP}</Text>
-      <Text style={styles.meta}>Ranked by score, which counts stability too. The % is return.</Text>
+      <View style={[styles.line, styles.head]}>
+        <Text style={[styles.name, styles.meta]}>Ranked by score</Text>
+        <Text style={[styles.number, styles.meta, styles.plain]}>Return</Text>
+        <Text style={[styles.score, styles.meta]}>Score</Text>
+      </View>
       {previous.rows.slice(0, TOP).map((row) => {
         const value = ppmToPercent(row.returnPpm);
         return (
-          <View key={row.id} style={styles.line}>
+          <View key={row.id} {...hover('line')} style={styles.line}>
             <Text style={styles.place}>{row.rank}</Text>
             <DivisionBadge division={row.division} size={24} />
-            <Text style={[styles.name, styles.strong]} numberOfLines={1}>
+            <Text style={[styles.name, styles.strong]} numberOfLines={2}>
               {row.name.replace(BOT_SUFFIX, '')}
               {row.id === me?.uid ? ' (you)' : ''}
               {row.bot ? <Text style={styles.meta}> bot</Text> : null}
             </Text>
             <Text style={[styles.number, { color: changeColor(value) }]}>{percent(value)}</Text>
+            <Text style={[styles.score, styles.strong]}>{row.score.toFixed(0)}</Text>
           </View>
         );
       })}
@@ -125,12 +130,21 @@ const styles = StyleSheet.create({
   line: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   name: { color: colors.ink, flex: 1, fontFamily: font.body, fontSize: 14, minWidth: 0 },
   strong: { fontWeight: '600' },
+  plain: { fontWeight: '400' },
   number: {
     fontFamily: font.body,
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     fontWeight: '600',
     minWidth: 76,
+    textAlign: 'right',
+  },
+  score: {
+    color: colors.ink,
+    fontFamily: font.body,
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+    minWidth: 44,
     textAlign: 'right',
   },
   place: {

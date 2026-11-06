@@ -13,6 +13,7 @@ import {
   colors,
   font,
   Hero,
+  hover,
   ils,
   money,
   Page,
@@ -49,6 +50,8 @@ function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }
   );
 }
 
+const buyPart = { dataSet: { hoverPart: 'buy' } } as object;
+
 function SecurityRow({ item, onPress }: { item: MarketRow; onPress: () => void }) {
   const wide = useWide();
   const change = (item.price / item.priceDayAgo - 1) * 100;
@@ -57,6 +60,7 @@ function SecurityRow({ item, onPress }: { item: MarketRow; onPress: () => void }
       accessibilityRole="button"
       accessibilityLabel={`Trade ${item.name}`}
       onPress={onPress}
+      {...hover('row')}
       style={({ pressed }) => [styles.row, pressed && styles.pressed]}>
       <Tile name={item.name} sector={item.sector} />
       <View style={styles.names}>
@@ -71,7 +75,7 @@ function SecurityRow({ item, onPress }: { item: MarketRow; onPress: () => void }
         <Text style={styles.price}>{money(displayPrice(item.price), item.market === 'US' ? '$' : '₪')}</Text>
         <Text style={[styles.change, { color: changeColor(change) }]}>{percent(change)}</Text>
       </View>
-      <View style={styles.buy}>
+      <View style={styles.buy} {...buyPart}>
         <Text style={styles.buyText}>Buy</Text>
       </View>
     </Pressable>

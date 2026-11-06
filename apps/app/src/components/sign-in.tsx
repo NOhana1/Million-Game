@@ -7,7 +7,7 @@ import { useGame } from '@/game/store';
 
 import { Brand } from './world-bar';
 import { DivisionTag } from './division-badge';
-import { Button, Card, colors, Field, font, Segments, useWide } from './ui';
+import { Button, Card, colors, Field, font, hover, Segments, useWide } from './ui';
 
 type Mode = 'create' | 'signIn' | 'reset';
 
@@ -170,6 +170,7 @@ export function SignIn() {
             <Pressable
               accessibilityRole="button"
               onPress={() => changeMode(mode === 'reset' ? 'signIn' : 'reset')}
+              {...hover('link')}
               style={styles.link}>
               <Text style={styles.linkText}>
                 {mode === 'reset' ? 'Back to sign in' : 'Forgot password?'}

@@ -15,7 +15,7 @@ import {
   toShekels,
 } from '@/game/view';
 
-import { Button, colors, font, ils, money, Segments, Tile, useWide } from './ui';
+import { Button, colors, font, hover, ils, money, Segments, Tile, useWide } from './ui';
 
 const QUICK_AMOUNTS = [
   { label: '25%', share: 0.25 },
@@ -103,7 +103,7 @@ export function OrderTicket({
                 {MARKET_LABEL[security.market]} · {money(displayPrice(security.price), currency)}
               </Text>
             </View>
-            <Pressable accessibilityRole="button" onPress={onClose} hitSlop={10}>
+            <Pressable accessibilityRole="button" onPress={onClose} hitSlop={10} {...hover('link')}>
               <Text style={styles.close}>Close</Text>
             </Pressable>
           </View>
@@ -144,6 +144,7 @@ export function OrderTicket({
                 key={label}
                 accessibilityRole="button"
                 onPress={() => setAmount(String(Math.floor(limit * share)))}
+                {...hover('lift')}
                 style={styles.chip}>
                 <Text style={styles.chipText}>{label}</Text>
               </Pressable>

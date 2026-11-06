@@ -11,6 +11,7 @@ import {
   changeColor,
   colors,
   font,
+  hover,
   Hero,
   Page,
   percent,
@@ -85,8 +86,9 @@ function Ladder({
             key={division}
             accessibilityRole="button"
             accessibilityLabel={`Show the ${DIVISION_LABEL[division]} division`}
-            accessibilityState={{ selected: active }}
+            aria-selected={active}
             onPress={() => onShow(division)}
+            {...hover('lift')}
             style={[styles.step, active && styles.stepActive]}>
             <DivisionBadge division={division} size={38} />
             <Text style={styles.stepName}>{DIVISION_LABEL[division]}</Text>
@@ -115,7 +117,7 @@ function Row({
   const returnPct = row.returnPpm / PPM_PER_PERCENT;
   const fall = `${(row.maxFallPpm / PPM_PER_PERCENT).toFixed(2)}%`;
   return (
-    <View style={[styles.row, isMe && styles.me]}>
+    <View {...hover('line')} style={[styles.row, isMe && styles.me]}>
       <Text style={[styles.rank, place <= PODIUM && styles.rankPodium]}>{place}</Text>
       {wide ? (
         <DivisionBadge division={row.division} size={26} />
@@ -225,8 +227,9 @@ export default function LeagueScreen() {
           <Text style={styles.title}>Divisions</Text>
           <Pressable
             accessibilityRole="button"
-            accessibilityState={{ selected: shown === 'everyone' }}
-            onPress={() => setPicked('everyone')}>
+            aria-selected={shown === 'everyone'}
+            onPress={() => setPicked('everyone')}
+            {...hover('link')}>
             <Text style={[styles.everyone, shown === 'everyone' && styles.everyoneActive]}>
               Show everyone
             </Text>
@@ -284,7 +287,7 @@ export default function LeagueScreen() {
           Showing the top {table.rows.length} of {table.total} players.
         </Text>
       ) : null}
-      <Link href="/admin" style={styles.link}>
+      <Link href="/admin" style={styles.link} {...hover('link')}>
         World clock
       </Link>
     </Page>
