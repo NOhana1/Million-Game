@@ -50,6 +50,7 @@ function standings(group: Group, table: LeagueTable | null) {
     return {
       id: member.id,
       name: member.name,
+      joinedAt: member.joinedAt, // gives each member a lasting color in the chat
       owner: member.id === group.ownerId,
       division: row?.division ?? FIRST_DIVISION,
       rank: row?.rank ?? null,
@@ -124,6 +125,15 @@ export function groupRoutes(deps: Deps) {
     const groupId = await myGroupId(c.get('uid'));
     if (!groupId) throw new ApiError(404, 'NO_GROUP', 'Join a group first.');
     return c.json({ messages: await store.getMessages(groupId) });
+  });
+
+  // Fetched once when the chat opens, not on every refresh, since each photo is a database read.
+  routes.get('/group/photos', signedIn, async (c) => {
+    const groupId = await myGroupId(c.get('uid'));
+    const group = groupId ? await store.getGroup(groupId) : null;
+    if (!group) throw new ApiError(404, 'NO_GROUP', 'Join a group first.');
+    c.header('Cache-Control', 'private, max-age=30');
+    return c.json({ photos: await store.getPhotos(group.members.map((m) => m.id)) });
   });
 
   routes.post('/group/chat', signedIn, async (c) => {

@@ -157,4 +157,49 @@ describe('groups', () => {
       assert.equal(messages.at(-1).text, `m${MOST_MESSAGES + 4}`);
     });
   });
+  describe('photos', () => {
+    const PHOTO = 'data:image/jpeg;base64,/9j/4AAQSkZJRg==';
+    const ORIGINAL = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQ==';
+    const CROP = { zoom: 2, x: 0.25, y: 0 };
+    const saved = (photo = PHOTO) => ({ photo, original: ORIGINAL, crop: CROP });
+
+    it('saves a photo and shows it to the group and on the profile', async () => {
+      const { code } = await start();
+      await friend('dan', code);
+      assert.equal((await call('noa', 'PUT', '/me/photo', saved())).status, 200);
+      assert.deepEqual((await call('dan', 'GET', '/group/photos')).body, { photos: { noa: PHOTO } });
+      assert.equal((await call('dan', 'GET', '/players/noa/profile')).body.photo, PHOTO);
+      assert.equal((await call('dan', 'GET', '/players/dan/profile')).body.photo, null);
+    });
+
+    it('gives back the larger picture and its framing to its owner only', async () => {
+      await start();
+      await join('dan');
+      await call('noa', 'PUT', '/me/photo', saved());
+      assert.deepEqual((await call('noa', 'GET', '/me/photo')).body, { saved: { original: ORIGINAL, crop: CROP } });
+      assert.deepEqual((await call('dan', 'GET', '/me/photo')).body, { saved: null });
+    });
+
+    it('removes a photo', async () => {
+      await start();
+      await call('noa', 'PUT', '/me/photo', saved());
+      assert.equal((await call('noa', 'DELETE', '/me/photo')).status, 200);
+      assert.deepEqual((await call('noa', 'GET', '/group/photos')).body, { photos: {} });
+    });
+
+    it('accepts only a small JPEG picture', async () => {
+      await join('noa');
+      for (const photo of ['https://example.com/me.jpg', 'data:image/svg+xml;base64,AAAA', `data:image/jpeg;base64,${'A'.repeat(60_000)}`]) {
+        assert.equal((await call('noa', 'PUT', '/me/photo', saved(photo))).status, 400);
+      }
+      const tooClose = { ...saved(), crop: { zoom: 9, x: 0, y: 0 } };
+      assert.equal((await call('noa', 'PUT', '/me/photo', tooClose)).status, 400);
+    });
+
+    it('needs a player, and a group for the group photos', async () => {
+      assert.equal((await call('ghost', 'PUT', '/me/photo', saved())).status, 404);
+      await join('noa');
+      assert.equal((await call('noa', 'GET', '/group/photos')).status, 404);
+    });
+  });
 });

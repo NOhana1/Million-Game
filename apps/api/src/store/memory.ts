@@ -11,7 +11,7 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
-import type { ChatMessage, Group, LeagueTable, Player, Shard, Store } from './types.ts';
+import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
 export type MemoryStore = Store & { setClock(next: Clock): void };
 
@@ -26,6 +26,7 @@ export function memoryStore(startClock?: Clock): MemoryStore {
   const finishedWeeks = new Map<number, LeagueTable>();
   const groups = new Map<string, Group>();
   const chats = new Map<string, ChatMessage[]>();
+  const photos = new Map<string, SavedPhoto>();
 
   return {
     setClock(next) {
@@ -65,6 +66,27 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       if (!stored) return false;
       stored.watchlist = [...ids];
       return true;
+    },
+
+    async setPhoto(uid, saved) {
+      if (!players.has(uid)) return false;
+      if (saved) photos.set(uid, structuredClone(saved));
+      else photos.delete(uid);
+      return true;
+    },
+
+    async getPhotos(uids) {
+      return Object.fromEntries(
+        uids.flatMap((uid) => {
+          const photo = photos.get(uid)?.photo;
+          return photo ? [[uid, photo]] : [];
+        }),
+      );
+    },
+
+    async getPhotoOriginal(uid) {
+      const saved = photos.get(uid);
+      return saved ? { original: saved.original, crop: { ...saved.crop } } : null;
     },
 
     async placeOrder({ uid, orderId, realNow, decide }) {

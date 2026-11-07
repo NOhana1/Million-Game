@@ -6,13 +6,95 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api, Profile } from '@/api/client';
+import { currentToken } from '@/api/session';
+import { Avatar } from '@/components/avatar';
 import { DivisionBadge } from '@/components/division-badge';
 import { Button, changeColor, colors, Eyebrow, font, hover, Page, percent, useWide } from '@/components/ui';
+import { PhotoEditor } from '@/components/photo-editor';
+import { choosePhoto, cutPhoto, NO_CROP, PhotoCrop } from '@/game/photo';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, ppmToPercent } from '@/game/view';
 
 const NOTHING_YET = '–';
 const BOT_SUFFIX = / \(bot\)$/;
+
+/** Your own picture, with buttons to add, adjust or remove it. Friends see it in the group chat. */
+function MyPhoto({ name, photo, size }: { name: string; photo: string | null; size: number }) {
+  const [shown, setShown] = useState(photo);
+  const [editing, setEditing] = useState<{ original: string; crop: PhotoCrop } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(false);
+
+  const add = async () => {
+    setProblem(false);
+    const original = await choosePhoto();
+    if (original) setEditing({ original, crop: NO_CROP });
+  };
+
+  const adjust = async () => {
+    const token = await currentToken();
+    if (!token || !shown) return;
+    setProblem(false);
+    const saved = await api.myPhoto(token).catch(() => null);
+    setEditing(saved ?? { original: shown, crop: NO_CROP });
+  };
+
+  const save = async (crop: PhotoCrop) => {
+    const token = await currentToken();
+    if (!token || !editing) return;
+    setBusy(true);
+    try {
+      const small = await cutPhoto(editing.original, crop);
+      await api.setPhoto(token, { photo: small, original: editing.original, crop });
+      setShown(small);
+      setEditing(null);
+    } catch {
+      setProblem(true);
+      setEditing(null);
+    }
+    setBusy(false);
+  };
+
+  const remove = async () => {
+    const token = await currentToken();
+    if (!token) return;
+    setProblem(false);
+    await api
+      .removePhoto(token)
+      .then(() => setShown(null))
+      .catch(() => setProblem(true));
+  };
+
+  return (
+    <View style={styles.photoBox}>
+      <Avatar name={name} photo={shown} size={size} />
+      <Pressable accessibilityRole="button" onPress={shown ? adjust : add} {...hover('link')}>
+        <Text style={styles.photoLink}>{shown ? 'Edit photo' : 'Add photo'}</Text>
+      </Pressable>
+      {shown ? (
+        <View style={styles.photoMore}>
+          <Pressable accessibilityRole="button" onPress={add} {...hover('link')}>
+            <Text style={styles.photoRemove}>New</Text>
+          </Pressable>
+          <Text style={styles.photoRemove}>·</Text>
+          <Pressable accessibilityRole="button" onPress={remove} {...hover('link')}>
+            <Text style={styles.photoRemove}>Remove</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      {problem ? <Text style={styles.photoProblem}>That didn’t save. Try again.</Text> : null}
+      {editing ? (
+        <PhotoEditor
+          original={editing.original}
+          start={editing.crop}
+          busy={busy}
+          onSave={save}
+          onCancel={() => setEditing(null)}
+        />
+      ) : null}
+    </View>
+  );
+}
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -69,6 +151,11 @@ export default function ProfileScreen() {
       </Pressable>
 
       <View style={styles.head}>
+        {mine ? (
+          <MyPhoto name={name} photo={profile.photo} size={wide ? 104 : 72} />
+        ) : (
+          <Avatar name={name} photo={profile.photo} size={wide ? 104 : 72} />
+        )}
         <View style={styles.flex}>
           <Eyebrow>
             {mine ? 'Your profile' : profile.bot ? 'Computer player' : 'Player'} ·{' '}
@@ -126,6 +213,11 @@ const styles = StyleSheet.create({
   backBox: { alignSelf: 'flex-start' },
   back: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   head: { alignItems: 'center', flexDirection: 'row', gap: 20 },
+  photoBox: { alignItems: 'center', gap: 6 },
+  photoLink: { color: colors.brand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
+  photoMore: { flexDirection: 'row', gap: 6 },
+  photoRemove: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
+  photoProblem: { color: colors.down, fontFamily: font.body, fontSize: 12, maxWidth: 110, textAlign: 'center' },
   name: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 70 },
   namePhone: { fontSize: 38, lineHeight: 46 },
   section: { borderTopColor: colors.line, borderTopWidth: 1, gap: 16, paddingTop: 18 },

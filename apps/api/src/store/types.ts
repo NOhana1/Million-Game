@@ -30,6 +30,11 @@ export type Group = {
   members: GroupMember[];
 };
 
+/** How the player framed their picture: zoom from 1, and how far it moved, as a share of the frame. */
+export type PhotoCrop = { zoom: number; x: number; y: number };
+/** The small square everyone sees, and the larger picture it was cut from, kept for adjusting later. */
+export type SavedPhoto = { photo: string; original: string; crop: PhotoCrop };
+
 export type ChatMessage = { id: string; uid: string; name: string; text: string; at: number };
 
 export type GroupProblem =
@@ -110,6 +115,15 @@ export type Store = {
   setGoal(uid: string, goal: number): Promise<boolean>;
   /** Changes only the watchlist, for the same reason. False means there's no such player. */
   setWatchlist(uid: string, ids: string[]): Promise<boolean>;
+  /**
+   * A small square picture as a data URL, or null to remove it. Kept apart from the player,
+   * so the reads that happen all the time stay small. False means there's no such player.
+   */
+  setPhoto(uid: string, saved: SavedPhoto | null): Promise<boolean>;
+  /** The small photos only. Only the players who have one appear. */
+  getPhotos(uids: string[]): Promise<Record<string, string>>;
+  /** The larger picture and its framing, so its owner can adjust it. */
+  getPhotoOriginal(uid: string): Promise<Omit<SavedPhoto, 'photo'> | null>;
   /**
    * All or nothing. If this order id already exists for the player, returns it unchanged,
    * so a retry or double tap can't place a second order.

@@ -95,6 +95,25 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.equal(stored?.name, 'Noa');
     });
 
+    it('saves, reads and removes a photo, for players only', async () => {
+      const uid = newUid();
+      const other = newUid();
+      const saved = {
+        photo: 'data:image/jpeg;base64,AAAA',
+        original: 'data:image/jpeg;base64,BBBB',
+        crop: { zoom: 1.5, x: 0.1, y: -0.2 },
+      };
+      assert.equal(await store.setPhoto(uid, saved), false);
+      await store.createPlayer(player(uid));
+      assert.equal(await store.setPhoto(uid, saved), true);
+      assert.deepEqual(await store.getPhotos([uid, other]), { [uid]: saved.photo });
+      assert.deepEqual(await store.getPhotoOriginal(uid), { original: saved.original, crop: saved.crop });
+      assert.equal(await store.setPhoto(uid, null), true);
+      assert.deepEqual(await store.getPhotos([uid]), {});
+      assert.equal(await store.getPhotoOriginal(uid), null);
+      assert.deepEqual(await store.getPhotos([]), {});
+    });
+
     it('starts the clock once', async () => {
       const first = await store.getClock(100);
       assert.deepEqual(await store.getClock(900), first);

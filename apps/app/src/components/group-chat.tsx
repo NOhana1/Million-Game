@@ -2,19 +2,40 @@ import { useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import { api, ApiProblem, ChatMessage } from '@/api/client';
+import { api, ApiProblem, ChatMessage, GroupMember } from '@/api/client';
 import { currentToken } from '@/api/session';
 
+import { Avatar } from './avatar';
 import { Button, colors, font } from './ui';
 
 // Refreshes only while this screen is open: each refresh is a database read.
 const REFRESH_MS = 8_000;
 const MOST_LETTERS = 300;
+const AVATAR = 32;
+// Turning by the golden angle keeps every new color far from all the ones before it.
+const GOLDEN_ANGLE = 137.508;
+const FIRST_HUE = 200;
+const MY_BUBBLE = 'rgba(217, 181, 106, 0.26)'; // the gold accent, faded
 
 const clock = new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
 
-export function GroupChat({ myId, height }: { myId: string; height: number }) {
+/** Each friend's own color, in the order they joined, so no two in the group share one. */
+function friendColors(members: GroupMember[], myId: string) {
+  const friends = members.filter((m) => m.id !== myId).sort((a, b) => a.joinedAt - b.joinedAt);
+  return new Map(
+    friends.map((friend, index) => {
+      const hue = Math.round((FIRST_HUE + index * GOLDEN_ANGLE) % 360);
+      return [friend.id, { name: `hsl(${hue}, 70%, 72%)`, bubble: `hsla(${hue}, 60%, 55%, 0.24)` }];
+    }),
+  );
+}
+
+// Someone who has left the group keeps a plain gray.
+const PAST_MEMBER = { name: colors.muted, bubble: colors.raised };
+
+export function GroupChat({ myId, members, height }: { myId: string; members: GroupMember[]; height: number }) {
   const [messages, setMessages] = useState<ChatMessage[] | null>(null);
+  const [photos, setPhotos] = useState<Record<string, string>>({});
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
@@ -33,6 +54,18 @@ export function GroupChat({ myId, height }: { myId: string; height: number }) {
       const timer = setInterval(load, REFRESH_MS);
       return () => clearInterval(timer);
     }, [load]),
+  );
+
+  // Photos change rarely, so they're fetched when the chat opens or someone joins or leaves.
+  const memberIds = members.map((m) => m.id).join(',');
+  useFocusEffect(
+    useCallback(() => {
+      currentToken().then(async (token) => {
+        if (!token) return;
+        const found = await api.groupPhotos(token).catch(() => null);
+        if (found) setPhotos(found);
+      });
+    }, [memberIds]),
   );
 
   const last = messages?.at(-1)?.id;
@@ -60,22 +93,45 @@ export function GroupChat({ myId, height }: { myId: string; height: number }) {
     setSending(false);
   };
 
+  const colorOf = friendColors(members, myId);
+
   return (
     <View style={styles.box}>
       <ScrollView ref={list as never} style={{ height }} contentContainerStyle={styles.list}>
         {messages === null ? null : messages.length === 0 ? (
           <Text style={styles.empty}>No messages yet. Say hello to your group.</Text>
         ) : (
-          messages.map((message) => {
+          messages.map((message, index) => {
             const mine = message.uid === myId;
+            // Like WhatsApp: the name and picture show once at the start of each run of messages.
+            const first = messages[index - 1]?.uid !== message.uid;
+            const color = colorOf.get(message.uid) ?? PAST_MEMBER;
             return (
-              <View key={message.id} style={[styles.message, mine && styles.mine]}>
-                <Text style={styles.meta}>
-                  <Text style={styles.name}>{mine ? 'You' : message.name}</Text>
-                  {'  '}
-                  {clock.format(message.at)}
-                </Text>
-                <Text style={styles.text}>{message.text}</Text>
+              <View key={message.id} style={[styles.row, mine && styles.mineRow, first && styles.runStart]}>
+                {first ? (
+                  <Avatar
+                    name={message.name}
+                    photo={photos[message.uid]}
+                    size={AVATAR}
+                    color={mine ? colors.brand : color.name}
+                  />
+                ) : (
+                  <View style={styles.avatarSpace} />
+                )}
+                <View
+                  style={[
+                    styles.bubble,
+                    { backgroundColor: mine ? MY_BUBBLE : color.bubble },
+                    first && (mine ? styles.mineCorner : styles.theirCorner),
+                  ]}>
+                  {first && !mine ? (
+                    <Text style={[styles.name, { color: color.name }]} numberOfLines={1}>
+                      {message.name}
+                    </Text>
+                  ) : null}
+                  <Text style={styles.text}>{message.text}</Text>
+                  <Text style={styles.time}>{clock.format(message.at)}</Text>
+                </View>
               </View>
             );
           })
@@ -101,13 +157,18 @@ export function GroupChat({ myId, height }: { myId: string; height: number }) {
 
 const styles = StyleSheet.create({
   box: { backgroundColor: colors.card, borderColor: colors.line, borderRadius: 4, borderWidth: 1 },
-  list: { gap: 12, padding: 16 },
+  list: { gap: 3, padding: 12 },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 14 },
-  message: { alignSelf: 'flex-start', gap: 2, maxWidth: '86%' },
-  mine: { alignItems: 'flex-end', alignSelf: 'flex-end' },
-  meta: { color: colors.faint, fontFamily: font.body, fontSize: 11 },
-  name: { color: colors.brand, fontWeight: '600' },
+  row: { alignItems: 'flex-start', flexDirection: 'row', gap: 8, maxWidth: '86%' },
+  mineRow: { alignSelf: 'flex-end', flexDirection: 'row-reverse' }, // your picture on the right
+  runStart: { marginTop: 9 },
+  avatarSpace: { width: AVATAR },
+  bubble: { borderRadius: 14, flexShrink: 1, gap: 2, paddingHorizontal: 12, paddingVertical: 7 },
+  theirCorner: { borderTopLeftRadius: 4 },
+  mineCorner: { borderTopRightRadius: 4 },
+  name: { fontFamily: font.body, fontSize: 14, fontWeight: '700' },
   text: { color: colors.ink, fontFamily: font.body, fontSize: 15, lineHeight: 21 },
+  time: { alignSelf: 'flex-end', color: colors.faint, fontFamily: font.body, fontSize: 11 },
   problem: { color: colors.down, fontFamily: font.body, fontSize: 13, paddingHorizontal: 16 },
   write: {
     alignItems: 'center',

@@ -226,7 +226,7 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
         </View>
         <View style={[styles.column, wide && styles.columnChat]}>
           <Text style={styles.heading}>Chat</Text>
-          {me ? <GroupChat myId={me.uid} height={wide ? 420 : 320} /> : null}
+          {me ? <GroupChat myId={me.uid} members={group.members} height={wide ? 420 : 320} /> : null}
         </View>
       </View>
 
