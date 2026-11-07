@@ -70,12 +70,16 @@ function Game() {
           <TabTrigger name="league" href="/league" asChild>
             <TabButton icon="league">League</TabButton>
           </TabTrigger>
+          <TabTrigger name="group" href="/group" asChild>
+            <TabButton icon="group">Group</TabButton>
+          </TabTrigger>
           <TabTrigger name="guide" href="/guide" asChild>
             <TabButton icon="rules">Rules</TabButton>
           </TabTrigger>
           {/* Reached from a link on the League screen, so it needs no button here. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
           <TabTrigger name="security" href="/security/TAIX" style={styles.hidden} />
+          <TabTrigger name="profile" href="/profile/me" style={styles.hidden} />
           {wide ? <MenuStatus /> : null}
         </TabList>
       </Tabs>

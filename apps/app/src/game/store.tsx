@@ -38,6 +38,7 @@ type Game = {
   showNotice(text: string): void;
   clearNotice(): void;
   setGoal(amount: number): Promise<void>;
+  toggleWatch(id: string): Promise<void>;
   clockMoved(): Promise<void>;
 };
 
@@ -161,6 +162,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [refreshOwn],
   );
 
+  // Shown at once, so the star feels instant. The next refresh puts it right if saving failed.
+  const toggleWatch = useCallback(
+    async (id: string) => {
+      const token = await currentToken();
+      if (!token || !me) return;
+      const current = me.watchlist ?? [];
+      const watchlist = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+      setMe({ ...me, watchlist });
+      await api.setWatchlist(token, watchlist).catch(() => undefined);
+    },
+    [me],
+  );
+
   const clockMoved = useCallback(async () => {
     skipCacheUntil.current = Date.now() + SKIP_CACHE_AFTER_MOVE_MS;
     await Promise.all([refreshShared(), refreshOwn()]);
@@ -183,6 +197,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       showNotice: setNotice,
       clearNotice,
       setGoal,
+      toggleWatch,
       clockMoved,
     }),
     [
@@ -200,6 +215,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       notice,
       clearNotice,
       setGoal,
+      toggleWatch,
       clockMoved,
     ],
   );

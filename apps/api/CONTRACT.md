@@ -26,6 +26,16 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 
 | Method and path | Sign-in | Cached | Purpose |
 |---|---|---|---|
+| `GET /me/history` | Yes | Private, 30s | The player's value over time, rebuilt from their fills. Optional `?range=` as for market history. Points use `price` for the value in agorot, so charts share one shape |
+| `PUT /me/watchlist` | Yes | No | Saves the security ids the player watches. Body `{ "ids": ["TAIX"] }`, up to 20. `GET /me` returns them as `watchlist` |
+| `GET /players/:id/profile` | No | 30s | A player's results: `division`, `thisWeek` (or null) and `honours` counted from finished weeks. Never their holdings |
+| `GET /group` | Yes | No | The player's group with each member's results this week, best first, or `{ "group": null }`. Never holdings |
+| `POST /groups` | Yes | No | Starts a group. Body `{ "name": "The Bulls" }`, 3 to 30 characters. A player is in one group at most |
+| `POST /groups/join` | Yes | No | Joins with an invite code. Body `{ "code": "R3H2CD" }`. Groups hold up to 20 |
+| `POST /group/leave` | Yes | No | Leaves. The next member takes over from an owner, and the last one out deletes the group |
+| `DELETE /group/members/:id` | Yes | No | The owner removes a member |
+| `GET /group/chat` | Yes | No | The group's latest 50 messages, oldest first. Only for its members |
+| `POST /group/chat` | Yes | No | Sends a message. Body `{ "text": "hello" }`, up to 300 characters, at most one every 1.5 seconds |
 | `PUT /me/goal` | Yes | No | Sets the player's long-term goal. Body `{ "amount": 200000000 }` in agorot, up to ₪1,000,000,000. Returns `{ "goal": 200000000 }`. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 
 ## Orders

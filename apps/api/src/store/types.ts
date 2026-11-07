@@ -15,7 +15,37 @@ export type Player = {
   nextDueAt: number | null; // earliest pending execution, so settlement can find this player
   changedAt: number; // world time of the last change the league must pick up
   goal?: Agorot; // the portfolio value the player is aiming for
+  watchlist?: string[]; // the security ids they follow
+  groupId?: string; // a player is in one group at most
 };
+
+export type GroupMember = { id: string; name: string; joinedAt: number };
+
+export type Group = {
+  id: string;
+  name: string;
+  code: string; // what a friend types to join
+  ownerId: string;
+  createdAt: number; // real time
+  members: GroupMember[];
+};
+
+export type ChatMessage = { id: string; uid: string; name: string; text: string; at: number };
+
+export type GroupProblem =
+  | 'NO_PLAYER'
+  | 'IN_GROUP'
+  | 'NO_GROUP'
+  | 'GROUP_FULL'
+  | 'NOT_OWNER'
+  | 'NOT_MEMBER'
+  | 'TOO_FAST';
+
+export type GroupChange = { group: Group | null } | { problem: GroupProblem };
+
+export const MOST_MEMBERS = 20;
+export const MOST_MESSAGES = 50; // a group keeps only its latest messages
+export const MESSAGE_GAP_MS = 1500;
 
 /** A competitor in a league shard: a real player's position, or a whole bot. */
 export type Member = {
@@ -78,6 +108,8 @@ export type Store = {
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
   /** Changes only the goal, so it can't overwrite a fill. False means there's no such player. */
   setGoal(uid: string, goal: number): Promise<boolean>;
+  /** Changes only the watchlist, for the same reason. False means there's no such player. */
+  setWatchlist(uid: string, ids: string[]): Promise<boolean>;
   /**
    * All or nothing. If this order id already exists for the player, returns it unchanged,
    * so a retry or double tap can't place a second order.
@@ -85,6 +117,17 @@ export type Store = {
   placeOrder(input: PlaceOrder): Promise<{ order: Order; created: boolean }>;
   /** Newest first. */
   listOrders(uid: string, page: { limit: number; after?: OrderCursor }): Promise<Order[]>;
+
+  /** All the group calls are all or nothing, so a member can't end up half in a group. */
+  createGroup(group: Group): Promise<GroupChange>;
+  joinGroup(uid: string, code: string, joinedAt: number): Promise<GroupChange>;
+  /** The next member takes over from an owner who leaves. The last one out deletes the group. */
+  leaveGroup(uid: string): Promise<GroupChange>;
+  removeMember(ownerId: string, memberId: string): Promise<GroupChange>;
+  getGroup(id: string): Promise<Group | null>;
+  findGroupByCode(code: string): Promise<Group | null>;
+  addMessage(uid: string, message: Omit<ChatMessage, 'uid' | 'name'>): Promise<GroupChange>;
+  getMessages(groupId: string): Promise<ChatMessage[]>;
 
   /** The world time settlement has finished up to. */
   getCursor(): Promise<number>;
@@ -96,6 +139,7 @@ export type Store = {
   getShards(): Promise<Shard[]>;
   getTable(): Promise<LeagueTable | null>;
   getFinishedWeek(endsAt: number): Promise<LeagueTable | null>;
+  listFinishedWeeks(): Promise<LeagueTable[]>;
   /** Players who changed at or after this world time. */
   playersChangedSince(cursor: number): Promise<Player[]>;
   /** Players with an order due by `upTo`. */

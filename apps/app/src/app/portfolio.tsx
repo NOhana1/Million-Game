@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
 import { SLICE_COLORS } from '@/components/palette';
+import { PortfolioChart } from '@/components/portfolio-chart';
 import {
   Button,
   Card,
@@ -193,6 +194,8 @@ export default function PortfolioScreen() {
             </View>
           </View>
         </Hero>
+
+        <PortfolioChart />
 
         <View style={wide ? styles.columns : styles.column}>
           {holdingsCard}

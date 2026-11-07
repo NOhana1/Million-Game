@@ -3,7 +3,15 @@
 import { type Order, WORLD_START } from '@portfolio-league/engine';
 
 import { type Clock, firstClock } from '../clock.ts';
-import type { LeagueTable, Player, Shard, Store } from './types.ts';
+import {
+  createProblem,
+  joinProblem,
+  removeProblem,
+  withMember,
+  withMessage,
+  withoutMember,
+} from './group-rules.ts';
+import type { ChatMessage, Group, LeagueTable, Player, Shard, Store } from './types.ts';
 
 export type MemoryStore = Store & { setClock(next: Clock): void };
 
@@ -16,6 +24,8 @@ export function memoryStore(startClock?: Clock): MemoryStore {
   let shards: Shard[] = [];
   let table: LeagueTable | null = null;
   const finishedWeeks = new Map<number, LeagueTable>();
+  const groups = new Map<string, Group>();
+  const chats = new Map<string, ChatMessage[]>();
 
   return {
     setClock(next) {
@@ -50,6 +60,13 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       return true;
     },
 
+    async setWatchlist(uid, ids) {
+      const stored = players.get(uid);
+      if (!stored) return false;
+      stored.watchlist = [...ids];
+      return true;
+    },
+
     async placeOrder({ uid, orderId, realNow, decide }) {
       clock ??= firstClock(realNow);
       const history = orders.get(uid) ?? new Map<string, Order>();
@@ -69,6 +86,76 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       const found = after ? all.findIndex((o) => newestFirst(o, { ...o, ...after }) > 0) : 0;
       const start = found < 0 ? all.length : found;
       return structuredClone(all.slice(start, start + limit));
+    },
+
+    async createGroup(group) {
+      const player = players.get(group.ownerId) ?? null;
+      const problem = createProblem(player);
+      if (problem || !player) return problem ?? { problem: 'NO_PLAYER' };
+      player.groupId = group.id;
+      groups.set(group.id, structuredClone(group));
+      return { group: structuredClone(group) };
+    },
+
+    async joinGroup(uid, code, joinedAt) {
+      const player = players.get(uid) ?? null;
+      const group = [...groups.values()].find((g) => g.code === code) ?? null;
+      const problem = joinProblem(player, group);
+      if (problem || !player || !group) return problem ?? { problem: 'NO_GROUP' };
+      const next = withMember(group, player, joinedAt);
+      groups.set(group.id, next);
+      player.groupId = group.id;
+      return { group: structuredClone(next) };
+    },
+
+    async leaveGroup(uid) {
+      const player = players.get(uid);
+      if (!player) return { problem: 'NO_PLAYER' };
+      const group = player.groupId ? groups.get(player.groupId) : undefined;
+      if (!group) return { problem: 'NO_GROUP' };
+      const next = withoutMember(group, uid);
+      delete player.groupId;
+      if (next) {
+        groups.set(group.id, next);
+      } else {
+        groups.delete(group.id);
+        chats.delete(group.id);
+      }
+      return { group: structuredClone(next) };
+    },
+
+    async removeMember(ownerId, memberId) {
+      const groupId = players.get(ownerId)?.groupId;
+      const group = groupId ? (groups.get(groupId) ?? null) : null;
+      const problem = removeProblem(group, ownerId, memberId);
+      if (problem || !group) return problem ?? { problem: 'NO_GROUP' };
+      const next = withoutMember(group, memberId);
+      if (next) groups.set(group.id, next);
+      delete players.get(memberId)?.groupId;
+      return { group: structuredClone(next) };
+    },
+
+    async getGroup(id) {
+      return structuredClone(groups.get(id) ?? null);
+    },
+
+    async findGroupByCode(code) {
+      return structuredClone([...groups.values()].find((g) => g.code === code) ?? null);
+    },
+
+    async addMessage(uid, message) {
+      const player = players.get(uid);
+      if (!player) return { problem: 'NO_PLAYER' };
+      const groupId = player.groupId;
+      if (!groupId) return { problem: 'NO_GROUP' };
+      const result = withMessage(chats.get(groupId) ?? [], player, message);
+      if (!Array.isArray(result)) return result;
+      chats.set(groupId, result);
+      return { group: null };
+    },
+
+    async getMessages(groupId) {
+      return structuredClone(chats.get(groupId) ?? []);
     },
 
     async getCursor() {
@@ -106,6 +193,10 @@ export function memoryStore(startClock?: Clock): MemoryStore {
 
     async getFinishedWeek(endsAt) {
       return structuredClone(finishedWeeks.get(endsAt) ?? null);
+    },
+
+    async listFinishedWeeks() {
+      return structuredClone([...finishedWeeks.values()]);
     },
 
     async playersChangedSince(since) {

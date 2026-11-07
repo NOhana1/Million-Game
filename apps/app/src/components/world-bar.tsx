@@ -1,9 +1,10 @@
-import { StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { formatWorldTime, marketsText } from '@/game/view';
 
-import { colors, font } from './ui';
+import { colors, font, hover } from './ui';
 
 export function OfflineNotice() {
   const { offline } = useGame();
@@ -20,6 +21,22 @@ export function Brand() {
   );
 }
 
+/** The player's first letter, which opens their profile. */
+function ProfileButton() {
+  const { me } = useGame();
+  if (!me) return null;
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Your profile"
+      onPress={() => router.push('/profile/me')}
+      {...hover('lift')}
+      style={styles.profile}>
+      <Text style={styles.profileText}>{me.name.slice(0, 1).toUpperCase()}</Text>
+    </Pressable>
+  );
+}
+
 /** The top of the phone screen. On a computer the top menu shows this instead. */
 export function WorldBar() {
   const { world } = useGame();
@@ -27,7 +44,10 @@ export function WorldBar() {
   return (
     <View style={styles.bar}>
       <Brand />
-      {world ? <Text style={styles.time}>{formatWorldTime(time)}</Text> : null}
+      <View style={styles.barRight}>
+        {world ? <Text style={styles.time}>{formatWorldTime(time)}</Text> : null}
+        <ProfileButton />
+      </View>
     </View>
   );
 }
@@ -37,9 +57,12 @@ export function MenuStatus() {
   const time = useLiveWorldTime();
   if (!world) return null;
   return (
-    <View style={styles.status}>
-      <Text style={styles.statusTime}>{formatWorldTime(time)}</Text>
-      <Text style={styles.statusMarkets}>{marketsText(world)}</Text>
+    <View style={styles.statusBox}>
+      <View style={styles.status}>
+        <Text style={styles.statusTime}>{formatWorldTime(time)}</Text>
+        <Text style={styles.statusMarkets}>{marketsText(world)}</Text>
+      </View>
+      <ProfileButton />
     </View>
   );
 }
@@ -64,7 +87,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
-  status: { alignItems: 'flex-end', gap: 2, justifyContent: 'center', marginLeft: 'auto' },
+  barRight: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  statusBox: { alignItems: 'center', flexDirection: 'row', gap: 16, marginLeft: 'auto' },
+  status: { alignItems: 'flex-end', gap: 2, justifyContent: 'center' },
+  profile: {
+    alignItems: 'center',
+    backgroundColor: colors.raised,
+    borderColor: colors.brand,
+    borderRadius: 16,
+    borderWidth: 1,
+    height: 32,
+    justifyContent: 'center',
+    width: 32,
+  },
+  profileText: { color: colors.brand, fontFamily: font.display, fontSize: 16, fontWeight: '500' },
   statusTime: {
     color: colors.ink,
     fontFamily: font.body,

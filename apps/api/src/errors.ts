@@ -1,6 +1,6 @@
 /** An error the client is meant to see. Anything else becomes a plain 500. */
 export class ApiError extends Error {
-  readonly status: 400 | 401 | 404 | 409 | 422;
+  readonly status: 400 | 401 | 403 | 404 | 409 | 422 | 429 | 503;
   readonly code: string;
 
   constructor(status: ApiError['status'], code: string, message: string) {
