@@ -10,6 +10,13 @@ export type MarketData = {
   securities: MarketRow[];
 };
 
+export const RANGES = ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y', 'ALL'] as const;
+export type Range = (typeof RANGES)[number];
+export type PricePoint = { at: number; price: number };
+export type RangeHistory = { range: Range; gameStartedAt: number; points: PricePoint[] };
+
+export type News = { source: string; headlines: { title: string; link: string }[] };
+
 export type WorldData = {
   worldTime: number;
   clock: { speed: number; paused: boolean };
@@ -105,6 +112,10 @@ export const api = {
   // A changing `fresh` value skips the CDN's copy. Only used right after moving the clock.
   world: (fresh?: number) => call<WorldData>('GET', `/world${fresh ? `?fresh=${fresh}` : ''}`),
   market: (fresh?: number) => call<MarketData>('GET', `/market${fresh ? `?fresh=${fresh}` : ''}`),
+  history: (id: string, range: Range) =>
+    call<RangeHistory>('GET', `/market/${id}/history?range=${range}`),
+  sparks: () => call<Record<string, number[]>>('GET', '/market/sparks'),
+  news: () => call<News>('GET', '/news'),
   me: (token: string) => call<Me>('GET', '/me', { token }),
   orders: (token: string) =>
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),

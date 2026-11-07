@@ -25,7 +25,7 @@ jobs:
       - name: Run the proof
         run: node scripts/prove-alarm.mjs
         env:
-          BASE_URL: https://million-game-git-work-portfolio-league.vercel.app
+          BASE_URL: https://million-game-git-${{ github.ref_name }}-portfolio-league.vercel.app
           # The test project's public web key, the same one in scripts/build-vercel.mjs.
           FIREBASE_WEB_KEY: AIzaSyDFiMHgZfaOnzOURLEsFONcvNZjc6NuZ6A
           TICK_SECRET: ${{ secrets.DEV_TICK_SECRET }}

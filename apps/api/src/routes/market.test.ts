@@ -111,6 +111,7 @@ describe('the future stays secret', () => {
         priceAt: (id, ms) => real.priceAt(id, seen(ms)),
         usdIlsAt: (ms) => real.usdIlsAt(seen(ms)),
         stepsBetween: real.stepsBetween,
+        pastPrices: () => [],
       },
     });
     const headers = { Authorization: 'Bearer noa', 'Content-Type': 'application/json' };

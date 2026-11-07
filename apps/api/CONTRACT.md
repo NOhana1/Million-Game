@@ -18,7 +18,9 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `GET /me` | Yes | No | The player's portfolio. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 | `GET /world` | No | 5s | World time, the clock's `speed` and `paused`, and for each market whether it's open and when that next changes |
 | `GET /market` | No | 5s | All securities with `price`, `priceDayAgo`, `usdIls` and `usdIlsDayAgo` |
-| `GET /market/:id/history` | No | 60s | Chart points for the last 5 world days, ending at the current price |
+| `GET /market/:id/history` | No | 60s | Chart points for the last 5 world days, ending at the current price. With `?range=` (`1D`, `1W`, `1M`, `3M`, `6M`, `1Y`, `5Y`, `ALL`), the points for that chart button, and `gameStartedAt`: prices before it are simulated history |
+| `GET /news` | No | 300s | Real business headlines for the moving strip: `source` and `headlines` (`title`, `link`). Empty if the feed is down |
+| `GET /market/sparks` | No | 120s | A short line of the last 7 world days for every security, by id |
 
 `GET /me` also returns `worldTime`, `reserved` (cash held for pending buys), `value` (whole portfolio), `positions`, and `goal` once the player has set one.
 

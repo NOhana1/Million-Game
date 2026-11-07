@@ -23,7 +23,7 @@ import {
   UNIT_SCALE,
 } from '@portfolio-league/engine';
 
-import type { MarketData, MarketRow, Me, WorldData } from '@/api/client';
+import type { MarketData, MarketRow, Me, Range, WorldData } from '@/api/client';
 
 export const START_SHEKELS = START_CASH / AGOROT_PER_SHEKEL;
 
@@ -74,6 +74,30 @@ export function nextEvent(world: WorldData) {
     .map((market) => `${MARKET_LABEL[market]} ${world.markets[market].open ? 'closes' : 'opens'}`);
   return { at, text: events.join(' and ') };
 }
+
+export const dayChange = (row: MarketRow) => (row.price / row.priceDayAgo - 1) * 100;
+
+const dateFormat = (options: Intl.DateTimeFormatOptions) =>
+  new Intl.DateTimeFormat('en-GB', { timeZone: 'Asia/Jerusalem', ...options });
+
+const AXIS_DATES: Record<Range, Intl.DateTimeFormat> = {
+  '1D': dateFormat({ hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }),
+  '1W': dateFormat({ weekday: 'short', day: 'numeric' }),
+  '1M': dateFormat({ day: 'numeric', month: 'short' }),
+  '3M': dateFormat({ day: 'numeric', month: 'short' }),
+  '6M': dateFormat({ month: 'short', year: '2-digit' }),
+  '1Y': dateFormat({ month: 'short', year: '2-digit' }),
+  '5Y': dateFormat({ year: 'numeric' }),
+  ALL: dateFormat({ year: 'numeric' }),
+};
+
+const SCRUB_DATE = dateFormat({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+const SCRUB_TIME = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+
+export const axisDate = (ms: number, range: Range) => AXIS_DATES[range].format(ms);
+/** The moment under the pointer. Long ranges hold one price a day, so they show no time. */
+export const scrubDate = (ms: number, range: Range) =>
+  (range === '1D' || range === '1W' || range === '1M' ? SCRUB_TIME : SCRUB_DATE).format(ms);
 
 export const toShekels = (agorot: number) => agorot / AGOROT_PER_SHEKEL;
 export const toUnits = (units: number) => units / UNIT_SCALE;

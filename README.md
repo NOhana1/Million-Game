@@ -11,6 +11,7 @@ A weekly virtual trading game. Each player gets ₪1,000,000, buys and sells 20 
 - **A rules engine with no outside dependencies** (`packages/engine`). The rules are the product, and money must never be wrong, so they sit in one tested place. All money is whole numbers, and every calculation rounds down, so rounding can't create money.
 - **All writes go through the server.** The browser can read only its own player and orders. It can never write to the database.
 - **20 labelled bots** in five styles, so a new player sees a real table and not an empty one.
+- **A first-time welcome and a Rules page,** because orders wait for market times, which can look broken to a new player.
 - **Divisions, a personal goal, a market comparison and a weekly top 3,** so there's a reason to come back. See [the daily feature](#the-daily-feature-divisions).
 
 ```
@@ -26,7 +27,7 @@ Alarm ── POST /api/tick (secret) ──► same function
 
 | What | State |
 |---|---|
-| Orders filling by themselves on the live game | Working. cron-job.org knocks every minute, GitHub is the backup, and a real order filled with nobody pressing anything |
+| Orders filling by themselves on the live game | Working. cron-job.org knocks every minute, and a real order filled with nobody pressing anything. The GitHub backup is unreliable: its 15-minute timer ran by itself only once in about 10 hours, so I don't count on it. Runs by hand work, and a late knock catches up on everything missed |
 | Cold start with real prices | Not measured. Prices rebuild from the start of the world, about 0.2 seconds per game week on my Mac, so it grows with game time |
 | Thousands of players at once | Not load tested |
 | Divisions on the live game | Tested with automated tests, in a browser and on the test site. Divisions first move on live when a game week closes after this version went live |
@@ -40,6 +41,9 @@ The world is **generated, not real data**.
 - **Risk feels real.** Riskier securities move more, markets can open away from the last close, and stocks get rare news jumps. So an order placed while the market is closed carries overnight risk.
 - **The dollar moves** only while a market is trading, and tends to rise when Tel Aviv falls. It stays frozen over the weekend.
 - **The future stays secret, even in a public repo.** Prices come from HMAC-SHA256 noise keyed by `WORLD_SEED`, which only the server has. Past prices can't reveal the seed, and the server only computes up to the world clock.
+- **Long charts use simulated history.** Each security has ten years of made-up daily prices, walked backward from its start price so the line joins the game with no jump. They only feed charts and are labelled as simulated: no order, score or game price reads them.
+- **Company profiles are fiction too,** and each page says so. They hold no figures or company history.
+- **The news strip is real, and separate from the game.** It shows live BBC Business headlines, labelled "Real world" with their source. They never affect prices. The server reads the feed at most every 10 minutes, and the strip hides itself if the feed is down.
 - **History can't drift.** A test pins the first week's exact prices, so changing the generator fails on purpose.
 
 Why not real prices? A real feed would tie the game to market hours and to a paid or rate-limited service. It would also let anyone look up what's coming when the clock is behind real time. A generated world can be moved forward freely and costs nothing.
@@ -152,7 +156,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 189 engine tests and 139 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 153 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |

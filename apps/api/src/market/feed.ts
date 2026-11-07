@@ -1,4 +1,4 @@
-import type { FxRate, Price, Security, WorldState } from '@portfolio-league/engine';
+import type { FxRate, PricePoint, Price, Security, WorldState } from '@portfolio-league/engine';
 
 export type Listing = Security & { name: string; sector: string };
 
@@ -12,4 +12,6 @@ export type PriceFeed = {
   usdIlsAt(ms: number): FxRate;
   /** The price steps after `from`, up to and including `to`. */
   stepsBetween(from: number, to: number): WorldState[];
+  /** Simulated daily prices from before the game started, oldest first. */
+  pastPrices(securityId: string): readonly PricePoint[];
 };

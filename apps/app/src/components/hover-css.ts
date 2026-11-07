@@ -1,5 +1,6 @@
-// Hover and keyboard-focus looks for the web build. An element opts in with hover('kind') from
-// ui.tsx. "(hover: hover)" keeps a hover from sticking after a tap on a phone.
+// The looks that only CSS can give the web build: hovers, focus rings, the page's entrance and
+// the moving ticker. An element opts in with hover('kind') from ui.tsx. "(hover: hover)" keeps
+// a hover from sticking after a tap on a phone.
 
 import { colors } from './palette';
 
@@ -7,33 +8,57 @@ const on = (kind: string) => `[data-hover="${kind}"]:not([aria-disabled="true"])
 const idle = (kind: string) =>
   `[data-hover="${kind}"]:not([aria-disabled="true"]):not([aria-selected="true"]):hover`;
 
+const STAGGER_STEP = 0.05;
+const staggered = [1, 2, 3, 4, 5, 6, 7, 8]
+  .map((n) => `[data-rise] > :nth-child(${n}) { animation-delay: ${n * STAGGER_STEP}s; }`)
+  .join('\n');
+
 export const HOVER_CSS = `
+:root { color-scheme: dark; }
+html, body { background: ${colors.page}; }
+::selection { background: ${colors.brand}; color: ${colors.onBrand}; }
+* { scrollbar-color: ${colors.deepSoft} transparent; scrollbar-width: thin; }
+input:-webkit-autofill { -webkit-text-fill-color: ${colors.ink}; box-shadow: 0 0 0 40px ${colors.card} inset; }
+
 [data-hover], [data-hover] *, input {
-  transition: background-color .16s ease, border-color .16s ease, box-shadow .16s ease,
-    color .16s ease, opacity .16s ease, transform .16s ease;
+  transition: background-color .18s ease, border-color .18s ease, box-shadow .18s ease,
+    color .18s ease, opacity .18s ease, transform .18s ease;
 }
-[data-hover]:focus-visible { outline: 2px solid ${colors.brass}; outline-offset: 2px; }
-[data-hover]:active { transform: translateY(0); }
+[data-hover]:focus-visible { outline: 2px solid ${colors.brand}; outline-offset: 2px; }
+
+@keyframes rise { from { opacity: .4; transform: translateY(12px); } }
+[data-rise] > * { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
+${staggered}
+
+@keyframes tape { to { transform: translateX(-50%); } }
+[data-tape] { animation: tape 70s linear infinite; }
+[data-news] { animation: tape 130s linear infinite; }
+[data-tape]:hover, [data-news]:hover { animation-play-state: paused; }
+
+@keyframes breathe { 50% { opacity: .35; } }
+[data-breathe] { animation: breathe 1.4s ease-in-out infinite; }
 
 @media (hover: hover) {
-  ${on('solid')} { background-color: ${colors.deepSoft} !important; box-shadow: 0 2px 8px rgba(15, 43, 36, .22); }
-  ${on('quiet')} { background-color: ${colors.page} !important; border-color: ${colors.muted} !important; }
-  ${idle('segment')} { background-color: ${colors.brandSoft} !important; }
+  ${on('solid')} { background-color: ${colors.brandBright} !important; box-shadow: 0 6px 22px rgba(217, 181, 106, .22); }
+  ${on('quiet')} { background-color: ${colors.raised} !important; border-color: ${colors.faint} !important; }
+  ${idle('segment')} { background-color: ${colors.raised} !important; }
   ${idle('segment')} * { color: ${colors.ink} !important; }
-  ${on('row')} { background-color: ${colors.page} !important; }
-  ${on('row')} [data-hover-part="buy"] { background-color: ${colors.brand}; border-color: ${colors.brand} !important; }
-  ${on('row')} [data-hover-part="buy"] * { color: #FFFFFF !important; }
-  ${on('line')} { background-color: ${colors.page}; }
-  ${idle('lift')} { border-color: ${colors.brass} !important; box-shadow: 0 3px 10px rgba(15, 43, 36, .09); transform: translateY(-1px); }
-  ${on('link')} * , ${on('link')} { color: ${colors.ink} !important; text-decoration-line: underline; }
-  ${on('deep')} { opacity: .82; }
-  ${idle('tab')} { background-color: rgba(255, 255, 255, .05); border-bottom-color: ${colors.brass} !important; }
-  ${idle('tab')} * { color: #FFFFFF !important; }
-  input:hover { border-color: ${colors.muted} !important; }
+  ${on('row')} { background-color: ${colors.raised} !important; }
+  ${on('row')} [data-hover-part="name"] { color: ${colors.brandBright} !important; }
+  ${on('line')} { background-color: ${colors.raised}; }
+  ${on('buy')} { background-color: ${colors.brand} !important; border-color: ${colors.brand} !important; }
+  ${on('buy')} * { color: ${colors.onBrand} !important; }
+  ${idle('lift')} { border-color: ${colors.brand} !important; transform: translateY(-2px); }
+  ${on('link')} * , ${on('link')} { color: ${colors.brandBright} !important; }
+  ${on('deep')} { opacity: .8; }
+  ${idle('tab')} { border-bottom-color: ${colors.faint} !important; }
+  ${idle('tab')} * { color: ${colors.ink} !important; }
+  input:hover { border-color: ${colors.faint} !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   [data-hover], [data-hover] *, input { transition: none; }
   [data-hover]:hover { transform: none !important; }
+  [data-rise] > *, [data-tape], [data-news], [data-breathe] { animation: none; }
 }
 `;

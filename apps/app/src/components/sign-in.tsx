@@ -1,15 +1,20 @@
 import { DIVISIONS } from '@portfolio-league/engine';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { api } from '@/api/client';
 import { resetPassword, signInProblem, usesAccounts } from '@/api/session';
 import { useGame } from '@/game/store';
 
 import { Brand } from './world-bar';
 import { DivisionTag } from './division-badge';
-import { Button, Card, colors, Field, font, hover, Segments, useWide } from './ui';
+import { Spark } from './spark';
+import { Button, Card, colors, Eyebrow, Field, font, hover, Segments, useWide } from './ui';
 
 type Mode = 'create' | 'signIn' | 'reset';
+
+const SHOWCASE_FUND = 'TAIX';
+const SHOWCASE_HEIGHT = 90;
 
 // \p{L} is a letter in any language, so Hebrew passwords count too.
 const PASSWORD_RULES = [
@@ -29,6 +34,14 @@ export function SignIn() {
   const [sending, setSending] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+
+  const [line, setLine] = useState<number[]>();
+  useEffect(() => {
+    api
+      .history(SHOWCASE_FUND, 'ALL')
+      .then((history) => setLine(history.points.map((point) => point.price)))
+      .catch(() => undefined);
+  }, []);
 
   const onlyName = status === 'needsName';
   const showAccount = usesAccounts && !onlyName;
@@ -73,7 +86,11 @@ export function SignIn() {
       <View style={[styles.layout, wide && styles.layoutWide]}>
         <View style={[styles.intro, wide && styles.half]}>
           <Brand />
-          <Text style={styles.money}>₪1,000,000</Text>
+          <Eyebrow style={styles.starting}>Your starting capital</Eyebrow>
+          <Text numberOfLines={1} style={[styles.money, !wide && styles.moneyPhone]}>
+            ₪1,000,000
+          </Text>
+          <Spark prices={line} width={wide ? 420 : 320} height={SHOWCASE_HEIGHT} color={colors.brand} />
           <Text style={styles.lead}>
             Virtual money, real competition. Trade Tel Aviv and US securities and climb the weekly
             table.
@@ -190,17 +207,12 @@ const styles = StyleSheet.create({
   layoutWide: { alignItems: 'center', flexDirection: 'row', gap: 72, maxWidth: 960 },
   half: { flex: 1 },
   intro: { gap: 10, width: '100%' },
-  money: {
-    color: '#FFFFFF',
-    fontFamily: font.display,
-    fontSize: 60,
-    fontWeight: '500',
-    lineHeight: 70,
-    marginTop: 14,
-  },
+  starting: { marginTop: 22 },
+  money: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 72 },
+  moneyPhone: { fontSize: 52, lineHeight: 62 },
   lead: { color: colors.onDeep, fontFamily: font.body, fontSize: 17, lineHeight: 26 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 14 },
-  card: { borderRadius: 12, borderWidth: 0, gap: 14, padding: 28, width: '100%' },
+  card: { gap: 14, padding: 28, width: '100%' },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
   rules: { gap: 4 },
   rule: { color: colors.muted, fontFamily: font.body, fontSize: 14 },

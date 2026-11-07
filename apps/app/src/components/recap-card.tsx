@@ -37,7 +37,7 @@ export function RecapCard() {
   const changePct = ppmToPercent(recap.changePpm);
 
   return (
-    <Card style={[styles.card, wide && styles.wide]}>
+    <Card ruled style={[styles.card, wide && styles.wide]}>
       <Text style={styles.title}>Your last day</Text>
       {held ? (
         <Text style={[styles.total, { color: changeColor(changePct) }]}>
@@ -73,7 +73,7 @@ export function RecapCard() {
 const styles = StyleSheet.create({
   card: { gap: 4 },
   wide: { flex: 1 },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: '500' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
   total: {
     fontFamily: font.display,
     fontSize: 30,

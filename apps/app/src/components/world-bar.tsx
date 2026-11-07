@@ -47,7 +47,9 @@ export function MenuStatus() {
 const styles = StyleSheet.create({
   bar: {
     alignItems: 'center',
-    backgroundColor: colors.deep,
+    backgroundColor: colors.page,
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
     flexDirection: 'row',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
@@ -55,7 +57,7 @@ const styles = StyleSheet.create({
   },
   brandBox: { alignItems: 'center', flexDirection: 'row', gap: 10, marginRight: 20 },
   mark: { backgroundColor: colors.brass, height: 11, transform: [{ rotate: '45deg' }], width: 11 },
-  brand: { color: '#FFFFFF', fontFamily: font.display, fontSize: 21, fontWeight: '500' },
+  brand: { color: colors.ink, fontFamily: font.display, fontSize: 21, fontWeight: '500' },
   time: {
     color: colors.onDeep,
     fontFamily: font.body,
@@ -64,7 +66,7 @@ const styles = StyleSheet.create({
   },
   status: { alignItems: 'flex-end', gap: 2, justifyContent: 'center', marginLeft: 'auto' },
   statusTime: {
-    color: '#FFFFFF',
+    color: colors.ink,
     fontFamily: font.body,
     fontSize: 14,
     fontVariant: ['tabular-nums'],
@@ -73,7 +75,7 @@ const styles = StyleSheet.create({
   statusMarkets: { color: colors.onDeep, fontFamily: font.body, fontSize: 12 },
   offline: {
     backgroundColor: colors.down,
-    color: '#FFFFFF',
+    color: colors.ink,
     fontFamily: font.body,
     fontSize: 13,
     fontWeight: '600',

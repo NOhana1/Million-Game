@@ -63,7 +63,7 @@ export function MarketCompare({ table, row }: { table: LeagueTable | null; row?:
     : 0;
 
   return (
-    <Card style={styles.card}>
+    <Card ruled style={styles.card}>
       <Text style={styles.title}>You vs the market</Text>
       <Text style={styles.meta}>
         {row
@@ -93,44 +93,53 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
   const { me } = useGame();
   if (!previous?.rows.length) return null;
   return (
-    <Card style={styles.card}>
-      <Text style={styles.title}>Last week’s top {TOP}</Text>
-      <View style={[styles.line, styles.head]}>
-        <Text style={[styles.name, styles.meta]}>Ranked by score</Text>
-        <Text style={[styles.number, styles.meta, styles.plain]}>Return</Text>
-        <Text style={[styles.score, styles.meta]}>Score</Text>
+    <Card ruled style={styles.card}>
+      <View style={styles.podiumTop}>
+        <Text style={styles.title}>Last week’s top {TOP}</Text>
+        <Text style={styles.meta}>Ranked by score</Text>
       </View>
-      {previous.rows.slice(0, TOP).map((row) => {
-        const value = ppmToPercent(row.returnPpm);
-        return (
-          <View key={row.id} {...hover('line')} style={styles.line}>
-            <Text style={styles.place}>{row.rank}</Text>
-            <DivisionBadge division={row.division} size={24} />
-            <Text style={[styles.name, styles.strong]} numberOfLines={2}>
-              {row.name.replace(BOT_SUFFIX, '')}
-              {row.id === me?.uid ? ' (you)' : ''}
-              {row.bot ? <Text style={styles.meta}> bot</Text> : null}
-            </Text>
-            <Text style={[styles.number, { color: changeColor(value) }]}>{percent(value)}</Text>
-            <Text style={[styles.score, styles.strong]}>{row.score.toFixed(0)}</Text>
-          </View>
-        );
-      })}
+      <View style={styles.podium}>
+        {previous.rows.slice(0, TOP).map((row) => {
+          const value = ppmToPercent(row.returnPpm);
+          return (
+            <View key={row.id} {...hover('line')} style={styles.place}>
+              <View style={styles.placeTop}>
+                <Text style={styles.placeNumber}>{row.rank}</Text>
+                <DivisionBadge division={row.division} size={30} />
+              </View>
+              <Text style={styles.placeName} numberOfLines={2}>
+                {row.name.replace(BOT_SUFFIX, '')}
+                {row.id === me?.uid ? ' (you)' : ''}
+                {row.bot ? <Text style={styles.meta}> bot</Text> : null}
+              </Text>
+              <View style={styles.placeScores}>
+                <View>
+                  <Text style={styles.small}>Score</Text>
+                  <Text style={styles.placeScore}>{row.score.toFixed(0)}</Text>
+                </View>
+                <View>
+                  <Text style={[styles.small, styles.right]}>Return</Text>
+                  <Text style={[styles.placeReturn, { color: changeColor(value) }]}>{percent(value)}</Text>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
     </Card>
   );
 }
 
 const styles = StyleSheet.create({
   card: { gap: 8 },
-  result: { alignItems: 'center', borderColor: colors.brass, flexDirection: 'row', gap: 14 },
+  result: { alignItems: 'center', borderColor: colors.brand, flexDirection: 'row', gap: 14 },
   resultText: { flex: 1, gap: 2 },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 20, fontWeight: '500' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
   head: { borderBottomColor: colors.line, borderBottomWidth: 1, paddingBottom: 6 },
   line: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   name: { color: colors.ink, flex: 1, fontFamily: font.body, fontSize: 14, minWidth: 0 },
   strong: { fontWeight: '600' },
-  plain: { fontWeight: '400' },
   number: {
     fontFamily: font.body,
     fontSize: 13,
@@ -139,20 +148,29 @@ const styles = StyleSheet.create({
     minWidth: 76,
     textAlign: 'right',
   },
-  score: {
-    color: colors.ink,
-    fontFamily: font.body,
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-    minWidth: 44,
-    textAlign: 'right',
-  },
+  podiumTop: { alignItems: 'baseline', flexDirection: 'row', justifyContent: 'space-between' },
+  podium: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   place: {
-    color: colors.brassInk,
-    fontFamily: font.body,
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-    width: 14,
+    borderColor: colors.line,
+    borderRadius: 4,
+    borderWidth: 1,
+    flexBasis: 200,
+    flexGrow: 1,
+    gap: 10,
+    padding: 16,
   },
+  placeTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  placeNumber: { color: colors.brand, fontFamily: font.display, fontSize: 44, lineHeight: 48 },
+  placeName: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500', minHeight: 20 },
+  placeScores: { alignItems: 'flex-end', flexDirection: 'row', justifyContent: 'space-between' },
+  placeScore: {
+    color: colors.ink,
+    fontFamily: font.display,
+    fontSize: 30,
+    fontVariant: ['tabular-nums'],
+    lineHeight: 36,
+  },
+  placeReturn: { fontFamily: font.body, fontSize: 14, fontVariant: ['tabular-nums'], fontWeight: '600' },
+  small: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
+  right: { textAlign: 'right' },
 });

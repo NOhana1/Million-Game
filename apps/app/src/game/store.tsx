@@ -20,6 +20,7 @@ const SHARED_REFRESH_MS = 5_000;
 const OWN_REFRESH_MS = 15_000;
 // The CDN can answer with a copy up to 10 seconds old, which would show the time before a jump.
 const SKIP_CACHE_AFTER_MOVE_MS = 12_000;
+const NOTICE_MS = 8_000;
 
 type Game = {
   status: 'loading' | 'signedOut' | 'needsName' | 'signedIn';
@@ -33,6 +34,9 @@ type Game = {
   chooseName(name: string): Promise<void>;
   signOut(): Promise<void>;
   placeOrder(order: NewOrder): Promise<void>;
+  notice: string | null;
+  showNotice(text: string): void;
+  clearNotice(): void;
   setGoal(amount: number): Promise<void>;
   clockMoved(): Promise<void>;
 };
@@ -46,8 +50,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [market, setMarket] = useState<MarketData | null>(null);
   const [me, setMe] = useState<Me | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
+  const [notice, setNotice] = useState<string | null>(null);
 
   const skipCacheUntil = useRef(0);
+
+  const clearNotice = useCallback(() => setNotice(null), []);
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [notice]);
 
   const refreshShared = useCallback(async () => {
     try {
@@ -166,6 +179,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       chooseName,
       signOut,
       placeOrder,
+      notice,
+      showNotice: setNotice,
+      clearNotice,
       setGoal,
       clockMoved,
     }),
@@ -181,6 +197,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       chooseName,
       signOut,
       placeOrder,
+      notice,
+      clearNotice,
       setGoal,
       clockMoved,
     ],

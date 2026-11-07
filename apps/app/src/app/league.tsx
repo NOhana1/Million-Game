@@ -10,6 +10,7 @@ import {
   Card,
   changeColor,
   colors,
+  Eyebrow,
   font,
   hover,
   Hero,
@@ -204,7 +205,7 @@ export default function LeagueScreen() {
     <Page maxWidth={880}>
       <Hero style={styles.hero}>
         <View style={styles.heroText}>
-          <Text style={styles.heroLabel}>{week === 'last' ? 'Last week' : 'This week'}</Text>
+          <Eyebrow>{week === 'last' ? 'Last week' : 'This week'}</Eyebrow>
           <Text style={[styles.heroTitle, !wide && styles.heroTitlePhone]}>
             {mine ? `${DIVISION_LABEL[mine.division]} division` : 'You’re not on the table yet'}
           </Text>
@@ -219,10 +220,10 @@ export default function LeagueScreen() {
           )}
           {week === 'this' && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
         </View>
-        {mine ? <DivisionBadge division={mine.division} size={wide ? 92 : 60} /> : null}
+        {mine ? <DivisionBadge division={mine.division} size={wide ? 120 : 64} /> : null}
       </Hero>
 
-      <Card style={styles.divisions}>
+      <Card ruled style={styles.divisions}>
         <View style={styles.divisionsTop}>
           <Text style={styles.title}>Divisions</Text>
           <Pressable
@@ -287,9 +288,14 @@ export default function LeagueScreen() {
           Showing the top {table.rows.length} of {table.total} players.
         </Text>
       ) : null}
-      <Link href="/admin" style={styles.link} {...hover('link')}>
-        World clock
-      </Link>
+      <View style={styles.links}>
+        <Link href="/guide" style={styles.link} {...hover('link')}>
+          Full rules
+        </Link>
+        <Link href="/admin" style={styles.link} {...hover('link')}>
+          World clock
+        </Link>
+      </View>
     </Page>
   );
 }
@@ -303,19 +309,19 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', flexDirection: 'row', gap: 16, justifyContent: 'space-between' },
   heroText: { flex: 1, gap: 4, minWidth: 0 },
   heroLabel: { color: colors.onDeep, fontFamily: font.body, fontSize: 14, lineHeight: 20 },
-  heroTitle: { color: '#FFFFFF', fontFamily: font.display, fontSize: 34, fontWeight: '500' },
-  heroTitlePhone: { fontSize: 28 },
-  heroStrong: { color: '#FFFFFF', fontFamily: font.body, fontSize: 14, fontWeight: '500' },
+  heroTitle: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 70 },
+  heroTitlePhone: { fontSize: 36, lineHeight: 44 },
+  heroStrong: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   divisions: { gap: 14 },
   divisionsTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
+  title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
   everyone: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   everyoneActive: { color: colors.ink, fontWeight: '600', textDecorationLine: 'underline' },
   ladder: { flexDirection: 'row', gap: 6 },
   step: {
     alignItems: 'center',
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 4,
     borderWidth: 1,
     flex: 1,
     gap: 3,
@@ -323,17 +329,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 2,
     paddingVertical: 12,
   },
-  stepActive: { backgroundColor: colors.brandSoft, borderColor: colors.brand },
+  stepActive: { backgroundColor: colors.raised, borderColor: colors.brand },
   stepName: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   stepCount: { color: colors.muted, fontFamily: font.body, fontSize: 12, textAlign: 'center' },
   standing: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500', lineHeight: 22 },
-  rows: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderRadius: 10,
-    borderWidth: 1,
-    overflow: 'hidden',
-  },
+  rows: { borderTopColor: colors.line, borderTopWidth: 1 },
   head: {
     borderBottomColor: colors.line,
     borderBottomWidth: 1,
@@ -356,7 +356,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  me: { backgroundColor: colors.brandSoft },
+  me: { backgroundColor: colors.raised },
   rank: {
     color: colors.muted,
     fontFamily: font.body,
@@ -398,13 +398,14 @@ const styles = StyleSheet.create({
   cellDivision: { textAlign: 'left', width: CELL },
   score: {
     color: colors.ink,
-    fontFamily: font.body,
-    fontSize: 16,
+    fontFamily: font.display,
+    fontSize: 20,
     fontVariant: ['tabular-nums'],
-    fontWeight: '600',
+    fontWeight: '500',
     textAlign: 'right',
     width: SCORE,
   },
   scorePhone: { width: 32 },
+  links: { flexDirection: 'row', gap: 20 },
   link: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
 });

@@ -3,6 +3,7 @@ export * from './calendar.ts';
 export * from './divisions.ts';
 export * from './money.ts';
 export * from './orders.ts';
+export * from './past.ts';
 export * from './recap.ts';
 export * from './score.ts';
 export * from './securities.ts';

@@ -32,7 +32,7 @@ export function OrderTicket({
   onClose: () => void;
   startSide?: Side;
 }) {
-  const { me, market, world, placeOrder } = useGame();
+  const { me, market, world, placeOrder, showNotice } = useGame();
   const wide = useWide();
   const [side, setSide] = useState<Side>(startSide);
   const [text, setText] = useState('');
@@ -66,11 +66,15 @@ export function OrderTicket({
     setServerProblem(null);
   };
 
-  const send = async (order: NewOrder) => {
+  const send = async (order: NewOrder, what: string) => {
     setSending(true);
     setServerProblem(null);
     try {
       await placeOrder(order);
+      const when = open
+        ? 'today’s closing price'
+        : `the next ${MARKET_LABEL[security.market]} opening price`;
+      showNotice(`${side === 'buy' ? 'Buy' : 'Sell'} order placed: ${what}. It fills at ${when}.`);
       onClose();
     } catch (error) {
       const code = error instanceof ApiProblem ? error.code : 'NETWORK';
@@ -84,11 +88,14 @@ export function OrderTicket({
   const submit = () => {
     setTried(true);
     if (problem) return;
-    send({ id: orderId, securityId: security.id, side, amount: shekelsToAgorot(amount) });
+    send(
+      { id: orderId, securityId: security.id, side, amount: shekelsToAgorot(amount) },
+      `${ils(amount)} of ${security.name}`,
+    );
   };
 
   const sellEverything = () =>
-    send({ id: orderId, securityId: security.id, side: 'sell', amount: 'all' });
+    send({ id: orderId, securityId: security.id, side: 'sell', amount: 'all' }, `all of ${security.name}`);
 
   return (
     <Modal transparent animationType="fade" visible onRequestClose={onClose}>
@@ -96,7 +103,7 @@ export function OrderTicket({
       <View style={[styles.holder, wide && styles.holderWide]} pointerEvents="box-none">
         <View style={[styles.sheet, wide && styles.sheetWide]}>
           <View style={styles.header}>
-            <Tile name={security.name} sector={security.sector} />
+            <Tile id={security.id} name={security.name} sector={security.sector} />
             <View style={styles.flex}>
               <Text style={styles.title}>{security.name}</Text>
               <Text style={styles.muted}>
@@ -182,18 +189,20 @@ export function OrderTicket({
 }
 
 const styles = StyleSheet.create({
-  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(15, 43, 36, 0.6)' },
+  backdrop: { ...StyleSheet.absoluteFill, backgroundColor: 'rgba(3, 6, 5, 0.74)' },
   holder: { flex: 1, justifyContent: 'flex-end' },
   holderWide: { alignItems: 'center', justifyContent: 'center' },
   sheet: {
     backgroundColor: colors.card,
-    borderTopLeftRadius: 14,
-    borderTopRightRadius: 14,
+    borderColor: colors.line,
+    borderTopLeftRadius: 8,
+    borderTopRightRadius: 8,
+    borderWidth: 1,
     gap: 12,
     padding: 18,
     paddingBottom: 24,
   },
-  sheetWide: { borderRadius: 12, maxWidth: 460, width: '100%' },
+  sheetWide: { borderRadius: 6, maxWidth: 460, width: '100%' },
   header: { alignItems: 'center', flexDirection: 'row', gap: 12 },
   flex: { flex: 1 },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
@@ -201,8 +210,9 @@ const styles = StyleSheet.create({
   close: { color: colors.muted, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
   amount: {
     alignItems: 'center',
+    backgroundColor: colors.page,
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 3,
     borderWidth: 1,
     flexDirection: 'row',
     gap: 6,
@@ -224,14 +234,14 @@ const styles = StyleSheet.create({
   chip: {
     alignItems: 'center',
     borderColor: colors.line,
-    borderRadius: 8,
+    borderRadius: 3,
     borderWidth: 1,
     flex: 1,
     justifyContent: 'center',
     minHeight: 44,
   },
   chipText: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
-  notice: { backgroundColor: colors.warnSoft, borderRadius: 8, padding: 12 },
+  notice: { backgroundColor: colors.warnSoft, borderRadius: 3, padding: 12 },
   noticeText: { color: colors.warnInk, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });
