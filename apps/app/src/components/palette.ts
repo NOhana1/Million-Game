@@ -1,29 +1,29 @@
-// The app's colors: night-green paper, warm ivory ink and one champagne accent.
+// The app's colors: charcoal gray, warm ivory ink and one champagne accent.
 
 export const colors = {
-  page: '#0A0F0D',
-  card: '#111815',
-  raised: '#19221E',
-  ink: '#F2EDE2',
-  muted: '#A0ACA4',
-  faint: '#6C7971',
-  line: '#26302B',
+  page: '#25282B',
+  card: '#2D3033',
+  raised: '#373A3E',
+  ink: '#F4F1EA',
+  muted: '#B6BBBF',
+  faint: '#8E9499',
+  line: '#44484C',
   brand: '#D9B56A',
   brandBright: '#EBCB87',
   onBrand: '#17120A',
-  brandSoft: '#1E2620',
-  deep: '#0A0F0D',
-  deepSoft: '#2B3731',
-  onDeep: '#B8C2BA',
+  brandSoft: '#33363A',
+  deep: '#25282B',
+  deepSoft: '#4B5055',
+  onDeep: '#CBCFD2',
   brass: '#D9B56A',
   brassInk: '#D9B56A',
   up: '#62D3A2',
   down: '#F2917F',
   upOnDeep: '#62D3A2',
   downOnDeep: '#F2917F',
-  warnSoft: '#211C10',
+  warnSoft: '#3B3526',
   warnInk: '#E9D3A0',
-  cash: '#39453F',
+  cash: '#565B60',
 };
 
 export const SLICE_COLORS = [
