@@ -18,6 +18,9 @@ import { createAccount, currentToken, logIn, logOut } from '@/api/session';
 // database, so it refreshes less often, and right after they place an order.
 const SHARED_REFRESH_MS = 5_000;
 const OWN_REFRESH_MS = 15_000;
+// The order list costs a database read per order, so it's fetched only when the player's cash,
+// holdings or waiting orders changed, or this long after the last fetch, as a safety net.
+const ORDERS_AT_LEAST_EVERY_MS = 60_000;
 // The CDN can answer with a copy up to 10 seconds old, which would show the time before a jump.
 const SKIP_CACHE_AFTER_MOVE_MS = 12_000;
 const NOTICE_MS = 8_000;
@@ -40,6 +43,9 @@ type Game = {
   setGoal(amount: number): Promise<void>;
   toggleWatch(id: string): Promise<void>;
   clockMoved(): Promise<void>;
+  /** Your photo, kept here so the top bar, your profile and the chat change together. */
+  myPhoto: string | null;
+  setMyPhoto(photo: string | null): void;
 };
 
 const GameContext = createContext<Game | null>(null);
@@ -52,8 +58,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [myPhoto, setMyPhoto] = useState<string | null>(null);
 
   const skipCacheUntil = useRef(0);
+  const ordersSeen = useRef({ for: '', at: 0 }); // what the order list was last fetched for
 
   const clearNotice = useCallback(() => setNotice(null), []);
 
@@ -80,10 +88,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
     try {
       const token = await currentToken();
       if (!token) return setStatus('signedOut');
-      const [nextMe, nextOrders] = await Promise.all([api.me(token), api.orders(token)]);
+      const nextMe = await api.me(token);
       setMe(nextMe);
-      setOrders(nextOrders);
       setStatus('signedIn');
+      const now = Date.now();
+      const changes = JSON.stringify([
+        nextMe.uid,
+        nextMe.cash,
+        nextMe.holdings,
+        nextMe.pendingOrders.map((order) => order.id),
+      ]);
+      const seen = ordersSeen.current;
+      if (changes !== seen.for || now - seen.at >= ORDERS_AT_LEAST_EVERY_MS) {
+        setOrders(await api.orders(token));
+        ordersSeen.current = { for: changes, at: now };
+      }
     } catch (error) {
       const code = error instanceof ApiProblem ? error.code : null;
       if (code === 'PLAYER_NOT_FOUND') return setStatus('needsName');
@@ -139,6 +158,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     await logOut();
     setMe(null);
     setOrders([]);
+    ordersSeen.current = { for: '', at: 0 };
     setStatus('signedOut');
   }, []);
 
@@ -175,6 +195,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [me],
   );
 
+  // Read once per sign in. After that, editing the photo updates it here directly.
+  const uid = me?.uid;
+  useEffect(() => {
+    setMyPhoto(null);
+    if (!uid) return;
+    api
+      .profile(uid, Date.now())
+      .then((profile) => setMyPhoto(profile.photo))
+      .catch(() => undefined);
+  }, [uid]);
+
   const clockMoved = useCallback(async () => {
     skipCacheUntil.current = Date.now() + SKIP_CACHE_AFTER_MOVE_MS;
     await Promise.all([refreshShared(), refreshOwn()]);
@@ -199,6 +230,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setGoal,
       toggleWatch,
       clockMoved,
+      myPhoto,
+      setMyPhoto,
     }),
     [
       status,
@@ -217,6 +250,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setGoal,
       toggleWatch,
       clockMoved,
+      myPhoto,
     ],
   );
 

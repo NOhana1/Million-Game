@@ -163,15 +163,16 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Worry | What's in place |
 |---|---|
 | Bursts at market open | Market data is cached at the CDN for 5 seconds and the table for 30, so a crowd mostly doesn't reach the database. Polling stops when a tab is hidden |
+| Floods, scripts and guessing | Every request has a per-minute limit on the server. See [request limits](#request-limits) |
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 189 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 211 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
 
-**Not built yet:** kill switch, rate limits, error tracking (Sentry), uptime alerts, encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
+**Not built yet:** kill switch, error tracking (Sentry), uptime alerts, encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
 
 **Limits I know about:**
 
@@ -180,6 +181,40 @@ The main decisions are below. All of them, with code references, are in [`packag
 - A player with a due order that hasn't filled yet can't place another until it does.
 - The table shows the top 500 players. A player below that doesn't see their division yet.
 - `saveSlot` writes everything in one transaction, which is fine up to about 20,000 players and then needs splitting.
+
+## Request limits
+
+Every request to the server falls into one category, and each category allows a number of requests a minute. They're counted twice: per network address, and per signed-in player.
+
+| Category | What's in it | Per player | Per address |
+|---|---|---|---|
+| Read | Prices, charts, security pages, the table, profiles, your player, the chat. Mostly served by the CDN, 0 to 2 database reads each | 120 | 1,500 |
+| Costly read | Your order list (up to 50 database reads) and portfolio history (reads every order you have) | 20 | 150 |
+| Write | Orders, watchlist, goal, photo, groups, chat messages | 30 | 300 |
+| Sign-up | Creating a player | 5 | 10 |
+| Secret | The clock code and the alarm | none | 10 |
+
+- **Shared connections are fine.** An office address allows about 15 busy players at once. A test runs five colleagues chatting and browsing from one address for five minutes.
+- **Over the limit:** the server answers `429` with a `Retry-After` header and a message saying how many seconds to wait. Reads and writes are counted apart, so browsing never blocks an order.
+- **The limits come from what the app really sends.** An open app sends about 35 requests a minute, or about 45 with the group chat open, plus 1 to 3 for each security opened. It asks for the order list about once a minute, and the portfolio history when you open it or change its range.
+- **Normal play never gets near them.** Tests play a busy session, a busy minute on the portfolio screen (every chart range, five orders, the refreshes after fills), and five colleagues on one address. None is limited. A test plays ten busy minutes with the real limits (every poll, every security page opened twice a minute, and orders) and is never limited.
+- **Search costs nothing.** It filters the list the app already has, in the browser, so it sends no requests and needs no category.
+- **The client can't skip it.** It runs on the server before every route. The player count uses the verified sign-in token, so made-up tokens don't help. The address comes from headers Vercel sets itself.
+- **The clock code can't be guessed.** Ten tries a minute, then even the right code waits.
+- **Sign-in itself isn't ours to limit.** Email and password go straight from the browser to Firebase Auth, which has its own protection against repeated tries.
+- **Honest limit:** counts live in the server's memory. Vercel can run a few copies at once and each counts on its own, so the real ceiling is a few times higher, and a restart clears the counts. That's enough to stop floods and needs no extra service. A shared counter (for example Redis) would be the next step.
+
+**Fewer database reads.**
+
+- **The order list:** each order in it costs one read, up to 50. The app used to fetch it every 15 seconds. Now it fetches it only when your cash, holdings or waiting orders changed, or once a minute as a safety net. For a player with 50 orders, an open app goes from about 210 reads a minute to about 60.
+- **Portfolio history:** it reads every order you have. The server now remembers each player's list and reuses it until the player changes (a new order or a fill), so switching between the eight chart ranges costs 2 reads each instead of hundreds. It keeps up to 200 players' lists in memory, and a test checks the list is read again after a new order.
+
+**The daily quota is still a risk.** The free plan allows 50,000 reads a day for the whole game, and the limits above are per minute.
+
+- **One abuser** with an account can still spend about 1,000 reads a minute on the order list (20 requests × 50 orders), which empties the day's reads in under an hour. Before the costly category, it was about 15,000 a minute.
+- **Many accounts** on one address share 150 costly requests a minute, so opening more accounts doesn't multiply the damage. Many addresses would.
+- **Real growth** hits the same wall. At about 60 reads a minute, a few hundred player-hours a day is enough to reach 50,000.
+- **What would fix it:** a daily allowance per player kept in the database, an alert at 80% of the quota, and the paid Blaze plan, where the quota becomes a bill instead of an outage. Firebase has no hard spending cap, so that needs a budget alert too. I left these out because they need a credit card or another stored counter, and the brief asks for neither.
 
 ## Running it locally
 

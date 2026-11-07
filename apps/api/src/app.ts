@@ -2,9 +2,10 @@
 
 import { Hono } from 'hono';
 
-import type { TokenVerifier } from './auth.ts';
+import type { AuthEnv, TokenVerifier } from './auth.ts';
 import { ApiError } from './errors.ts';
 import type { PriceFeed } from './market/feed.ts';
+import { type Limits, LIMITS, RateLimited, rateLimit } from './rate-limit.ts';
 import { clockRoutes } from './routes/clock.ts';
 import { groupRoutes } from './routes/groups.ts';
 import { leagueRoutes } from './routes/league.ts';
@@ -26,12 +27,20 @@ export type Deps = {
   tickSecret: string;
   clockSecret: string;
   fetchFeed?: typeof fetch; // tests pass their own
+  limits?: Limits; // tests pass smaller ones
 };
 
 export function createApp(deps: Deps) {
-  const app = new Hono().basePath('/api');
+  const app = new Hono<AuthEnv>().basePath('/api');
 
   app.onError((error, c) => {
+    if (error instanceof RateLimited) {
+      c.header('Retry-After', String(error.retryAfter));
+      return c.json(
+        { error: { code: 'RATE_LIMITED', message: error.message, retryAfter: error.retryAfter } },
+        429,
+      );
+    }
     if (error instanceof ApiError) {
       return c.json({ error: { code: error.code, message: error.message } }, error.status);
     }
@@ -40,6 +49,9 @@ export function createApp(deps: Deps) {
   });
 
   app.notFound((c) => c.json({ error: { code: 'NOT_FOUND', message: 'No such route.' } }, 404));
+
+  // Runs before every route, so no request skips it.
+  app.use('*', rateLimit(deps, deps.limits ?? LIMITS));
 
   // Touches no database, so uptime checks cost no quota.
   app.get('/health', (c) => c.json({ ok: true, version: deps.version, environment: deps.environment }));

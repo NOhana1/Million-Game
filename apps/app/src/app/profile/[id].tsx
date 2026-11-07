@@ -19,8 +19,8 @@ const NOTHING_YET = '–';
 const BOT_SUFFIX = / \(bot\)$/;
 
 /** Your own picture, with buttons to add, adjust or remove it. Friends see it in the group chat. */
-function MyPhoto({ name, photo, size }: { name: string; photo: string | null; size: number }) {
-  const [shown, setShown] = useState(photo);
+function MyPhoto({ name, size }: { name: string; size: number }) {
+  const { myPhoto: shown, setMyPhoto: setShown } = useGame();
   const [editing, setEditing] = useState<{ original: string; crop: PhotoCrop } | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(false);
@@ -152,7 +152,7 @@ export default function ProfileScreen() {
 
       <View style={styles.head}>
         {mine ? (
-          <MyPhoto name={name} photo={profile.photo} size={wide ? 104 : 72} />
+          <MyPhoto name={name} size={wide ? 104 : 72} />
         ) : (
           <Avatar name={name} photo={profile.photo} size={wide ? 104 : 72} />
         )}
