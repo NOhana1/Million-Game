@@ -64,7 +64,7 @@ export function PhotoEditor({
     <Modal transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={styles.card}>
-          <Text style={styles.title}>Adjust your photo</Text>
+          <Text style={styles.title}>Edit your photo</Text>
           <Text style={styles.hint}>Drag to move it. Use − and + to zoom.</Text>
 
           <View style={styles.frame} {...drag.panHandlers}>
