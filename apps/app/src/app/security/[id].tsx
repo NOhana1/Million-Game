@@ -49,7 +49,7 @@ function Fact({ label, value }: { label: string; value: string }) {
 
 export default function SecurityScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { market, me, orders, world } = useGame();
+  const { market, me, orders, world, join } = useGame();
   const wide = useWide();
   const [range, setRange] = useState<Range>('1M');
   const [loaded, setLoaded] = useState<Partial<Record<Range, RangeHistory>>>({});
@@ -79,7 +79,7 @@ export default function SecurityScreen() {
     };
   }, [id, range, history, attempt]);
 
-  if (!market || !me || !world) return <ActivityIndicator style={styles.page} color={colors.brand} />;
+  if (!market || !world) return <ActivityIndicator style={styles.page} color={colors.brand} />;
 
   const row = id ? findRow(market, id) : undefined;
   if (!row) {
@@ -101,7 +101,7 @@ export default function SecurityScreen() {
   const profile = PROFILES[row.id];
   const fund = row.sector === FUND;
   const dailyVol = SECURITIES.find((s) => s.id === row.id)?.dailyVol ?? 0;
-  const position = me.positions.find((p) => p.securityId === row.id);
+  const position = me?.positions.find((p) => p.securityId === row.id);
   const waiting = orders.filter((o) => o.status === 'pending' && o.securityId === row.id);
   const open = world.markets[row.market].open;
   const back = () => (router.canGoBack() ? router.back() : router.replace('/'));
@@ -165,7 +165,7 @@ export default function SecurityScreen() {
           </View>
           <View style={[styles.actions, !wide && styles.actionsPhone]}>
             <View style={styles.flex}>
-              <Button label="Buy" onPress={() => setTicket('buy')} />
+              <Button label={me ? 'Buy' : 'Join to buy'} onPress={() => (me ? setTicket('buy') : join())} />
             </View>
             {position ? (
               <View style={styles.flex}>
@@ -203,7 +203,7 @@ export default function SecurityScreen() {
           </View>
         </View>
 
-        {position || waiting.length > 0 ? (
+        {me && (position || waiting.length > 0) ? (
           <View style={styles.position}>
             <Eyebrow>Your position</Eyebrow>
             <View style={styles.facts}>

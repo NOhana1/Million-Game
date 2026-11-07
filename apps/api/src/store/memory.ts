@@ -3,6 +3,7 @@
 import { type Order, WORLD_START } from '@portfolio-league/engine';
 
 import { type Clock, firstClock } from '../clock.ts';
+import { nextStreak } from '../services/streak.ts';
 import {
   createProblem,
   joinProblem,
@@ -59,6 +60,13 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       if (!stored) return false;
       stored.goal = goal;
       return true;
+    },
+
+    async recordVisit(uid, today) {
+      const stored = players.get(uid);
+      if (!stored) return null;
+      stored.streak = nextStreak(stored.streak, today);
+      return { ...stored.streak };
     },
 
     async setWatchlist(uid, ids) {

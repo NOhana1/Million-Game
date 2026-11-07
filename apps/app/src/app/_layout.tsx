@@ -3,12 +3,20 @@ import { ActivityIndicator, Platform, Pressable, PressableProps, StyleSheet, Tex
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { HOVER_CSS } from '@/components/hover-css';
+import { InstallTip } from '@/components/install-tip';
 import { OrderNotice } from '@/components/order-notice';
 import { SignIn } from '@/components/sign-in';
 import { TabIcon, TabIconName } from '@/components/tab-icon';
 import { colors, font, hover, useWide } from '@/components/ui';
 import { Welcome } from '@/components/welcome';
-import { Brand, MenuStatus, OfflineNotice, WorldBar } from '@/components/world-bar';
+import {
+  Brand,
+  GuestBanner,
+  MenuStatus,
+  OfflineNotice,
+  TradingNotice,
+  WorldBar,
+} from '@/components/world-bar';
 import { GameProvider, useGame } from '@/game/store';
 
 // The web build has one fixed page, so the fonts are added to it here.
@@ -48,15 +56,18 @@ function TabButton({ children, icon, isFocused, ...props }: TabTriggerSlotProps 
 }
 
 function Game() {
-  const { status } = useGame();
+  const { status, guest } = useGame();
   const wide = useWide();
   if (status === 'loading') return <ActivityIndicator style={styles.flex} color={colors.brand} />;
-  if (status !== 'signedIn') return <SignIn />;
+  if (status !== 'signedIn' && !guest) return <SignIn />;
 
   return (
     <View style={styles.flex}>
       <OfflineNotice />
+      <GuestBanner />
+      <TradingNotice />
       {wide ? null : <WorldBar />}
+      <InstallTip />
       <Tabs style={[styles.flex, wide && styles.menuOnTop]}>
         <TabSlot style={styles.flex} />
         <TabList style={wide ? styles.topMenu : styles.tabs}>
@@ -64,15 +75,24 @@ function Game() {
           <TabTrigger name="market" href="/" asChild>
             <TabButton icon="market">Market</TabButton>
           </TabTrigger>
-          <TabTrigger name="portfolio" href="/portfolio" asChild>
-            <TabButton icon="portfolio">Portfolio</TabButton>
-          </TabTrigger>
+          {/* A guest has no portfolio or group yet, so those tabs wait until they join. */}
+          {guest ? (
+            <TabTrigger name="portfolio" href="/portfolio" style={styles.hidden} />
+          ) : (
+            <TabTrigger name="portfolio" href="/portfolio" asChild>
+              <TabButton icon="portfolio">Portfolio</TabButton>
+            </TabTrigger>
+          )}
           <TabTrigger name="league" href="/league" asChild>
             <TabButton icon="league">League</TabButton>
           </TabTrigger>
-          <TabTrigger name="group" href="/group" asChild>
-            <TabButton icon="group">Group</TabButton>
-          </TabTrigger>
+          {guest ? (
+            <TabTrigger name="group" href="/group" style={styles.hidden} />
+          ) : (
+            <TabTrigger name="group" href="/group" asChild>
+              <TabButton icon="group">Group</TabButton>
+            </TabTrigger>
+          )}
           <TabTrigger name="guide" href="/guide" asChild>
             <TabButton icon="rules">Rules</TabButton>
           </TabTrigger>

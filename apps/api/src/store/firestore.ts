@@ -4,6 +4,7 @@ import { type Order, WORLD_START } from '@portfolio-league/engine';
 import { FieldPath, FieldValue, type Firestore } from 'firebase-admin/firestore';
 
 import { type Clock, firstClock } from '../clock.ts';
+import { nextStreak } from '../services/streak.ts';
 import {
   createProblem,
   joinProblem,
@@ -87,6 +88,17 @@ export function firestoreStore(db: Firestore): Store {
         if ((error as { code?: unknown }).code !== NOT_FOUND) throw error;
         return false;
       }
+    },
+
+    recordVisit(uid, today) {
+      return db.runTransaction(async (tx) => {
+        const stored = await tx.get(playerDoc(uid));
+        if (!stored.exists) return null;
+        const before = (stored.data() as Player).streak;
+        const streak = nextStreak(before, today);
+        if (streak !== before) tx.update(playerDoc(uid), { streak });
+        return streak;
+      });
     },
 
     async setWatchlist(uid, ids) {

@@ -98,6 +98,13 @@ The Daily Recap stays too, as the first thing on the Market screen: your last da
 - **The chat looks like WhatsApp.** Your messages sit on the right, with your photo. Each friend sits on the left with their own color, given in the order they joined, so no two share one.
 - **The portfolio chart is rebuilt** from a player's fills and the game's prices, so it adds no database writes.
 
+## Coming back every day
+
+- **Daily streak.** Opening the game counts a day, on Israel's calendar. Days in a row grow the streak, and a missed day starts it again, while the best one is kept. It's one small write a day per player.
+- **Tip of the day.** When something in your own portfolio is worth knowing, the tip is about it: one security above 15%, one sector above 40%, everything in dollars or everything in Tel Aviv, or a lot of cash. Otherwise it's a general lesson. It's worked out in the app, so it costs nothing on the server.
+- **Look around first.** A visitor can see the market, every stock page, the league table and the rules before signing up. Buying or watching asks them to join.
+- **A home-screen app.** On a phone, the site can be added to the home screen with its own icon, and then opens full screen. Phones get a one-time tip showing how.
+
 ## Rules I completed
 
 The main decisions are below. All of them, with code references, are in [`packages/engine/RULES.md`](packages/engine/RULES.md).
@@ -167,12 +174,14 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 211 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 220 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
 
-**Not built yet:** kill switch, error tracking (Sentry), uptime alerts, encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
+**Emergency brake:** the admin page can pause trading for everyone with the clock code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
+
+**Not built yet:** error tracking (Sentry), uptime alerts, encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
 
 **Limits I know about:**
 

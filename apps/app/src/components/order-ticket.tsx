@@ -48,6 +48,7 @@ export function OrderTicket({
   const limit = maxOrderAmount(me, market, security, side);
   const problem = orderProblem(me, market, security, side, amount);
   const open = world.markets[security.market].open;
+  const paused = world.clock.tradingPaused;
   const currency = security.market === 'US' ? '$' : '₪';
   const held = me.positions.find((p) => p.securityId === security.id);
   const spare =
@@ -169,17 +170,18 @@ export function OrderTicket({
 
           {tried && problem ? <Text style={styles.error}>{problem}</Text> : null}
           {serverProblem ? <Text style={styles.error}>{serverProblem}</Text> : null}
+          {paused ? <Text style={styles.error}>{problemText('TRADING_PAUSED')}</Text> : null}
           <Button
             label={`${side === 'buy' ? 'Buy' : 'Sell'}${amount > 0 ? ` ${ils(amount)}` : ''}`}
             onPress={submit}
-            disabled={sending}
+            disabled={sending || paused}
           />
           {side === 'sell' && canSellAll(me, security.id) ? (
             <Button
               variant="quiet"
               label="Sell everything"
               onPress={sellEverything}
-              disabled={sending}
+              disabled={sending || paused}
             />
           ) : null}
         </View>

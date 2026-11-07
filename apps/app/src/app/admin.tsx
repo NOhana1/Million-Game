@@ -55,7 +55,7 @@ export default function AdminScreen() {
     setSending(false);
   };
 
-  const { paused, speed } = world.clock;
+  const { paused, speed, tradingPaused } = world.clock;
   const next = nextEvent(world);
   const disabled = sending || code.trim() === '';
 
@@ -68,6 +68,13 @@ export default function AdminScreen() {
     paused
       ? move({ action: 'resume' }, () => `Time is moving again from ${formatWorldTime(time)}.`)
       : move({ action: 'pause' }, () => `Time stopped at ${formatWorldTime(time)}.`);
+
+  const switchTrading = () =>
+    tradingPaused
+      ? move({ action: 'trading', open: true }, () => 'Trading is open again.')
+      : move({ action: 'trading', open: false }, () =>
+          'Trading is paused. New orders are refused; prices, fills and the table go on.',
+        );
 
   const changeSpeed = (value: string) =>
     move({ action: 'speed', speed: Number(value) }, () =>
@@ -110,6 +117,18 @@ export default function AdminScreen() {
           onPress={pauseOrPlay}
           disabled={disabled}
         />
+        <Text style={styles.label}>Emergency brake</Text>
+        <Text style={styles.hint}>
+          {tradingPaused
+            ? 'Trading is paused. Players see a notice and can’t place orders.'
+            : 'Stops new orders for everyone, without stopping time. Use it if something looks wrong.'}
+        </Text>
+        <Button
+          variant={tradingPaused ? 'solid' : 'quiet'}
+          label={tradingPaused ? 'Open trading again' : 'Pause trading'}
+          onPress={switchTrading}
+          disabled={disabled}
+        />
         <Text style={styles.label}>Speed</Text>
         <Segments
           value={String(speed)}
@@ -149,6 +168,7 @@ const styles = StyleSheet.create({
   subtitle: { color: colors.muted, fontFamily: font.body, fontSize: 14, textAlign: 'center' },
   card: { gap: 12 },
   label: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  hint: { color: colors.muted, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   latest: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   older: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },

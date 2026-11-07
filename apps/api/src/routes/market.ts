@@ -27,7 +27,7 @@ export function marketRoutes(deps: Deps) {
     c.header('Cache-Control', cachedFor(5));
     return c.json({
       ...worldStatus(worldTime(clock, realNow)),
-      clock: { speed: clock.speed, paused: clock.paused },
+      clock: { speed: clock.speed, paused: clock.paused, tradingPaused: clock.tradingPaused ?? false },
     });
   });
 

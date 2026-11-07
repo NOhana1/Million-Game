@@ -46,6 +46,10 @@ type Game = {
   /** Your photo, kept here so the top bar, your profile and the chat change together. */
   myPhoto: string | null;
   setMyPhoto(photo: string | null): void;
+  /** A visitor looking around before signing up. Everything public works; trading asks them to join. */
+  guest: boolean;
+  lookAround(): void;
+  join(): void;
 };
 
 const GameContext = createContext<Game | null>(null);
@@ -59,6 +63,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [orders, setOrders] = useState<Order[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
   const [myPhoto, setMyPhoto] = useState<string | null>(null);
+  const [guest, setGuest] = useState(false);
+  const lookAround = useCallback(() => setGuest(true), []);
+  const join = useCallback(() => setGuest(false), []);
 
   const skipCacheUntil = useRef(0);
   const ordersSeen = useRef({ for: '', at: 0 }); // what the order list was last fetched for
@@ -196,10 +203,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 
   // Read once per sign in. After that, editing the photo updates it here directly.
+  // Opening the game also counts today's visit toward the daily streak.
   const uid = me?.uid;
   useEffect(() => {
     setMyPhoto(null);
     if (!uid) return;
+    currentToken().then(async (token) => {
+      if (!token) return;
+      const streak = await api.visit(token).catch(() => null);
+      if (streak) setMe((current) => (current ? { ...current, streak } : current));
+    });
     api
       .profile(uid, Date.now())
       .then((profile) => setMyPhoto(profile.photo))
@@ -232,6 +245,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       clockMoved,
       myPhoto,
       setMyPhoto,
+      guest: guest && status === 'signedOut',
+      lookAround,
+      join,
     }),
     [
       status,
@@ -251,6 +267,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       toggleWatch,
       clockMoved,
       myPhoto,
+      guest,
+      lookAround,
+      join,
     ],
   );
 

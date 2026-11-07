@@ -195,6 +195,12 @@ export default function ProfileScreen() {
             label="Best score"
             value={honours.bestScore === null ? NOTHING_YET : honours.bestScore.toFixed(0)}
           />
+          {mine && me?.streak ? (
+            <>
+              <Stat label="Daily streak" value={`🔥 ${me.streak.days}`} />
+              <Stat label="Best streak" value={String(me.streak.best)} />
+            </>
+          ) : null}
         </View>
       </View>
 

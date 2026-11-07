@@ -21,7 +21,7 @@ export type News = { source: string; headlines: { title: string; link: string }[
 
 export type WorldData = {
   worldTime: number;
-  clock: { speed: number; paused: boolean };
+  clock: { speed: number; paused: boolean; tradingPaused: boolean };
   markets: Record<Market, { open: boolean; nextChange: number }>;
 };
 
@@ -39,7 +39,10 @@ export type Me = {
   positions: Position[];
   goal?: number;
   watchlist?: string[];
+  streak?: Streak;
 };
+
+export type Streak = { days: number; best: number; lastDay: string };
 
 export type Profile = {
   id: string;
@@ -98,7 +101,8 @@ export type ClockChange =
   | { action: 'advance'; to: 'next' }
   | { action: 'pause' }
   | { action: 'resume' }
-  | { action: 'speed'; speed: number };
+  | { action: 'speed'; speed: number }
+  | { action: 'trading'; open: boolean };
 
 export type ClockResult = {
   worldTime: number;
@@ -160,6 +164,8 @@ export const api = {
     call<Profile>('GET', `/players/${id}/profile${fresh ? `?fresh=${fresh}` : ''}`),
   myHistory: (token: string, range: Range) =>
     call<{ points: PricePoint[] }>('GET', `/me/history?range=${range}`, { token }),
+  visit: (token: string) =>
+    call<{ streak: Streak }>('POST', '/me/visit', { token }).then((r) => r.streak),
   setWatchlist: (token: string, ids: string[]) =>
     call<unknown>('PUT', '/me/watchlist', { token, body: { ids } }),
   group: (token: string) => call<{ group: MyGroup | null }>('GET', '/group', { token }),

@@ -124,3 +124,33 @@ describe('players', () => {
     assert.equal((await me(app, 'dana')).status, 404);
   });
 });
+
+describe('the daily streak', () => {
+  const visit = (app: TestApp, token = 'noa') =>
+    app.request('/api/me/visit', { method: 'POST', headers: { Authorization: `Bearer ${token}` } });
+  const DAY = 24 * 3_600_000;
+
+  it('needs a player', async () => {
+    const app = testApp();
+    assert.equal((await app.request('/api/me/visit', { method: 'POST' })).status, 401);
+    assert.equal((await visit(app)).status, 404);
+  });
+
+  it('counts days in a row, shows on /me, and starts again after a gap', async () => {
+    let now = Date.UTC(2026, 10, 7, 9);
+    const app = testApp({ now: () => now });
+    await post(app, 'Noa');
+    const days = async () => ((await (await visit(app)).json()) as { streak: { days: number } }).streak.days;
+    assert.equal(await days(), 1);
+    assert.equal(await days(), 1);
+    now += DAY;
+    assert.equal(await days(), 2);
+    assert.deepEqual(((await (await me(app)).json()) as { streak: unknown }).streak, {
+      days: 2,
+      best: 2,
+      lastDay: '2026-11-08',
+    });
+    now += 2 * DAY;
+    assert.equal(await days(), 1);
+  });
+});

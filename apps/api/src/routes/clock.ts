@@ -7,7 +7,7 @@ import { z } from 'zod';
 
 import type { Deps } from '../app.ts';
 import { readBody } from '../body.ts';
-import { advancedTo, type Clock, paused, withSpeed, worldTime } from '../clock.ts';
+import { advancedTo, type Clock, paused, withSpeed, withTrading, worldTime } from '../clock.ts';
 import { settle } from '../services/settlement.ts';
 import { requireSecret } from './tick.ts';
 
@@ -22,6 +22,7 @@ const Change = z.discriminatedUnion('action', [
   z.object({ action: z.literal('pause') }),
   z.object({ action: z.literal('resume') }),
   z.object({ action: z.literal('speed'), speed: z.number().min(1).max(MAX_SPEED) }),
+  z.object({ action: z.literal('trading'), open: z.boolean() }),
 ]);
 
 function applied(change: z.output<typeof Change>, clock: Clock, realNow: number): Clock {
@@ -36,6 +37,8 @@ function applied(change: z.output<typeof Change>, clock: Clock, realNow: number)
       return paused(clock, realNow, false);
     case 'speed':
       return withSpeed(clock, realNow, change.speed);
+    case 'trading':
+      return withTrading(clock, change.open);
   }
 }
 
