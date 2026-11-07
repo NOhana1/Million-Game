@@ -32,6 +32,7 @@ export function firestoreStore(db: Firestore): Store {
   const groupDoc = (id: string) => db.collection('groups').doc(id);
   // All of a group's messages sit in one document, so reading the chat costs a single read.
   const chatDoc = (id: string) => db.collection('groupChats').doc(id);
+  const photoDoc = (uid: string) => db.collection('photos').doc(uid);
 
   const findGroupByCode = async (code: string) => {
     const found = await db.collection('groups').where('code', '==', code).limit(1).get();
@@ -94,6 +95,21 @@ export function firestoreStore(db: Firestore): Store {
         if ((error as { code?: unknown }).code !== NOT_FOUND) throw error;
         return false;
       }
+    },
+
+    async setPhoto(uid, photo) {
+      if (!(await playerDoc(uid).get()).exists) return false;
+      if (photo) await photoDoc(uid).set({ photo });
+      else await photoDoc(uid).delete();
+      return true;
+    },
+
+    async getPhotos(uids) {
+      if (uids.length === 0) return {};
+      const stored = await db.getAll(...uids.map(photoDoc));
+      return Object.fromEntries(
+        stored.flatMap((doc) => (doc.exists ? [[doc.id, (doc.data() as { photo: string }).photo]] : [])),
+      );
     },
 
     placeOrder({ uid, orderId, realNow, decide }) {

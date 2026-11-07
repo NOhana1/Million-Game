@@ -25,6 +25,7 @@ export function profileRoutes(deps: Deps) {
     const name = row?.name ?? nameIn(weeks, id) ?? (await deps.store.getPlayer(id))?.name;
     if (!name) throw new ApiError(404, 'PLAYER_NOT_FOUND', 'No such player.');
 
+    const photos = await deps.store.getPhotos([id]);
     c.header('Cache-Control', cachedFor(30));
     return c.json({
       id,
@@ -41,6 +42,7 @@ export function profileRoutes(deps: Deps) {
           }
         : null,
       honours: honoursOf(weeks, id),
+      photo: photos[id] ?? null,
     });
   });
 

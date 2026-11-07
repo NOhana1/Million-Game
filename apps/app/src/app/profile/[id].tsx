@@ -6,13 +6,65 @@ import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { api, Profile } from '@/api/client';
+import { currentToken } from '@/api/session';
+import { Avatar } from '@/components/avatar';
 import { DivisionBadge } from '@/components/division-badge';
 import { Button, changeColor, colors, Eyebrow, font, hover, Page, percent, useWide } from '@/components/ui';
+import { choosePhoto } from '@/game/photo';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, ppmToPercent } from '@/game/view';
 
 const NOTHING_YET = '–';
 const BOT_SUFFIX = / \(bot\)$/;
+
+/** Your own picture, with buttons to add, change or remove it. Friends see it in the group chat. */
+function MyPhoto({ name, photo, size }: { name: string; photo: string | null; size: number }) {
+  const [shown, setShown] = useState(photo);
+  const [busy, setBusy] = useState(false);
+  const [problem, setProblem] = useState(false);
+
+  const change = async (work: (token: string) => Promise<string | null | undefined>) => {
+    const token = await currentToken();
+    if (!token || busy) return;
+    setBusy(true);
+    setProblem(false);
+    try {
+      const next = await work(token);
+      if (next !== undefined) setShown(next);
+    } catch {
+      setProblem(true);
+    }
+    setBusy(false);
+  };
+
+  const add = () =>
+    change(async (token) => {
+      const picked = await choosePhoto();
+      if (!picked) return undefined; // cancelled: nothing changes
+      await api.setPhoto(token, picked);
+      return picked;
+    });
+  const remove = () =>
+    change(async (token) => {
+      await api.removePhoto(token);
+      return null;
+    });
+
+  return (
+    <View style={styles.photoBox}>
+      <Avatar name={name} photo={shown} size={size} />
+      <Pressable accessibilityRole="button" disabled={busy} onPress={add} {...hover('link')}>
+        <Text style={styles.photoLink}>{busy ? 'Saving…' : shown ? 'Change photo' : 'Add photo'}</Text>
+      </Pressable>
+      {shown && !busy ? (
+        <Pressable accessibilityRole="button" onPress={remove} {...hover('link')}>
+          <Text style={styles.photoRemove}>Remove</Text>
+        </Pressable>
+      ) : null}
+      {problem ? <Text style={styles.photoProblem}>That didn’t save. Try again.</Text> : null}
+    </View>
+  );
+}
 
 function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
@@ -69,6 +121,11 @@ export default function ProfileScreen() {
       </Pressable>
 
       <View style={styles.head}>
+        {mine ? (
+          <MyPhoto name={name} photo={profile.photo} size={wide ? 104 : 72} />
+        ) : (
+          <Avatar name={name} photo={profile.photo} size={wide ? 104 : 72} />
+        )}
         <View style={styles.flex}>
           <Eyebrow>
             {mine ? 'Your profile' : profile.bot ? 'Computer player' : 'Player'} ·{' '}
@@ -126,6 +183,10 @@ const styles = StyleSheet.create({
   backBox: { alignSelf: 'flex-start' },
   back: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
   head: { alignItems: 'center', flexDirection: 'row', gap: 20 },
+  photoBox: { alignItems: 'center', gap: 6 },
+  photoLink: { color: colors.brand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
+  photoRemove: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
+  photoProblem: { color: colors.down, fontFamily: font.body, fontSize: 12, maxWidth: 110, textAlign: 'center' },
   name: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 70 },
   namePhone: { fontSize: 38, lineHeight: 46 },
   section: { borderTopColor: colors.line, borderTopWidth: 1, gap: 16, paddingTop: 18 },

@@ -111,6 +111,13 @@ export type Store = {
   /** Changes only the watchlist, for the same reason. False means there's no such player. */
   setWatchlist(uid: string, ids: string[]): Promise<boolean>;
   /**
+   * A small square picture as a data URL, or null to remove it. Kept apart from the player,
+   * so the reads that happen all the time stay small. False means there's no such player.
+   */
+  setPhoto(uid: string, photo: string | null): Promise<boolean>;
+  /** Only the players who have a photo appear. */
+  getPhotos(uids: string[]): Promise<Record<string, string>>;
+  /**
    * All or nothing. If this order id already exists for the player, returns it unchanged,
    * so a retry or double tap can't place a second order.
    */

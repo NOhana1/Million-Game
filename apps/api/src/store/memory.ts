@@ -26,6 +26,7 @@ export function memoryStore(startClock?: Clock): MemoryStore {
   const finishedWeeks = new Map<number, LeagueTable>();
   const groups = new Map<string, Group>();
   const chats = new Map<string, ChatMessage[]>();
+  const photos = new Map<string, string>();
 
   return {
     setClock(next) {
@@ -65,6 +66,22 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       if (!stored) return false;
       stored.watchlist = [...ids];
       return true;
+    },
+
+    async setPhoto(uid, photo) {
+      if (!players.has(uid)) return false;
+      if (photo) photos.set(uid, photo);
+      else photos.delete(uid);
+      return true;
+    },
+
+    async getPhotos(uids) {
+      return Object.fromEntries(
+        uids.flatMap((uid) => {
+          const photo = photos.get(uid);
+          return photo ? [[uid, photo]] : [];
+        }),
+      );
     },
 
     async placeOrder({ uid, orderId, realNow, decide }) {

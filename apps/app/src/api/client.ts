@@ -52,6 +52,7 @@ export type Profile = {
     bestRank: number | null;
     bestScore: number | null;
   };
+  photo: string | null;
 };
 
 export type LeagueRow = {
@@ -79,6 +80,7 @@ export type LeagueTable = {
 export type GroupMember = {
   id: string;
   name: string;
+  joinedAt: number;
   owner: boolean;
   division: Division;
   rank: number | null;
@@ -165,6 +167,11 @@ export const api = {
   removeMember: (token: string, id: string) =>
     call<unknown>('DELETE', `/group/members/${id}`, { token }),
   chat: (token: string) => call<{ messages: ChatMessage[] }>('GET', '/group/chat', { token }),
+  groupPhotos: (token: string) =>
+    call<{ photos: Record<string, string> }>('GET', '/group/photos', { token }).then((r) => r.photos),
+  setPhoto: (token: string, photo: string) =>
+    call<unknown>('PUT', '/me/photo', { token, body: { photo } }),
+  removePhoto: (token: string) => call<unknown>('DELETE', '/me/photo', { token }),
   sendMessage: (token: string, text: string) =>
     call<unknown>('POST', '/group/chat', { token, body: { text } }),
   setGoal: (token: string, amount: number) =>

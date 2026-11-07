@@ -27,6 +27,14 @@ const MAX_GOAL = 100_000_000_000; // ₪1,000,000,000 in agorot
 const Goal = z.object({ amount: z.number().int().positive().max(MAX_GOAL) });
 
 const MOST_WATCHED = 20;
+// The app shrinks a picture to a small square JPEG before sending it, so a few kilobytes is plenty.
+const MOST_PHOTO_LETTERS = 60_000;
+const Photo = z.object({
+  photo: z
+    .string()
+    .max(MOST_PHOTO_LETTERS)
+    .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/, 'Send a JPEG picture.'),
+});
 const Watchlist = z.object({ ids: z.array(z.string().max(10)).max(MOST_WATCHED) });
 
 const ORDER_PAGE = 100;
@@ -113,6 +121,21 @@ export function playerRoutes(deps: Deps) {
       throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
     }
     return c.json({ ids: unique });
+  });
+
+  routes.put('/me/photo', signedIn, async (c) => {
+    const { photo } = await readBody(c, Photo);
+    if (!(await deps.store.setPhoto(c.get('uid'), photo))) {
+      throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+    }
+    return c.json({ photo });
+  });
+
+  routes.delete('/me/photo', signedIn, async (c) => {
+    if (!(await deps.store.setPhoto(c.get('uid'), null))) {
+      throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+    }
+    return c.json({ photo: null });
   });
 
   routes.put('/me/goal', signedIn, async (c) => {
