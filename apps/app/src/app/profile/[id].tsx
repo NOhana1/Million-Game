@@ -69,7 +69,7 @@ function MyPhoto({ name, photo, size }: { name: string; photo: string | null; si
     <View style={styles.photoBox}>
       <Avatar name={name} photo={shown} size={size} />
       <Pressable accessibilityRole="button" onPress={shown ? adjust : add} {...hover('link')}>
-        <Text style={styles.photoLink}>{shown ? 'Adjust photo' : 'Add photo'}</Text>
+        <Text style={styles.photoLink}>{shown ? 'Edit photo' : 'Add photo'}</Text>
       </Pressable>
       {shown ? (
         <View style={styles.photoMore}>
