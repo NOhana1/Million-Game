@@ -76,6 +76,20 @@ export type LeagueTable = {
   indexes: Record<string, number>;
 };
 
+export type GroupMember = {
+  id: string;
+  name: string;
+  owner: boolean;
+  division: Division;
+  rank: number | null;
+  score: number | null;
+  returnPpm: number | null;
+};
+
+export type MyGroup = { id: string; name: string; code: string; members: GroupMember[] };
+
+export type ChatMessage = { id: string; uid: string; name: string; text: string; at: number };
+
 export type ClockChange =
   | { action: 'advance'; to: 'next' }
   | { action: 'pause' }
@@ -142,6 +156,17 @@ export const api = {
     call<{ points: PricePoint[] }>('GET', `/me/history?range=${range}`, { token }),
   setWatchlist: (token: string, ids: string[]) =>
     call<unknown>('PUT', '/me/watchlist', { token, body: { ids } }),
+  group: (token: string) => call<{ group: MyGroup | null }>('GET', '/group', { token }),
+  createGroup: (token: string, name: string) =>
+    call<unknown>('POST', '/groups', { token, body: { name } }),
+  joinGroup: (token: string, code: string) =>
+    call<unknown>('POST', '/groups/join', { token, body: { code } }),
+  leaveGroup: (token: string) => call<unknown>('POST', '/group/leave', { token, body: {} }),
+  removeMember: (token: string, id: string) =>
+    call<unknown>('DELETE', `/group/members/${id}`, { token }),
+  chat: (token: string) => call<{ messages: ChatMessage[] }>('GET', '/group/chat', { token }),
+  sendMessage: (token: string, text: string) =>
+    call<unknown>('POST', '/group/chat', { token, body: { text } }),
   setGoal: (token: string, amount: number) =>
     call<unknown>('PUT', '/me/goal', { token, body: { amount } }),
   placeOrder: (token: string, order: NewOrder) =>

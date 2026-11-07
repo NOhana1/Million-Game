@@ -88,6 +88,14 @@ The Daily Recap stays too, as the first thing on the Market screen: your last da
 - **Guardrails:** orders per player, and the share of portfolios in the riskiest securities. If Divisions work only by making people trade more or gamble more, that's not the win I want.
 - Run it for at least two real weeks before deciding. If the return rate doesn't beat the control group, I'd replace the feature.
 
+## Playing with friends
+
+- **Profiles** show a player's division, this week's place and score, and what they've achieved: weeks played, wins, top 3 finishes, best place and best score. These are counted from the finished weeks, so nothing extra is stored.
+- **Groups** work like a clan: one group per player, up to 20 members, joined with an invite code, with a ranking of the members and a chat.
+- **Results only.** Profiles and groups never show what someone holds, so nobody can copy a rival's portfolio.
+- **The chat stays cheap.** A group's latest 50 messages sit in one document, so reading the chat costs one read. It refreshes every 8 seconds, and only while the screen is open.
+- **The portfolio chart is rebuilt** from a player's fills and the game's prices, so it adds no database writes.
+
 ## Rules I completed
 
 The main decisions are below. All of them, with code references, are in [`packages/engine/RULES.md`](packages/engine/RULES.md).

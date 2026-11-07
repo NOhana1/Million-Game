@@ -70,6 +70,9 @@ function Game() {
           <TabTrigger name="league" href="/league" asChild>
             <TabButton icon="league">League</TabButton>
           </TabTrigger>
+          <TabTrigger name="group" href="/group" asChild>
+            <TabButton icon="group">Group</TabButton>
+          </TabTrigger>
           <TabTrigger name="guide" href="/guide" asChild>
             <TabButton icon="rules">Rules</TabButton>
           </TabTrigger>

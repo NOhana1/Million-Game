@@ -46,6 +46,45 @@ function storeContract(name: string, makeStore: () => Store) {
     const store = makeStore();
     const newUid = () => randomUUID();
 
+    it('keeps group membership and the player in step', async () => {
+      const [ownerId, friendId, groupId] = [newUid(), newUid(), newUid()];
+      const code = groupId.slice(0, 6).toUpperCase();
+      await store.createPlayer(player(ownerId));
+      await store.createPlayer(player(friendId));
+      const group = {
+        id: groupId,
+        name: 'Bulls',
+        code,
+        ownerId,
+        createdAt: 1,
+        members: [{ id: ownerId, name: 'Noa', joinedAt: 1 }],
+      };
+
+      assert.deepEqual(await store.createGroup(group), { group });
+      assert.deepEqual(await store.createGroup(group), { problem: 'IN_GROUP' });
+      assert.equal((await store.findGroupByCode(code))?.id, groupId);
+      await store.joinGroup(friendId, code, 2);
+      assert.equal((await store.getPlayer(friendId))?.groupId, groupId);
+      assert.equal((await store.getGroup(groupId))?.members.length, 2);
+
+      assert.deepEqual(await store.addMessage(ownerId, { id: 'm1', text: 'hi', at: 10_000 }), {
+        group: null,
+      });
+      assert.deepEqual(await store.addMessage(ownerId, { id: 'm2', text: 'yo', at: 10_001 }), {
+        problem: 'TOO_FAST',
+      });
+      assert.equal((await store.getMessages(groupId))[0]?.name, 'Noa');
+
+      assert.deepEqual(await store.removeMember(friendId, ownerId), { problem: 'NOT_OWNER' });
+      await store.removeMember(ownerId, friendId);
+      assert.equal((await store.getPlayer(friendId))?.groupId, undefined);
+
+      assert.deepEqual(await store.leaveGroup(ownerId), { group: null });
+      assert.equal(await store.getGroup(groupId), null);
+      assert.deepEqual(await store.getMessages(groupId), []);
+      assert.equal((await store.getPlayer(ownerId))?.groupId, undefined);
+    });
+
     it('saves a watchlist without touching the rest of the player', async () => {
       const uid = newUid();
       assert.equal(await store.setWatchlist(uid, ['TAIX']), false);

@@ -6,6 +6,7 @@ import type { TokenVerifier } from './auth.ts';
 import { ApiError } from './errors.ts';
 import type { PriceFeed } from './market/feed.ts';
 import { clockRoutes } from './routes/clock.ts';
+import { groupRoutes } from './routes/groups.ts';
 import { leagueRoutes } from './routes/league.ts';
 import { marketRoutes } from './routes/market.ts';
 import { newsRoutes } from './routes/news.ts';
@@ -47,6 +48,7 @@ export function createApp(deps: Deps) {
   app.route('/', newsRoutes(deps));
   app.route('/', playerRoutes(deps));
   app.route('/', profileRoutes(deps));
+  app.route('/', groupRoutes(deps));
   app.route('/', orderRoutes(deps));
   app.route('/', leagueRoutes(deps));
   app.route('/', tickRoutes(deps));

@@ -1,13 +1,23 @@
 // The real database. Everything is written by this server: firestore.rules blocks clients.
 
 import { type Order, WORLD_START } from '@portfolio-league/engine';
-import { FieldPath, type Firestore } from 'firebase-admin/firestore';
+import { FieldPath, FieldValue, type Firestore } from 'firebase-admin/firestore';
 
 import { type Clock, firstClock } from '../clock.ts';
-import type { LeagueTable, Player, Shard, Store } from './types.ts';
+import {
+  createProblem,
+  joinProblem,
+  removeProblem,
+  withMember,
+  withMessage,
+  withoutMember,
+} from './group-rules.ts';
+import type { ChatMessage, Group, LeagueTable, Player, Shard, Store } from './types.ts';
 
 const NOT_FOUND = 5; // gRPC status codes
 const ALREADY_EXISTS = 6;
+
+type Chat = { messages: ChatMessage[] };
 
 type Settlement = { cursor?: number; leaseOwner?: string | null; leaseUntil?: number };
 
@@ -19,6 +29,14 @@ export function firestoreStore(db: Firestore): Store {
   const weekDocs = db.collection('leagueWeeks');
   const playerDoc = (uid: string) => db.collection('players').doc(uid);
   const orderDocs = (uid: string) => playerDoc(uid).collection('orders');
+  const groupDoc = (id: string) => db.collection('groups').doc(id);
+  // All of a group's messages sit in one document, so reading the chat costs a single read.
+  const chatDoc = (id: string) => db.collection('groupChats').doc(id);
+
+  const findGroupByCode = async (code: string) => {
+    const found = await db.collection('groups').where('code', '==', code).limit(1).get();
+    return (found.docs[0]?.data() as Group | undefined) ?? null;
+  };
 
   return {
     async getClock(realNow) {
@@ -108,6 +126,91 @@ export function firestoreStore(db: Firestore): Store {
         .limit(limit);
       const page = after ? newestFirst.startAfter(after.placedAt, after.id) : newestFirst;
       return (await page.get()).docs.map((doc) => doc.data() as Order);
+    },
+
+    createGroup(group) {
+      return db.runTransaction(async (tx) => {
+        const stored = await tx.get(playerDoc(group.ownerId));
+        const problem = createProblem((stored.data() as Player | undefined) ?? null);
+        if (problem) return problem;
+        tx.create(groupDoc(group.id), group);
+        tx.update(playerDoc(group.ownerId), { groupId: group.id });
+        return { group };
+      });
+    },
+
+    async joinGroup(uid, code, joinedAt) {
+      const found = await findGroupByCode(code);
+      return db.runTransaction(async (tx) => {
+        const [storedPlayer, storedGroup] = await tx.getAll(
+          playerDoc(uid),
+          groupDoc(found?.id ?? 'none'),
+        );
+        const player = (storedPlayer?.data() as Player | undefined) ?? null;
+        const group = (storedGroup?.data() as Group | undefined) ?? null;
+        const problem = joinProblem(player, group);
+        if (problem || !player || !group) return problem ?? { problem: 'NO_GROUP' };
+        const next = withMember(group, player, joinedAt);
+        tx.update(groupDoc(group.id), { members: next.members });
+        tx.update(playerDoc(uid), { groupId: group.id });
+        return { group: next };
+      });
+    },
+
+    leaveGroup(uid) {
+      return db.runTransaction(async (tx) => {
+        const player = (await tx.get(playerDoc(uid))).data() as Player | undefined;
+        if (!player) return { problem: 'NO_PLAYER' };
+        if (!player.groupId) return { problem: 'NO_GROUP' };
+        const group = (await tx.get(groupDoc(player.groupId))).data() as Group | undefined;
+        if (!group) return { problem: 'NO_GROUP' };
+        const next = withoutMember(group, uid);
+        if (next) {
+          tx.set(groupDoc(group.id), next);
+        } else {
+          tx.delete(groupDoc(group.id));
+          tx.delete(chatDoc(group.id));
+        }
+        tx.update(playerDoc(uid), { groupId: FieldValue.delete() });
+        return { group: next };
+      });
+    },
+
+    removeMember(ownerId, memberId) {
+      return db.runTransaction(async (tx) => {
+        const owner = (await tx.get(playerDoc(ownerId))).data() as Player | undefined;
+        const stored = owner?.groupId ? await tx.get(groupDoc(owner.groupId)) : null;
+        const group = (stored?.data() as Group | undefined) ?? null;
+        const problem = removeProblem(group, ownerId, memberId);
+        if (problem || !group) return problem ?? { problem: 'NO_GROUP' };
+        const next = withoutMember(group, memberId);
+        if (next) tx.set(groupDoc(group.id), next);
+        tx.update(playerDoc(memberId), { groupId: FieldValue.delete() });
+        return { group: next };
+      });
+    },
+
+    async getGroup(id) {
+      return ((await groupDoc(id).get()).data() as Group | undefined) ?? null;
+    },
+
+    findGroupByCode,
+
+    addMessage(uid, message) {
+      return db.runTransaction(async (tx) => {
+        const player = (await tx.get(playerDoc(uid))).data() as Player | undefined;
+        if (!player) return { problem: 'NO_PLAYER' };
+        if (!player.groupId) return { problem: 'NO_GROUP' };
+        const chat = (await tx.get(chatDoc(player.groupId))).data() as Chat | undefined;
+        const result = withMessage(chat?.messages ?? [], player, message);
+        if (!Array.isArray(result)) return result;
+        tx.set(chatDoc(player.groupId), { messages: result });
+        return { group: null };
+      });
+    },
+
+    async getMessages(groupId) {
+      return ((await chatDoc(groupId).get()).data() as Chat | undefined)?.messages ?? [];
     },
 
     async getCursor() {

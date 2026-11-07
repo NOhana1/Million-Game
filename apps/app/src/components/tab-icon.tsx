@@ -1,6 +1,6 @@
 import Svg, { Path } from 'react-native-svg';
 
-export type TabIconName = 'market' | 'portfolio' | 'league' | 'rules';
+export type TabIconName = 'market' | 'portfolio' | 'league' | 'group' | 'rules';
 
 const PATHS: Record<TabIconName, string[]> = {
   market: ['M3 20h18', 'M4 15l5-5 4 4 7-8', 'M15 6h5v5'],
@@ -11,6 +11,12 @@ const PATHS: Record<TabIconName, string[]> = {
     'M16 6h4v1a4 4 0 0 1-4 4',
     'M12 14v4',
     'M8 20h8',
+  ],
+  group: [
+    'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2',
+    'M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z',
+    'M22 21v-2a4 4 0 0 0-3-3.87',
+    'M16 3.13a4 4 0 0 1 0 7.75',
   ],
   rules: ['M12 6c-2-1.5-5-2-8-2v15c3 0 6 .5 8 2 2-1.5 5-2 8-2V4c-3 0-6 .5-8 2z', 'M12 6v15'],
 };
