@@ -9,8 +9,10 @@ export type AuthEnv = { Variables: { uid: string } };
 
 export const requireUser = (verify: TokenVerifier) =>
   createMiddleware<AuthEnv>(async (c, next) => {
+    // Already verified by the rate limiter when it saw a valid token.
+    const checked = c.get('uid') as string | undefined;
     const token = c.req.header('Authorization')?.match(/^Bearer (.+)$/)?.[1];
-    const uid = token ? await verify(token) : null;
+    const uid = checked ?? (token ? await verify(token) : null);
     if (!uid) throw new ApiError(401, 'UNAUTHENTICATED', 'Sign in first.');
     c.set('uid', uid);
     await next();

@@ -4,12 +4,14 @@ import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { api, ApiProblem, ChatMessage, GroupMember } from '@/api/client';
 import { currentToken } from '@/api/session';
+import { useGame } from '@/game/store';
 
 import { Avatar } from './avatar';
 import { Button, colors, font } from './ui';
 
 // Refreshes only while this screen is open: each refresh is a database read.
 const REFRESH_MS = 8_000;
+const PHOTOS_REFRESH_MS = 120_000;
 const MOST_LETTERS = 300;
 const AVATAR = 32;
 // Turning by the golden angle keeps every new color far from all the ones before it.
@@ -56,17 +58,24 @@ export function GroupChat({ myId, members, height }: { myId: string; members: Gr
     }, [load]),
   );
 
-  // Photos change rarely, so they're fetched when the chat opens or someone joins or leaves.
+  // Friends' photos change rarely, so they're fetched when the chat opens, when someone joins or
+  // leaves, and every two minutes. Your own photo comes from the app, so your changes show at once.
+  const { myPhoto } = useGame();
   const memberIds = members.map((m) => m.id).join(',');
   useFocusEffect(
     useCallback(() => {
-      currentToken().then(async (token) => {
+      const loadPhotos = async () => {
+        const token = await currentToken();
         if (!token) return;
         const found = await api.groupPhotos(token).catch(() => null);
         if (found) setPhotos(found);
-      });
+      };
+      loadPhotos();
+      const timer = setInterval(loadPhotos, PHOTOS_REFRESH_MS);
+      return () => clearInterval(timer);
     }, [memberIds]),
   );
+  const photoOf = (uid: string) => (uid === myId ? myPhoto : photos[uid]);
 
   const last = messages?.at(-1)?.id;
   useEffect(() => {
@@ -111,7 +120,7 @@ export function GroupChat({ myId, members, height }: { myId: string; members: Gr
                 {first ? (
                   <Avatar
                     name={message.name}
-                    photo={photos[message.uid]}
+                    photo={photoOf(message.uid)}
                     size={AVATAR}
                     color={mine ? colors.brand : color.name}
                   />

@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { Avatar } from '@/components/avatar';
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { formatWorldTime, marketsText } from '@/game/view';
 
@@ -23,7 +24,7 @@ export function Brand() {
 
 /** The player's first letter, which opens their profile. */
 function ProfileButton() {
-  const { me } = useGame();
+  const { me, myPhoto } = useGame();
   if (!me) return null;
   return (
     <Pressable
@@ -32,7 +33,7 @@ function ProfileButton() {
       onPress={() => router.push('/profile/me')}
       {...hover('lift')}
       style={styles.profile}>
-      <Text style={styles.profileText}>{me.name.slice(0, 1).toUpperCase()}</Text>
+      <Avatar name={me.name} photo={myPhoto} size={32} />
     </Pressable>
   );
 }
@@ -90,17 +91,7 @@ const styles = StyleSheet.create({
   barRight: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   statusBox: { alignItems: 'center', flexDirection: 'row', gap: 16, marginLeft: 'auto' },
   status: { alignItems: 'flex-end', gap: 2, justifyContent: 'center' },
-  profile: {
-    alignItems: 'center',
-    backgroundColor: colors.raised,
-    borderColor: colors.brand,
-    borderRadius: 16,
-    borderWidth: 1,
-    height: 32,
-    justifyContent: 'center',
-    width: 32,
-  },
-  profileText: { color: colors.brand, fontFamily: font.display, fontSize: 16, fontWeight: '500' },
+  profile: { borderRadius: 16 },
   statusTime: {
     color: colors.ink,
     fontFamily: font.body,

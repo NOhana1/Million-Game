@@ -15,6 +15,8 @@ import { ApiError } from '../errors.ts';
 import { findListing, isRange, quotesAt } from '../market/quotes.ts';
 import { toAccount } from '../player.ts';
 import { portfolioHistory } from '../services/portfolio-history.ts';
+import type { Order } from '@portfolio-league/engine';
+
 import type { Player, Store } from '../store/types.ts';
 
 const NewPlayer = z.object({
@@ -61,6 +63,15 @@ async function allOrders(store: Store, uid: string) {
   return orders;
 }
 
+const REMEMBERED_PLAYERS = 200; // order lists kept in memory, to bound this server's memory
+
+/**
+ * Every fill and every new order changes the player's cash, waiting orders or `changedAt`, in
+ * the same write as the orders. So while these match, the stored order list is still right.
+ */
+const ordersVersion = (player: Player) =>
+  JSON.stringify([player.changedAt, player.cash, player.pendingOrders.map((order) => order.id)]);
+
 const newPlayer = (uid: string, name: string, now: number, world: number): Player => {
   const { cash, holdings } = newAccount();
   return {
@@ -78,6 +89,22 @@ const newPlayer = (uid: string, name: string, now: number, world: number): Playe
 export function playerRoutes(deps: Deps) {
   const routes = new Hono<AuthEnv>();
   const signedIn = requireUser(deps.verifyToken);
+  // Portfolio history reads every order. This server remembers each player's list and reuses
+  // it until the player changes, so switching chart ranges costs 2 reads instead of hundreds.
+  const rememberedOrders = new Map<string, { version: string; orders: Order[] }>();
+
+  const ordersOf = async (player: Player) => {
+    const version = ordersVersion(player);
+    const remembered = rememberedOrders.get(player.uid);
+    if (remembered?.version === version) return remembered.orders;
+    const orders = await allOrders(deps.store, player.uid);
+    rememberedOrders.delete(player.uid); // re-adding moves it to the newest end
+    rememberedOrders.set(player.uid, { version, orders });
+    if (rememberedOrders.size > REMEMBERED_PLAYERS) {
+      rememberedOrders.delete(rememberedOrders.keys().next().value as string);
+    }
+    return orders;
+  };
 
   routes.post('/players', signedIn, async (c) => {
     const { name } = await readBody(c, NewPlayer);
@@ -111,8 +138,10 @@ export function playerRoutes(deps: Deps) {
   routes.get('/me/history', signedIn, async (c) => {
     const range = c.req.query('range') ?? 'ALL';
     if (!isRange(range)) throw new ApiError(400, 'UNKNOWN_RANGE', 'No such range.');
+    const player = await deps.store.getPlayer(c.get('uid'));
+    if (!player) throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
     const world = worldTime(await deps.store.getClock(deps.now()), deps.now());
-    const orders = await allOrders(deps.store, c.get('uid'));
+    const orders = await ordersOf(player);
     c.header('Cache-Control', 'private, max-age=30');
     return c.json(portfolioHistory(deps.feed, orders, world, range));
   });
