@@ -12,9 +12,10 @@ import { type AuthEnv, requireUser } from '../auth.ts';
 import { readBody } from '../body.ts';
 import { worldTime } from '../clock.ts';
 import { ApiError } from '../errors.ts';
-import { quotesAt } from '../market/quotes.ts';
+import { findListing, isRange, quotesAt } from '../market/quotes.ts';
 import { toAccount } from '../player.ts';
-import type { Player } from '../store/types.ts';
+import { portfolioHistory } from '../services/portfolio-history.ts';
+import type { Player, Store } from '../store/types.ts';
 
 const NewPlayer = z.object({
   // No control characters: the name is shown to every other player.
@@ -24,6 +25,27 @@ const NewPlayer = z.object({
 const MAX_GOAL = 100_000_000_000; // ₪1,000,000,000 in agorot
 
 const Goal = z.object({ amount: z.number().int().positive().max(MAX_GOAL) });
+
+const MOST_WATCHED = 20;
+const Watchlist = z.object({ ids: z.array(z.string().max(10)).max(MOST_WATCHED) });
+
+const ORDER_PAGE = 100;
+const MOST_ORDERS = 1000;
+
+/** Every order, newest first, a page at a time. */
+async function allOrders(store: Store, uid: string) {
+  const orders: Awaited<ReturnType<Store['listOrders']>> = [];
+  while (orders.length < MOST_ORDERS) {
+    const last = orders.at(-1);
+    const page = await store.listOrders(uid, {
+      limit: ORDER_PAGE,
+      after: last ? { placedAt: last.placedAt, id: last.id } : undefined,
+    });
+    orders.push(...page);
+    if (page.length < ORDER_PAGE) break;
+  }
+  return orders;
+}
 
 const newPlayer = (uid: string, name: string, now: number, world: number): Player => {
   const { cash, holdings } = newAccount();
@@ -70,6 +92,27 @@ export function playerRoutes(deps: Deps) {
         value: holdingValue(account, securityId, quotes),
       })),
     });
+  });
+
+  routes.get('/me/history', signedIn, async (c) => {
+    const range = c.req.query('range') ?? 'ALL';
+    if (!isRange(range)) throw new ApiError(400, 'UNKNOWN_RANGE', 'No such range.');
+    const world = worldTime(await deps.store.getClock(deps.now()), deps.now());
+    const orders = await allOrders(deps.store, c.get('uid'));
+    c.header('Cache-Control', 'private, max-age=30');
+    return c.json(portfolioHistory(deps.feed, orders, world, range));
+  });
+
+  routes.put('/me/watchlist', signedIn, async (c) => {
+    const { ids } = await readBody(c, Watchlist);
+    if (!ids.every((id) => findListing(deps.feed, id))) {
+      throw new ApiError(404, 'UNKNOWN_SECURITY', 'No such security.');
+    }
+    const unique = [...new Set(ids)];
+    if (!(await deps.store.setWatchlist(c.get('uid'), unique))) {
+      throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+    }
+    return c.json({ ids: unique });
   });
 
   routes.put('/me/goal', signedIn, async (c) => {

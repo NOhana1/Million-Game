@@ -46,6 +46,16 @@ function storeContract(name: string, makeStore: () => Store) {
     const store = makeStore();
     const newUid = () => randomUUID();
 
+    it('saves a watchlist without touching the rest of the player', async () => {
+      const uid = newUid();
+      assert.equal(await store.setWatchlist(uid, ['TAIX']), false);
+      await store.createPlayer(player(uid));
+      assert.equal(await store.setWatchlist(uid, ['TAIX', 'MRDN']), true);
+      const stored = await store.getPlayer(uid);
+      assert.deepEqual(stored?.watchlist, ['TAIX', 'MRDN']);
+      assert.equal(stored?.name, 'Noa');
+    });
+
     it('starts the clock once', async () => {
       const first = await store.getClock(100);
       assert.deepEqual(await store.getClock(900), first);
@@ -202,6 +212,7 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.ok((await store.getShards()).some((s) => s.id === 'contract-test'));
       assert.deepEqual(await store.getTable(), table);
       assert.deepEqual(await store.getFinishedWeek(start), table);
+      assert.ok((await store.listFinishedWeeks()).some((week) => week.weekEndsAt === table.weekEndsAt));
       await store.endSettlement(owner);
     });
 

@@ -6,12 +6,13 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 
 import { api, LeagueRow, LeagueTable, MarketData, MarketRow } from '@/api/client';
 import { DivisionTag } from '@/components/division-badge';
 import { GoalBar } from '@/components/goal';
-import { MarketCompare, WeekResult } from '@/components/league-cards';
+import { MarketCompare, WeekSummary } from '@/components/league-cards';
 import { OrderTicket } from '@/components/order-ticket';
 import { RecapCard } from '@/components/recap-card';
 import { Spark } from '@/components/spark';
 import { NewsStrip } from '@/components/news-strip';
 import { Ticker } from '@/components/ticker';
+import { WatchStar } from '@/components/watch-star';
 import {
   changeColor,
   colors,
@@ -32,7 +33,7 @@ import { useGame } from '@/game/store';
 import { useLeague } from '@/game/use-league';
 import { dayChange, displayFx, displayPrice, MARKET_LABEL, marketsText, toShekels } from '@/game/view';
 
-type Filter = 'all' | Market;
+type Filter = 'all' | 'watching' | Market;
 type Sort = 'name' | 'gainers' | 'losers';
 
 const SORTS: Record<Sort, (a: MarketRow, b: MarketRow) => number> = {
@@ -144,6 +145,7 @@ function SecurityRow({
           <Text style={[styles.change, { color: changeColor(change) }]}>{percent(change)}</Text>
         </View>
       </Pressable>
+      <WatchStar id={item.id} name={item.name} />
       {wide ? (
         <Pressable
           accessibilityRole="button"
@@ -198,7 +200,9 @@ export default function MarketScreen() {
 
   const wanted = query.trim().toLowerCase();
   const shown = market.securities
-    .filter((x) => filter === 'all' || x.market === filter)
+    .filter((x) =>
+      filter === 'watching' ? me?.watchlist?.includes(x.id) : filter === 'all' || x.market === filter,
+    )
     .filter((x) => `${x.name} ${x.id} ${x.sector}`.toLowerCase().includes(wanted))
     .sort(SORTS[sort]);
   const selected = market.securities.find((x) => x.id === selectedId);
@@ -212,7 +216,7 @@ export default function MarketScreen() {
       {/* On a phone the cash sits outside the scrolling part, so it stays in view. */}
       {wide ? null : cash}
       <Page>
-        <WeekResult previous={previous} />
+        <WeekSummary previous={previous} />
         {wide ? (
           <View style={styles.top}>
             {cash}
@@ -233,6 +237,7 @@ export default function MarketScreen() {
                 onChange={setFilter}
                 options={[
                   { value: 'all', label: 'All' },
+                  { value: 'watching', label: 'Watching' },
                   { value: 'TASE', label: 'Tel Aviv' },
                   { value: 'US', label: 'US' },
                 ]}
@@ -260,7 +265,11 @@ export default function MarketScreen() {
           </View>
           <View style={styles.list}>
             {shown.length === 0 ? (
-              <Text style={styles.nothing}>Nothing matches “{query.trim()}”.</Text>
+              <Text style={styles.nothing}>
+                {query.trim() === ''
+                  ? 'Press the star on any security to watch it here.'
+                  : `Nothing matches “${query.trim()}”.`}
+              </Text>
             ) : null}
             {shown.map((item) => (
               <SecurityRow

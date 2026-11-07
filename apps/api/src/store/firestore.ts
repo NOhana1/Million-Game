@@ -68,6 +68,16 @@ export function firestoreStore(db: Firestore): Store {
       }
     },
 
+    async setWatchlist(uid, ids) {
+      try {
+        await playerDoc(uid).update({ watchlist: ids });
+        return true;
+      } catch (error) {
+        if ((error as { code?: unknown }).code !== NOT_FOUND) throw error;
+        return false;
+      }
+    },
+
     placeOrder({ uid, orderId, realNow, decide }) {
       return db.runTransaction(async (tx) => {
         const orderRef = orderDocs(uid).doc(orderId);
@@ -147,6 +157,10 @@ export function firestoreStore(db: Firestore): Store {
     async getFinishedWeek(endsAt) {
       const stored = await weekDocs.doc(String(endsAt)).get();
       return (stored.data() as LeagueTable | undefined) ?? null;
+    },
+
+    async listFinishedWeeks() {
+      return (await weekDocs.get()).docs.map((doc) => doc.data() as LeagueTable);
     },
 
     async playersChangedSince(since) {

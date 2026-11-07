@@ -76,6 +76,7 @@ function Game() {
           {/* Reached from a link on the League screen, so it needs no button here. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
           <TabTrigger name="security" href="/security/TAIX" style={styles.hidden} />
+          <TabTrigger name="profile" href="/profile/me" style={styles.hidden} />
           {wide ? <MenuStatus /> : null}
         </TabList>
       </Tabs>

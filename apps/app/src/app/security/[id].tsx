@@ -8,6 +8,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { api, PricePoint, Range, RANGES, RangeHistory } from '@/api/client';
 import { OrderTicket } from '@/components/order-ticket';
 import { ChartLoading, PriceChart } from '@/components/price-chart';
+import { RANGE_LABEL, RangeButtons } from '@/components/range-buttons';
 import {
   Button,
   changeColor,
@@ -22,6 +23,7 @@ import {
   Tile,
   useWide,
 } from '@/components/ui';
+import { WatchStar } from '@/components/watch-star';
 import { useGame } from '@/game/store';
 import { MARKET_HOURS, PROFILES } from '@/game/profiles';
 import {
@@ -36,44 +38,11 @@ import {
 } from '@/game/view';
 
 const FUND = 'Fund';
-const RANGE_LABEL: Record<Range, string> = {
-  '1D': 'past day',
-  '1W': 'past week',
-  '1M': 'past month',
-  '3M': 'past 3 months',
-  '6M': 'past 6 months',
-  '1Y': 'past year',
-  '5Y': 'past 5 years',
-  ALL: 'all history',
-};
-
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <View style={styles.fact}>
       <Eyebrow>{label}</Eyebrow>
       <Text style={styles.factValue}>{value}</Text>
-    </View>
-  );
-}
-
-function RangeButtons({ value, onChange }: { value: Range; onChange: (range: Range) => void }) {
-  return (
-    <View style={styles.ranges}>
-      {RANGES.map((range) => {
-        const active = range === value;
-        return (
-          <Pressable
-            key={range}
-            accessibilityRole="button"
-            accessibilityLabel={`Show ${RANGE_LABEL[range]}`}
-            aria-selected={active}
-            onPress={() => onChange(range)}
-            {...hover('segment')}
-            style={[styles.range, active && styles.rangeActive]}>
-            <Text style={[styles.rangeText, active && styles.rangeTextActive]}>{range}</Text>
-          </Pressable>
-        );
-      })}
     </View>
   );
 }
@@ -156,6 +125,7 @@ export default function SecurityScreen() {
         <ChartLoading height={wide ? 380 : 280} />
       )}
       <RangeButtons
+        ranges={RANGES}
         value={range}
         onChange={(next) => {
           setScrub(null);
@@ -182,6 +152,7 @@ export default function SecurityScreen() {
             <View style={styles.title}>
               <Tile id={row.id} name={row.name} size={wide ? 52 : 42} />
               <Text style={[styles.name, !wide && styles.namePhone]}>{row.name}</Text>
+              <WatchStar id={row.id} name={row.name} size={wide ? 26 : 22} />
             </View>
             <Text style={[styles.price, !wide && styles.pricePhone]}>{format(shown)}</Text>
             <Text style={[styles.change, { color: changeColor(change) }]}>
@@ -290,17 +261,6 @@ const styles = StyleSheet.create({
   actionsPhone: { minWidth: 0 },
   chart: { gap: 12 },
   problem: { alignItems: 'center', gap: 12, justifyContent: 'center', minHeight: 280 },
-  ranges: { borderTopColor: colors.line, borderTopWidth: 1, flexDirection: 'row', paddingTop: 10 },
-  range: { alignItems: 'center', borderRadius: 3, flex: 1, justifyContent: 'center', minHeight: 38 },
-  rangeActive: { backgroundColor: colors.brand },
-  rangeText: {
-    color: colors.muted,
-    fontFamily: font.body,
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-    fontWeight: '600',
-  },
-  rangeTextActive: { color: colors.onBrand },
   columns: { borderTopColor: colors.line, borderTopWidth: 1, gap: 28, paddingTop: 24 },
   columnsWide: { flexDirection: 'row', gap: 56 },
   about: { gap: 10 },

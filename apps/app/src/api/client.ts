@@ -36,6 +36,22 @@ export type Me = {
   value: number;
   positions: Position[];
   goal?: number;
+  watchlist?: string[];
+};
+
+export type Profile = {
+  id: string;
+  name: string;
+  bot: boolean;
+  division: Division;
+  thisWeek: { rank: number; total: number; score: number; returnPpm: number; maxFallPpm: number } | null;
+  honours: {
+    weeksPlayed: number;
+    wins: number;
+    top3: number;
+    bestRank: number | null;
+    bestScore: number | null;
+  };
 };
 
 export type LeagueRow = {
@@ -121,6 +137,11 @@ export const api = {
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
   createPlayer: (token: string, name: string) =>
     call<unknown>('POST', '/players', { token, body: { name } }),
+  profile: (id: string) => call<Profile>('GET', `/players/${id}/profile`),
+  myHistory: (token: string, range: Range) =>
+    call<{ points: PricePoint[] }>('GET', `/me/history?range=${range}`, { token }),
+  setWatchlist: (token: string, ids: string[]) =>
+    call<unknown>('PUT', '/me/watchlist', { token, body: { ids } }),
   setGoal: (token: string, amount: number) =>
     call<unknown>('PUT', '/me/goal', { token, body: { amount } }),
   placeOrder: (token: string, order: NewOrder) =>

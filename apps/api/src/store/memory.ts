@@ -50,6 +50,13 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       return true;
     },
 
+    async setWatchlist(uid, ids) {
+      const stored = players.get(uid);
+      if (!stored) return false;
+      stored.watchlist = [...ids];
+      return true;
+    },
+
     async placeOrder({ uid, orderId, realNow, decide }) {
       clock ??= firstClock(realNow);
       const history = orders.get(uid) ?? new Map<string, Order>();
@@ -106,6 +113,10 @@ export function memoryStore(startClock?: Clock): MemoryStore {
 
     async getFinishedWeek(endsAt) {
       return structuredClone(finishedWeeks.get(endsAt) ?? null);
+    },
+
+    async listFinishedWeeks() {
+      return structuredClone([...finishedWeeks.values()]);
     },
 
     async playersChangedSince(since) {

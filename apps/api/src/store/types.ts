@@ -15,6 +15,7 @@ export type Player = {
   nextDueAt: number | null; // earliest pending execution, so settlement can find this player
   changedAt: number; // world time of the last change the league must pick up
   goal?: Agorot; // the portfolio value the player is aiming for
+  watchlist?: string[]; // the security ids they follow
 };
 
 /** A competitor in a league shard: a real player's position, or a whole bot. */
@@ -78,6 +79,8 @@ export type Store = {
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
   /** Changes only the goal, so it can't overwrite a fill. False means there's no such player. */
   setGoal(uid: string, goal: number): Promise<boolean>;
+  /** Changes only the watchlist, for the same reason. False means there's no such player. */
+  setWatchlist(uid: string, ids: string[]): Promise<boolean>;
   /**
    * All or nothing. If this order id already exists for the player, returns it unchanged,
    * so a retry or double tap can't place a second order.
@@ -96,6 +99,7 @@ export type Store = {
   getShards(): Promise<Shard[]>;
   getTable(): Promise<LeagueTable | null>;
   getFinishedWeek(endsAt: number): Promise<LeagueTable | null>;
+  listFinishedWeeks(): Promise<LeagueTable[]>;
   /** Players who changed at or after this world time. */
   playersChangedSince(cursor: number): Promise<Player[]>;
   /** Players with an order due by `upTo`. */

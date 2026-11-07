@@ -1,5 +1,5 @@
 import { type Division, divisionMoves, DIVISIONS, MOVE_PERCENT } from '@portfolio-league/engine';
-import { Link } from 'expo-router';
+import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
@@ -118,7 +118,12 @@ function Row({
   const returnPct = row.returnPpm / PPM_PER_PERCENT;
   const fall = `${(row.maxFallPpm / PPM_PER_PERCENT).toFixed(2)}%`;
   return (
-    <View {...hover('line')} style={[styles.row, isMe && styles.me]}>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Open ${row.name}`}
+      onPress={() => router.push(`/profile/${row.id}`)}
+      {...hover('line')}
+      style={[styles.row, isMe && styles.me]}>
       <Text style={[styles.rank, place <= PODIUM && styles.rankPodium]}>{place}</Text>
       {wide ? (
         <DivisionBadge division={row.division} size={26} />
@@ -158,7 +163,7 @@ function Row({
         </>
       ) : null}
       <Text style={[styles.score, !wide && styles.scorePhone]}>{row.score.toFixed(0)}</Text>
-    </View>
+    </Pressable>
   );
 }
 

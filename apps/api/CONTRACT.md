@@ -26,6 +26,9 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 
 | Method and path | Sign-in | Cached | Purpose |
 |---|---|---|---|
+| `GET /me/history` | Yes | Private, 30s | The player's value over time, rebuilt from their fills. Optional `?range=` as for market history. Points use `price` for the value in agorot, so charts share one shape |
+| `PUT /me/watchlist` | Yes | No | Saves the security ids the player watches. Body `{ "ids": ["TAIX"] }`, up to 20. `GET /me` returns them as `watchlist` |
+| `GET /players/:id/profile` | No | 30s | A player's results: `division`, `thisWeek` (or null) and `honours` counted from finished weeks. Never their holdings |
 | `PUT /me/goal` | Yes | No | Sets the player's long-term goal. Body `{ "amount": 200000000 }` in agorot, up to ₪1,000,000,000. Returns `{ "goal": 200000000 }`. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 
 ## Orders

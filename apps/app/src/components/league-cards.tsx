@@ -1,9 +1,11 @@
 import { DIVISIONS } from '@portfolio-league/engine';
-import { StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { useState } from 'react';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { LeagueRow, LeagueTable } from '@/api/client';
 import { DivisionBadge } from '@/components/division-badge';
-import { Card, changeColor, colors, font, hover, percent } from '@/components/ui';
+import { Card, changeColor, colors, Eyebrow, font, hover, percent } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, indexFunds, ppmToPercent, recapFor } from '@/game/view';
 
@@ -11,24 +13,75 @@ const TOP = 3;
 const NO_NUMBER = '–';
 const BOT_SUFFIX = / \(bot\)$/;
 
-/** Tells a returning player what last week did to their division. */
-export function WeekResult({ previous }: { previous: LeagueTable | null }) {
-  const { me } = useGame();
-  const row = previous?.rows.find((r) => r.id === me?.uid);
-  if (!row?.nextDivision) return null;
+const seenKey = (weekEndsAt: number) => `week-summary-${weekEndsAt}`;
 
-  const next = DIVISION_LABEL[row.nextDivision];
-  const step = DIVISIONS.indexOf(row.nextDivision) - DIVISIONS.indexOf(row.division);
-  const text =
-    step > 0 ? `You moved up to ${next}!` : step < 0 ? `You dropped to ${next}.` : `You stayed in ${next}.`;
+function summarySeen(weekEndsAt: number) {
+  try {
+    return globalThis.localStorage?.getItem(seenKey(weekEndsAt)) === 'seen';
+  } catch {
+    return false; // a blocked browser store only means the card shows again
+  }
+}
+
+function SummaryFact({ label, value, color }: { label: string; value: string; color?: string }) {
   return (
-    <Card style={styles.result}>
-      <DivisionBadge division={row.nextDivision} size={40} />
-      <View style={styles.resultText}>
-        <Text style={styles.title}>{text}</Text>
-        <Text style={styles.meta}>
-          You finished #{row.rank} of {previous?.total} last week.
-        </Text>
+    <View style={styles.summaryFact}>
+      <Eyebrow>{label}</Eyebrow>
+      <Text style={[styles.summaryValue, color ? { color } : null]}>{value}</Text>
+    </View>
+  );
+}
+
+/** How a player's week went, shown once when a new week starts. */
+export function WeekSummary({ previous }: { previous: LeagueTable | null }) {
+  const { me } = useGame();
+  const [closed, setClosed] = useState<number | null>(null);
+  const row = previous?.rows.find((r) => r.id === me?.uid);
+  if (!previous || !row || !previous.weekEndsAt) return null;
+
+  const endsAt = previous.weekEndsAt;
+  if (closed === endsAt || summarySeen(endsAt)) return null;
+
+  const close = () => {
+    try {
+      globalThis.localStorage?.setItem(seenKey(endsAt), 'seen');
+    } catch {
+      // nothing to do: it just shows again next time
+    }
+    setClosed(endsAt);
+  };
+
+  const next = row.nextDivision ?? row.division;
+  const step = DIVISIONS.indexOf(next) - DIVISIONS.indexOf(row.division);
+  const headline =
+    step > 0
+      ? `You moved up to ${DIVISION_LABEL[next]}!`
+      : step < 0
+        ? `You dropped to ${DIVISION_LABEL[next]}.`
+        : `You stayed in ${DIVISION_LABEL[next]}.`;
+  const value = ppmToPercent(row.returnPpm);
+  const funds = Object.values(previous.indexes ?? {});
+  const beaten = funds.filter((fund) => row.returnPpm > fund).length;
+
+  return (
+    <Card style={styles.summary}>
+      <View style={styles.summaryTop}>
+        <DivisionBadge division={next} size={52} />
+        <View style={styles.resultText}>
+          <Eyebrow>Your week</Eyebrow>
+          <Text style={styles.summaryTitle}>{headline}</Text>
+        </View>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close" hitSlop={10} onPress={close} {...hover('link')}>
+          <Text style={styles.meta}>Close</Text>
+        </Pressable>
+      </View>
+      <View style={styles.summaryFacts}>
+        <SummaryFact label="Place" value={`#${row.rank} of ${previous.total}`} />
+        <SummaryFact label="Score" value={row.score.toFixed(0)} />
+        <SummaryFact label="Return" value={percent(value)} color={changeColor(value)} />
+        {funds.length > 0 ? (
+          <SummaryFact label="Index funds beaten" value={`${beaten} of ${funds.length}`} />
+        ) : null}
       </View>
     </Card>
   );
@@ -102,7 +155,13 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
         {previous.rows.slice(0, TOP).map((row) => {
           const value = ppmToPercent(row.returnPpm);
           return (
-            <View key={row.id} {...hover('line')} style={styles.place}>
+            <Pressable
+              key={row.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Open ${row.name}`}
+              onPress={() => router.push(`/profile/${row.id}`)}
+              {...hover('lift')}
+              style={styles.place}>
               <View style={styles.placeTop}>
                 <Text style={styles.placeNumber}>{row.rank}</Text>
                 <DivisionBadge division={row.division} size={30} />
@@ -122,7 +181,7 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
                   <Text style={[styles.placeReturn, { color: changeColor(value) }]}>{percent(value)}</Text>
                 </View>
               </View>
-            </View>
+            </Pressable>
           );
         })}
       </View>
@@ -132,7 +191,17 @@ export function TopThree({ previous }: { previous: LeagueTable | null }) {
 
 const styles = StyleSheet.create({
   card: { gap: 8 },
-  result: { alignItems: 'center', borderColor: colors.brand, flexDirection: 'row', gap: 14 },
+  summary: { borderColor: colors.brand, gap: 16 },
+  summaryTop: { alignItems: 'center', flexDirection: 'row', gap: 14 },
+  summaryTitle: { color: colors.ink, fontFamily: font.display, fontSize: 26, fontWeight: '500' },
+  summaryFacts: { columnGap: 24, flexDirection: 'row', flexWrap: 'wrap', rowGap: 12 },
+  summaryFact: { flexBasis: 120, flexGrow: 1, gap: 3 },
+  summaryValue: {
+    color: colors.ink,
+    fontFamily: font.display,
+    fontSize: 22,
+    fontVariant: ['tabular-nums'],
+  },
   resultText: { flex: 1, gap: 2 },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
