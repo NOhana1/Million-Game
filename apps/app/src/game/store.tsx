@@ -40,6 +40,9 @@ type Game = {
   setGoal(amount: number): Promise<void>;
   toggleWatch(id: string): Promise<void>;
   clockMoved(): Promise<void>;
+  /** Your photo, kept here so the top bar, your profile and the chat change together. */
+  myPhoto: string | null;
+  setMyPhoto(photo: string | null): void;
 };
 
 const GameContext = createContext<Game | null>(null);
@@ -52,6 +55,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [me, setMe] = useState<Me | null>(null);
   const [orders, setOrders] = useState<Order[]>([]);
   const [notice, setNotice] = useState<string | null>(null);
+  const [myPhoto, setMyPhoto] = useState<string | null>(null);
 
   const skipCacheUntil = useRef(0);
 
@@ -175,6 +179,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [me],
   );
 
+  // Read once per sign in. After that, editing the photo updates it here directly.
+  const uid = me?.uid;
+  useEffect(() => {
+    setMyPhoto(null);
+    if (!uid) return;
+    api
+      .profile(uid, Date.now())
+      .then((profile) => setMyPhoto(profile.photo))
+      .catch(() => undefined);
+  }, [uid]);
+
   const clockMoved = useCallback(async () => {
     skipCacheUntil.current = Date.now() + SKIP_CACHE_AFTER_MOVE_MS;
     await Promise.all([refreshShared(), refreshOwn()]);
@@ -199,6 +214,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setGoal,
       toggleWatch,
       clockMoved,
+      myPhoto,
+      setMyPhoto,
     }),
     [
       status,
@@ -217,6 +234,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setGoal,
       toggleWatch,
       clockMoved,
+      myPhoto,
     ],
   );
 

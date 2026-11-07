@@ -155,7 +155,9 @@ export const api = {
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
   createPlayer: (token: string, name: string) =>
     call<unknown>('POST', '/players', { token, body: { name } }),
-  profile: (id: string) => call<Profile>('GET', `/players/${id}/profile`),
+  // `fresh` skips the CDN's copy, for your own profile right after it changed.
+  profile: (id: string, fresh?: number) =>
+    call<Profile>('GET', `/players/${id}/profile${fresh ? `?fresh=${fresh}` : ''}`),
   myHistory: (token: string, range: Range) =>
     call<{ points: PricePoint[] }>('GET', `/me/history?range=${range}`, { token }),
   setWatchlist: (token: string, ids: string[]) =>
