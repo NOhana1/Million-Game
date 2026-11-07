@@ -127,12 +127,13 @@ export function groupRoutes(deps: Deps) {
     return c.json({ messages: await store.getMessages(groupId) });
   });
 
-  // Fetched once when the chat opens, not on every refresh, since each photo is a database read.
+  // Fetched when the chat opens and every two minutes, not on every refresh, since each photo
+  // is a database read. Never cached, so a friend's new photo shows on the next fetch.
   routes.get('/group/photos', signedIn, async (c) => {
     const groupId = await myGroupId(c.get('uid'));
     const group = groupId ? await store.getGroup(groupId) : null;
     if (!group) throw new ApiError(404, 'NO_GROUP', 'Join a group first.');
-    c.header('Cache-Control', 'private, max-age=30');
+    c.header('Cache-Control', 'no-store');
     return c.json({ photos: await store.getPhotos(group.members.map((m) => m.id)) });
   });
 
