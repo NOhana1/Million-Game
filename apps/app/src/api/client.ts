@@ -2,6 +2,8 @@
 
 import type { Division, Market, Order, Side, WorldSecurity } from '@portfolio-league/engine';
 
+import type { PhotoCrop } from '@/game/photo';
+
 export type MarketRow = WorldSecurity & { price: number; priceDayAgo: number };
 export type MarketData = {
   worldTime: number;
@@ -169,8 +171,12 @@ export const api = {
   chat: (token: string) => call<{ messages: ChatMessage[] }>('GET', '/group/chat', { token }),
   groupPhotos: (token: string) =>
     call<{ photos: Record<string, string> }>('GET', '/group/photos', { token }).then((r) => r.photos),
-  setPhoto: (token: string, photo: string) =>
-    call<unknown>('PUT', '/me/photo', { token, body: { photo } }),
+  setPhoto: (token: string, saved: { photo: string; original: string; crop: PhotoCrop }) =>
+    call<unknown>('PUT', '/me/photo', { token, body: saved }),
+  myPhoto: (token: string) =>
+    call<{ saved: { original: string; crop: PhotoCrop } | null }>('GET', '/me/photo', { token }).then(
+      (r) => r.saved,
+    ),
   removePhoto: (token: string) => call<unknown>('DELETE', '/me/photo', { token }),
   sendMessage: (token: string, text: string) =>
     call<unknown>('POST', '/group/chat', { token, body: { text } }),

@@ -28,12 +28,18 @@ const Goal = z.object({ amount: z.number().int().positive().max(MAX_GOAL) });
 
 const MOST_WATCHED = 20;
 // The app shrinks a picture to a small square JPEG before sending it, so a few kilobytes is plenty.
+// The larger picture is kept only so its owner can adjust the framing later.
 const MOST_PHOTO_LETTERS = 60_000;
-const Photo = z.object({
-  photo: z
+const MOST_ORIGINAL_LETTERS = 300_000;
+const jpeg = (most: number) =>
+  z
     .string()
-    .max(MOST_PHOTO_LETTERS)
-    .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/, 'Send a JPEG picture.'),
+    .max(most)
+    .regex(/^data:image\/jpeg;base64,[A-Za-z0-9+/]+={0,2}$/, 'Send a JPEG picture.');
+const Photo = z.object({
+  photo: jpeg(MOST_PHOTO_LETTERS),
+  original: jpeg(MOST_ORIGINAL_LETTERS),
+  crop: z.object({ zoom: z.number().min(1).max(4), x: z.number().min(-2).max(2), y: z.number().min(-2).max(2) }),
 });
 const Watchlist = z.object({ ids: z.array(z.string().max(10)).max(MOST_WATCHED) });
 
@@ -124,11 +130,15 @@ export function playerRoutes(deps: Deps) {
   });
 
   routes.put('/me/photo', signedIn, async (c) => {
-    const { photo } = await readBody(c, Photo);
-    if (!(await deps.store.setPhoto(c.get('uid'), photo))) {
+    const saved = await readBody(c, Photo);
+    if (!(await deps.store.setPhoto(c.get('uid'), saved))) {
       throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
     }
-    return c.json({ photo });
+    return c.json({ photo: saved.photo });
+  });
+
+  routes.get('/me/photo', signedIn, async (c) => {
+    return c.json({ saved: await deps.store.getPhotoOriginal(c.get('uid')) });
   });
 
   routes.delete('/me/photo', signedIn, async (c) => {

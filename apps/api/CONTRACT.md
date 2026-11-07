@@ -34,7 +34,8 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `POST /groups/join` | Yes | No | Joins with an invite code. Body `{ "code": "R3H2CD" }`. Groups hold up to 20 |
 | `POST /group/leave` | Yes | No | Leaves. The next member takes over from an owner, and the last one out deletes the group |
 | `DELETE /group/members/:id` | Yes | No | The owner removes a member |
-| `PUT /me/photo` | Yes | No | Saves a profile photo. Body `{ "photo": "data:image/jpeg;base64,…" }`, a JPEG of up to 60,000 characters. The app shrinks it to 160×160 first |
+| `PUT /me/photo` | Yes | No | Saves a profile photo. Body `{ "photo": "data:image/jpeg;base64,…", "original": "data:image/jpeg;base64,…", "crop": { "zoom": 1.5, "x": 0.1, "y": 0 } }`. `photo` is the 160×160 JPEG everyone sees, up to 60,000 characters. `original` is the larger picture it was cut from, up to 300,000, kept with `crop` so the player can adjust it later |
+| `GET /me/photo` | Yes | No | `{ "saved": { "original", "crop" } }`, or `{ "saved": null }`. Only for the photo's owner |
 | `DELETE /me/photo` | Yes | No | Removes the profile photo |
 | `GET /group/photos` | Yes | No | `{ "photos": { "<id>": "data:…" } }` for the members who have one. The chat fetches it once when it opens |
 | `GET /group/chat` | Yes | No | The group's latest 50 messages, oldest first. Only for its members |

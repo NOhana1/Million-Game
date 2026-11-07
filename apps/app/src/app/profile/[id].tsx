@@ -10,58 +10,88 @@ import { currentToken } from '@/api/session';
 import { Avatar } from '@/components/avatar';
 import { DivisionBadge } from '@/components/division-badge';
 import { Button, changeColor, colors, Eyebrow, font, hover, Page, percent, useWide } from '@/components/ui';
-import { choosePhoto } from '@/game/photo';
+import { PhotoEditor } from '@/components/photo-editor';
+import { choosePhoto, cutPhoto, NO_CROP, PhotoCrop } from '@/game/photo';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, ppmToPercent } from '@/game/view';
 
 const NOTHING_YET = '–';
 const BOT_SUFFIX = / \(bot\)$/;
 
-/** Your own picture, with buttons to add, change or remove it. Friends see it in the group chat. */
+/** Your own picture, with buttons to add, adjust or remove it. Friends see it in the group chat. */
 function MyPhoto({ name, photo, size }: { name: string; photo: string | null; size: number }) {
   const [shown, setShown] = useState(photo);
+  const [editing, setEditing] = useState<{ original: string; crop: PhotoCrop } | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(false);
 
-  const change = async (work: (token: string) => Promise<string | null | undefined>) => {
-    const token = await currentToken();
-    if (!token || busy) return;
-    setBusy(true);
+  const add = async () => {
     setProblem(false);
+    const original = await choosePhoto();
+    if (original) setEditing({ original, crop: NO_CROP });
+  };
+
+  const adjust = async () => {
+    const token = await currentToken();
+    if (!token || !shown) return;
+    setProblem(false);
+    const saved = await api.myPhoto(token).catch(() => null);
+    setEditing(saved ?? { original: shown, crop: NO_CROP });
+  };
+
+  const save = async (crop: PhotoCrop) => {
+    const token = await currentToken();
+    if (!token || !editing) return;
+    setBusy(true);
     try {
-      const next = await work(token);
-      if (next !== undefined) setShown(next);
+      const small = await cutPhoto(editing.original, crop);
+      await api.setPhoto(token, { photo: small, original: editing.original, crop });
+      setShown(small);
+      setEditing(null);
     } catch {
       setProblem(true);
+      setEditing(null);
     }
     setBusy(false);
   };
 
-  const add = () =>
-    change(async (token) => {
-      const picked = await choosePhoto();
-      if (!picked) return undefined; // cancelled: nothing changes
-      await api.setPhoto(token, picked);
-      return picked;
-    });
-  const remove = () =>
-    change(async (token) => {
-      await api.removePhoto(token);
-      return null;
-    });
+  const remove = async () => {
+    const token = await currentToken();
+    if (!token) return;
+    setProblem(false);
+    await api
+      .removePhoto(token)
+      .then(() => setShown(null))
+      .catch(() => setProblem(true));
+  };
 
   return (
     <View style={styles.photoBox}>
       <Avatar name={name} photo={shown} size={size} />
-      <Pressable accessibilityRole="button" disabled={busy} onPress={add} {...hover('link')}>
-        <Text style={styles.photoLink}>{busy ? 'Saving…' : shown ? 'Change photo' : 'Add photo'}</Text>
+      <Pressable accessibilityRole="button" onPress={shown ? adjust : add} {...hover('link')}>
+        <Text style={styles.photoLink}>{shown ? 'Adjust photo' : 'Add photo'}</Text>
       </Pressable>
-      {shown && !busy ? (
-        <Pressable accessibilityRole="button" onPress={remove} {...hover('link')}>
-          <Text style={styles.photoRemove}>Remove</Text>
-        </Pressable>
+      {shown ? (
+        <View style={styles.photoMore}>
+          <Pressable accessibilityRole="button" onPress={add} {...hover('link')}>
+            <Text style={styles.photoRemove}>New</Text>
+          </Pressable>
+          <Text style={styles.photoRemove}>·</Text>
+          <Pressable accessibilityRole="button" onPress={remove} {...hover('link')}>
+            <Text style={styles.photoRemove}>Remove</Text>
+          </Pressable>
+        </View>
       ) : null}
       {problem ? <Text style={styles.photoProblem}>That didn’t save. Try again.</Text> : null}
+      {editing ? (
+        <PhotoEditor
+          original={editing.original}
+          start={editing.crop}
+          busy={busy}
+          onSave={save}
+          onCancel={() => setEditing(null)}
+        />
+      ) : null}
     </View>
   );
 }
@@ -185,6 +215,7 @@ const styles = StyleSheet.create({
   head: { alignItems: 'center', flexDirection: 'row', gap: 20 },
   photoBox: { alignItems: 'center', gap: 6 },
   photoLink: { color: colors.brand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
+  photoMore: { flexDirection: 'row', gap: 6 },
   photoRemove: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
   photoProblem: { color: colors.down, fontFamily: font.body, fontSize: 12, maxWidth: 110, textAlign: 'center' },
   name: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 70 },

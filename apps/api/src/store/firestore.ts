@@ -12,7 +12,7 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
-import type { ChatMessage, Group, LeagueTable, Player, Shard, Store } from './types.ts';
+import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
 const NOT_FOUND = 5; // gRPC status codes
 const ALREADY_EXISTS = 6;
@@ -32,7 +32,9 @@ export function firestoreStore(db: Firestore): Store {
   const groupDoc = (id: string) => db.collection('groups').doc(id);
   // All of a group's messages sit in one document, so reading the chat costs a single read.
   const chatDoc = (id: string) => db.collection('groupChats').doc(id);
+  // The small photo the chat reads, and apart from it the larger picture only its owner opens.
   const photoDoc = (uid: string) => db.collection('photos').doc(uid);
+  const originalDoc = (uid: string) => db.collection('photoOriginals').doc(uid);
 
   const findGroupByCode = async (code: string) => {
     const found = await db.collection('groups').where('code', '==', code).limit(1).get();
@@ -97,11 +99,23 @@ export function firestoreStore(db: Firestore): Store {
       }
     },
 
-    async setPhoto(uid, photo) {
+    async setPhoto(uid, saved) {
       if (!(await playerDoc(uid).get()).exists) return false;
-      if (photo) await photoDoc(uid).set({ photo });
-      else await photoDoc(uid).delete();
+      const both = db.batch();
+      if (saved) {
+        both.set(photoDoc(uid), { photo: saved.photo });
+        both.set(originalDoc(uid), { original: saved.original, crop: saved.crop });
+      } else {
+        both.delete(photoDoc(uid));
+        both.delete(originalDoc(uid));
+      }
+      await both.commit();
       return true;
+    },
+
+    async getPhotoOriginal(uid) {
+      const stored = await originalDoc(uid).get();
+      return stored.exists ? (stored.data() as Omit<SavedPhoto, 'photo'>) : null;
     },
 
     async getPhotos(uids) {

@@ -108,8 +108,13 @@ export function GroupChat({ myId, members, height }: { myId: string; members: Gr
             const color = colorOf.get(message.uid) ?? PAST_MEMBER;
             return (
               <View key={message.id} style={[styles.row, mine && styles.mineRow, first && styles.runStart]}>
-                {mine ? null : first ? (
-                  <Avatar name={message.name} photo={photos[message.uid]} size={AVATAR} color={color.name} />
+                {first ? (
+                  <Avatar
+                    name={message.name}
+                    photo={photos[message.uid]}
+                    size={AVATAR}
+                    color={mine ? colors.brand : color.name}
+                  />
                 ) : (
                   <View style={styles.avatarSpace} />
                 )}
@@ -155,7 +160,7 @@ const styles = StyleSheet.create({
   list: { gap: 3, padding: 12 },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 14 },
   row: { alignItems: 'flex-start', flexDirection: 'row', gap: 8, maxWidth: '86%' },
-  mineRow: { alignSelf: 'flex-end' },
+  mineRow: { alignSelf: 'flex-end', flexDirection: 'row-reverse' }, // your picture on the right
   runStart: { marginTop: 9 },
   avatarSpace: { width: AVATAR },
   bubble: { borderRadius: 14, flexShrink: 1, gap: 2, paddingHorizontal: 12, paddingVertical: 7 },
