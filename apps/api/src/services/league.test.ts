@@ -9,7 +9,7 @@ import { quotesAt } from '../market/quotes.ts';
 import { worldFeed } from '../market/world-feed.ts';
 import { memoryStore, type MemoryStore } from '../store/memory.ts';
 import type { LeagueTable, Member } from '../store/types.ts';
-import { pausedAt, TEST_WORLD } from '../testing.ts';
+import { NO_LIMITS, pausedAt, TEST_WORLD } from '../testing.ts';
 import { memberAccount } from './bots.ts';
 import { settle } from './settlement.ts';
 
@@ -32,6 +32,7 @@ function world(startAt = TEST_WORLD): World {
     now: () => 0,
     tickSecret: 'test-secret',
     clockSecret: 'clock-secret',
+    limits: NO_LIMITS,
   };
   return { store, deps, app: createApp(deps), at: (ms) => store.setClock(pausedAt(ms)) };
 }
