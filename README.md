@@ -104,6 +104,8 @@ The Daily Recap stays too, as the first thing on the Market screen: your last da
 - **Tip of the day.** When something in your own portfolio is worth knowing, the tip is about it: one security above 15%, one sector above 40%, everything in dollars or everything in Tel Aviv, or a lot of cash. Otherwise it's a general lesson. It's worked out in the app, so it costs nothing on the server.
 - **Look around first.** A visitor can see the market, every stock page, the league table and the rules before signing up. Buying or watching asks them to join.
 - **A home-screen app.** On a phone, the site can be added to the home screen with its own icon, and then opens full screen. Phones get a one-time tip showing how.
+- **Badges.** 17 awards to aim for: first trade, a spread of 5 securities, both markets, first week, 4 weeks played, beat the market (every index fund), a 5% week, a steady week, moving up, reaching Silver, Gold and Diamond, top 3, a win, 3 wins, and 7 or 30 days in a row. League badges are counted from finished weeks, so they cost no extra reads. Your own page shows the ones still to earn.
+- **Share my week.** Your profile can make a picture of this week's place, return and score, with a link to join. It's drawn in the browser and sent with the phone's own share menu.
 
 ## Rules I completed
 
@@ -187,7 +189,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 
 - The free Firestore plan allows 50k reads and 20k writes a day, or roughly 4,000 orders. Thousands of real players would need a paid plan.
 - Fills appear up to one alarm interval late, but they always use the correct price and time.
-- A player with a due order that hasn't filled yet can't place another until it does.
+- A player with a due order that hasn't filled yet can't place another until it does. The order window says so and opens again by itself, usually within a minute.
 - The table shows the top 500 players. A player below that doesn't see their division yet.
 - `saveSlot` writes everything in one transaction, which is fine up to about 20,000 players and then needs splitting.
 

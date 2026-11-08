@@ -13,6 +13,7 @@ import { AppState } from 'react-native';
 
 import { api, ApiProblem, MarketData, Me, NewOrder, WorldData } from '@/api/client';
 import { createAccount, currentToken, logIn, logOut } from '@/api/session';
+import { visitDue } from '@/game/streak';
 
 // Shared data is cached by the CDN, so it can refresh often. A player's own data reads the
 // database, so it refreshes less often, and right after they place an order.
@@ -69,6 +70,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const skipCacheUntil = useRef(0);
   const ordersSeen = useRef({ for: '', at: 0 }); // what the order list was last fetched for
+  const visitSent = useRef(''); // the player and day the streak visit was last sent for
 
   const clearNotice = useCallback(() => setNotice(null), []);
 
@@ -99,6 +101,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setMe(nextMe);
       setStatus('signedIn');
       const now = Date.now();
+      // Counts today's visit toward the streak, also when the game was left open overnight or
+      // comes back from the home screen without reloading. It doesn't hold up the rest.
+      const visit = visitDue(nextMe.uid, nextMe.streak?.lastDay, visitSent.current, now);
+      if (visit) {
+        visitSent.current = visit;
+        api
+          .visit(token)
+          .then((streak) => setMe((current) => (current ? { ...current, streak } : current)))
+          .catch(() => {
+            visitSent.current = ''; // try again on the next refresh
+          });
+      }
       const changes = JSON.stringify([
         nextMe.uid,
         nextMe.cash,
@@ -203,16 +217,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 
   // Read once per sign in. After that, editing the photo updates it here directly.
-  // Opening the game also counts today's visit toward the daily streak.
   const uid = me?.uid;
   useEffect(() => {
     setMyPhoto(null);
     if (!uid) return;
-    currentToken().then(async (token) => {
-      if (!token) return;
-      const streak = await api.visit(token).catch(() => null);
-      if (streak) setMe((current) => (current ? { ...current, streak } : current));
-    });
     api
       .profile(uid, Date.now())
       .then((profile) => setMyPhoto(profile.photo))

@@ -1,27 +1,48 @@
 // A player's page: their badge, this week's standing and everything they've achieved so far.
 // Only results show here. What someone holds stays private.
 
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from "expo-router";
+import { useEffect, useState } from "react";
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import { api, Profile } from '@/api/client';
-import { currentToken } from '@/api/session';
-import { Avatar } from '@/components/avatar';
-import { DivisionBadge } from '@/components/division-badge';
-import { Button, changeColor, colors, Eyebrow, font, hover, Page, percent, useWide } from '@/components/ui';
-import { PhotoEditor } from '@/components/photo-editor';
-import { choosePhoto, cutPhoto, NO_CROP, PhotoCrop } from '@/game/photo';
-import { useGame } from '@/game/store';
-import { DIVISION_LABEL, ppmToPercent } from '@/game/view';
+import { api, Profile } from "@/api/client";
+import { currentToken } from "@/api/session";
+import { Avatar } from "@/components/avatar";
+import { Badges } from "@/components/badges";
+import { DivisionBadge } from "@/components/division-badge";
+import {
+  Button,
+  changeColor,
+  colors,
+  Eyebrow,
+  font,
+  hover,
+  Page,
+  percent,
+  useWide,
+} from "@/components/ui";
+import { PhotoEditor } from "@/components/photo-editor";
+import { ShareWeek } from "@/components/share-card";
+import { choosePhoto, cutPhoto, NO_CROP, PhotoCrop } from "@/game/photo";
+import { useGame } from "@/game/store";
+import { DIVISION_LABEL, ppmToPercent } from "@/game/view";
 
-const NOTHING_YET = '–';
+const NOTHING_YET = "–";
 const BOT_SUFFIX = / \(bot\)$/;
 
 /** Your own picture, with buttons to add, adjust or remove it. Friends see it in the group chat. */
 function MyPhoto({ name, size }: { name: string; size: number }) {
   const { myPhoto: shown, setMyPhoto: setShown } = useGame();
-  const [editing, setEditing] = useState<{ original: string; crop: PhotoCrop } | null>(null);
+  const [editing, setEditing] = useState<{
+    original: string;
+    crop: PhotoCrop;
+  } | null>(null);
   const [busy, setBusy] = useState(false);
   const [problem, setProblem] = useState(false);
 
@@ -45,7 +66,11 @@ function MyPhoto({ name, size }: { name: string; size: number }) {
     setBusy(true);
     try {
       const small = await cutPhoto(editing.original, crop);
-      await api.setPhoto(token, { photo: small, original: editing.original, crop });
+      await api.setPhoto(token, {
+        photo: small,
+        original: editing.original,
+        crop,
+      });
       setShown(small);
       setEditing(null);
     } catch {
@@ -68,21 +93,37 @@ function MyPhoto({ name, size }: { name: string; size: number }) {
   return (
     <View style={styles.photoBox}>
       <Avatar name={name} photo={shown} size={size} />
-      <Pressable accessibilityRole="button" onPress={shown ? adjust : add} {...hover('link')}>
-        <Text style={styles.photoLink}>{shown ? 'Edit photo' : 'Add photo'}</Text>
+      <Pressable
+        accessibilityRole="button"
+        onPress={shown ? adjust : add}
+        {...hover("link")}
+      >
+        <Text style={styles.photoLink}>
+          {shown ? "Edit photo" : "Add photo"}
+        </Text>
       </Pressable>
       {shown ? (
         <View style={styles.photoMore}>
-          <Pressable accessibilityRole="button" onPress={add} {...hover('link')}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={add}
+            {...hover("link")}
+          >
             <Text style={styles.photoRemove}>New</Text>
           </Pressable>
           <Text style={styles.photoRemove}>·</Text>
-          <Pressable accessibilityRole="button" onPress={remove} {...hover('link')}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={remove}
+            {...hover("link")}
+          >
             <Text style={styles.photoRemove}>Remove</Text>
           </Pressable>
         </View>
       ) : null}
-      {problem ? <Text style={styles.photoProblem}>That didn’t save. Try again.</Text> : null}
+      {problem ? (
+        <Text style={styles.photoProblem}>That didn’t save. Try again.</Text>
+      ) : null}
       {editing ? (
         <PhotoEditor
           original={editing.original}
@@ -96,7 +137,15 @@ function MyPhoto({ name, size }: { name: string; size: number }) {
   );
 }
 
-function Stat({ label, value, color }: { label: string; value: string; color?: string }) {
+function Stat({
+  label,
+  value,
+  color,
+}: {
+  label: string;
+  value: string;
+  color?: string;
+}) {
   return (
     <View style={styles.stat}>
       <Eyebrow>{label}</Eyebrow>
@@ -107,11 +156,11 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { me, signOut } = useGame();
+  const { me, market, orders, signOut } = useGame();
   const wide = useWide();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [failed, setFailed] = useState(false);
-  const uid = id === 'me' ? me?.uid : id;
+  const uid = id === "me" ? me?.uid : id;
 
   useEffect(() => {
     if (!uid) return;
@@ -127,26 +176,37 @@ export default function ProfileScreen() {
     };
   }, [uid]);
 
-  const back = () => (router.canGoBack() ? router.back() : router.replace('/league'));
+  const back = () =>
+    router.canGoBack() ? router.back() : router.replace("/league");
 
   if (failed) {
     return (
       <Page maxWidth={640}>
         <Text style={styles.empty}>We can’t find that player.</Text>
-        <Button variant="quiet" label="Back to the league" onPress={() => router.replace('/league')} />
+        <Button
+          variant="quiet"
+          label="Back to the league"
+          onPress={() => router.replace("/league")}
+        />
       </Page>
     );
   }
-  if (!profile) return <ActivityIndicator style={styles.page} color={colors.brand} />;
+  if (!profile)
+    return <ActivityIndicator style={styles.page} color={colors.brand} />;
 
   const mine = profile.id === me?.uid;
   const { honours, thisWeek } = profile;
-  const name = profile.name.replace(BOT_SUFFIX, '');
+  const name = profile.name.replace(BOT_SUFFIX, "");
   const weekReturn = thisWeek ? ppmToPercent(thisWeek.returnPpm) : 0;
 
   return (
     <Page maxWidth={880}>
-      <Pressable accessibilityRole="button" onPress={back} {...hover('link')} style={styles.backBox}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={back}
+        {...hover("link")}
+        style={styles.backBox}
+      >
         <Text style={styles.back}>← Back</Text>
       </Pressable>
 
@@ -158,10 +218,13 @@ export default function ProfileScreen() {
         )}
         <View style={styles.flex}>
           <Eyebrow>
-            {mine ? 'Your profile' : profile.bot ? 'Computer player' : 'Player'} ·{' '}
-            {DIVISION_LABEL[profile.division]} division
+            {mine ? "Your profile" : profile.bot ? "Computer player" : "Player"}{" "}
+            · {DIVISION_LABEL[profile.division]} division
           </Eyebrow>
-          <Text numberOfLines={2} style={[styles.name, !wide && styles.namePhone]}>
+          <Text
+            numberOfLines={2}
+            style={[styles.name, !wide && styles.namePhone]}
+          >
             {name}
           </Text>
         </View>
@@ -172,17 +235,44 @@ export default function ProfileScreen() {
         <Text style={styles.title}>This week</Text>
         {thisWeek ? (
           <View style={styles.stats}>
-            <Stat label="Place" value={`#${thisWeek.rank} of ${thisWeek.total}`} />
+            <Stat
+              label="Place"
+              value={`#${thisWeek.rank} of ${thisWeek.total}`}
+            />
             <Stat label="Score" value={thisWeek.score.toFixed(0)} />
-            <Stat label="Return" value={percent(weekReturn)} color={changeColor(weekReturn)} />
-            <Stat label="Largest fall" value={`${ppmToPercent(thisWeek.maxFallPpm).toFixed(2)}%`} />
+            <Stat
+              label="Return"
+              value={percent(weekReturn)}
+              color={changeColor(weekReturn)}
+            />
+            <Stat
+              label="Largest fall"
+              value={`${ppmToPercent(thisWeek.maxFallPpm).toFixed(2)}%`}
+            />
           </View>
         ) : (
           <Text style={styles.empty}>
-            {mine ? 'Hold a security to join this week’s table.' : 'Not on this week’s table yet.'}
+            {mine
+              ? "Hold a security to join this week’s table."
+              : "Not on this week’s table yet."}
           </Text>
         )}
       </View>
+
+      {mine && thisWeek ? (
+        <View style={styles.share}>
+          <ShareWeek
+            card={{
+              name,
+              division: profile.division,
+              rank: thisWeek.rank,
+              total: thisWeek.total,
+              returnPercent: weekReturn,
+              score: thisWeek.score,
+            }}
+          />
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.title}>Achievements</Text>
@@ -190,10 +280,17 @@ export default function ProfileScreen() {
           <Stat label="Weeks played" value={String(honours.weeksPlayed)} />
           <Stat label="Weeks won" value={String(honours.wins)} />
           <Stat label="Top 3 finishes" value={String(honours.top3)} />
-          <Stat label="Best place" value={honours.bestRank ? `#${honours.bestRank}` : NOTHING_YET} />
+          <Stat
+            label="Best place"
+            value={honours.bestRank ? `#${honours.bestRank}` : NOTHING_YET}
+          />
           <Stat
             label="Best score"
-            value={honours.bestScore === null ? NOTHING_YET : honours.bestScore.toFixed(0)}
+            value={
+              honours.bestScore === null
+                ? NOTHING_YET
+                : honours.bestScore.toFixed(0)
+            }
           />
           {mine && me?.streak ? (
             <>
@@ -202,6 +299,33 @@ export default function ProfileScreen() {
             </>
           ) : null}
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.title}>Badges</Text>
+        <Badges
+          honours={honours}
+          own={
+            mine && me
+              ? {
+                  traded:
+                    me.positions.length > 0 ||
+                    me.pendingOrders.length > 0 ||
+                    orders.length > 0,
+                  bestStreak: me.streak?.best ?? 0,
+                  holdings: me.positions.length,
+                  bothMarkets: ["TASE", "US"].every((place) =>
+                    me.positions.some(
+                      (p) =>
+                        market?.securities.find(
+                          (row) => row.id === p.securityId,
+                        )?.market === place,
+                    ),
+                  ),
+                }
+              : undefined
+          }
+        />
       </View>
 
       {mine ? (
@@ -216,27 +340,65 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1, gap: 6, minWidth: 0 },
-  backBox: { alignSelf: 'flex-start' },
-  back: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
-  head: { alignItems: 'center', flexDirection: 'row', gap: 20 },
-  photoBox: { alignItems: 'center', gap: 6 },
-  photoLink: { color: colors.brand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
-  photoMore: { flexDirection: 'row', gap: 6 },
+  backBox: { alignSelf: "flex-start" },
+  back: {
+    color: colors.muted,
+    fontFamily: font.body,
+    fontSize: 14,
+    fontWeight: "500",
+  },
+  head: { alignItems: "center", flexDirection: "row", gap: 20 },
+  photoBox: { alignItems: "center", gap: 6 },
+  photoLink: {
+    color: colors.brand,
+    fontFamily: font.body,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  photoMore: { flexDirection: "row", gap: 6 },
   photoRemove: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
-  photoProblem: { color: colors.down, fontFamily: font.body, fontSize: 12, maxWidth: 110, textAlign: 'center' },
-  name: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 70 },
+  photoProblem: {
+    color: colors.down,
+    fontFamily: font.body,
+    fontSize: 12,
+    maxWidth: 110,
+    textAlign: "center",
+  },
+  name: {
+    color: colors.ink,
+    fontFamily: font.display,
+    fontSize: 60,
+    fontWeight: "400",
+    lineHeight: 70,
+  },
   namePhone: { fontSize: 38, lineHeight: 46 },
-  section: { borderTopColor: colors.line, borderTopWidth: 1, gap: 16, paddingTop: 18 },
-  title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
-  stats: { columnGap: 24, flexDirection: 'row', flexWrap: 'wrap', rowGap: 18 },
+  section: {
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: 16,
+    paddingTop: 18,
+  },
+  title: {
+    color: colors.ink,
+    fontFamily: font.display,
+    fontSize: 24,
+    fontWeight: "500",
+  },
+  stats: { columnGap: 24, flexDirection: "row", flexWrap: "wrap", rowGap: 18 },
   stat: { flexBasis: 150, flexGrow: 1, gap: 4 },
   statValue: {
     color: colors.ink,
     fontFamily: font.display,
     fontSize: 32,
-    fontVariant: ['tabular-nums'],
+    fontVariant: ["tabular-nums"],
     lineHeight: 38,
   },
-  empty: { color: colors.muted, fontFamily: font.body, fontSize: 15, lineHeight: 22 },
-  signOut: { alignSelf: 'flex-start' },
+  empty: {
+    color: colors.muted,
+    fontFamily: font.body,
+    fontSize: 15,
+    lineHeight: 22,
+  },
+  signOut: { alignSelf: "flex-start" },
+  share: { alignSelf: "flex-start", marginTop: -4 },
 });

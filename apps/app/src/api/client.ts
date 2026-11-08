@@ -56,6 +56,11 @@ export type Profile = {
     top3: number;
     bestRank: number | null;
     bestScore: number | null;
+    beatMarket: number;
+    movedUp: number;
+    bigWeeks?: number;
+    steadyWeeks?: number;
+    highestDivision?: Division | null;
   };
   photo: string | null;
 };
