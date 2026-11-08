@@ -171,6 +171,18 @@ describe('rate limits', () => {
     assert.equal((await guess('clock-secret')).status, 429);
   });
 
+  it('never limits the right code, however often it comes', async () => {
+    const { app } = setup();
+    for (let i = 0; i < 8; i += 1) {
+      const response = await app.request('/api/admin/clock', {
+        method: 'POST',
+        headers: { Authorization: 'Bearer clock-secret', 'x-real-ip': '9.9.9.9', ...json },
+        body: JSON.stringify({ action: 'resume' }),
+      });
+      assert.equal(response.status, 200);
+    }
+  });
+
   it('never limits the health check', async () => {
     const { get } = setup();
     for (let i = 0; i < 20; i += 1) assert.equal((await get('/api/health')).status, 200);

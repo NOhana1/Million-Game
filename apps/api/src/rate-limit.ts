@@ -34,7 +34,8 @@ export const LIMITS: Limits = {
   write: { perAddress: 300, perPlayer: 30 },
   // Creating a player.
   signup: { perAddress: 10, perPlayer: 5 },
-  // The clock code and the alarm secret, so nobody can guess them by trying many.
+  // Wrong clock codes and alarm secrets, so nobody can guess them by trying many. Only wrong
+  // ones count: the real alarm can knock as often as it needs.
   secret: { perAddress: 10, perPlayer: 10 },
 };
 
@@ -63,7 +64,8 @@ export function counter(now: () => number) {
     for (const [key, count] of counts) if (count.resetsAt <= at) counts.delete(key);
   };
 
-  return (key: string, allowed: number): number => {
+  /** `use: false` only looks, without counting this request. */
+  return (key: string, allowed: number, use = true): number => {
     const at = now();
     if (counts.size > PRUNE_ABOVE) prune(at);
     let count = counts.get(key);
@@ -72,7 +74,7 @@ export function counter(now: () => number) {
       counts.set(key, count);
     }
     if (count.used >= allowed) return Math.max(1, Math.ceil((count.resetsAt - at) / 1000));
-    count.used += 1;
+    if (use) count.used += 1;
     return 0;
   };
 }
@@ -109,12 +111,20 @@ export function rateLimit(deps: { now: () => number; verifyToken: TokenVerifier 
     const category = categoryOf(c.req.method, c.req.path);
     if (!category) return next();
     const limit = limits[category];
-
-    const byAddress = take(`a:${category}:${addressOf((name) => c.req.header(name))}`, limit.perAddress);
-    if (byAddress) throw new RateLimited(byAddress);
+    const addressKey = `a:${category}:${addressOf((name) => c.req.header(name))}`;
 
     // The clock code and alarm secret use the same header, but they aren't player tokens.
-    if (category === 'secret') return next();
+    // Only a wrong one is counted, after the route refused it.
+    if (category === 'secret') {
+      const wait = take(addressKey, limit.perAddress, false);
+      if (wait) throw new RateLimited(wait);
+      await next();
+      if (c.res.status === 401) take(addressKey, Number.POSITIVE_INFINITY);
+      return;
+    }
+
+    const byAddress = take(addressKey, limit.perAddress);
+    if (byAddress) throw new RateLimited(byAddress);
     const token = c.req.header('Authorization')?.match(/^Bearer (.+)$/)?.[1];
     const uid = token ? await deps.verifyToken(token) : null;
     if (uid) {
