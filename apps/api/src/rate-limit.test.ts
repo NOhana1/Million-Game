@@ -171,6 +171,22 @@ describe('rate limits', () => {
     assert.equal((await guess('clock-secret')).status, 429);
   });
 
+  it('caps a burst of wrong codes sent at once, then lets the right code in after a minute', async () => {
+    const { app, later } = setup({ ...SMALL, secret: { perAddress: 10, perPlayer: 10 } });
+    const guess = (code: string) =>
+      app.request('/api/admin/clock', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${code}`, 'x-real-ip': '4.4.4.4', ...json },
+        body: JSON.stringify({ action: 'resume' }),
+      });
+    const burst = await Promise.all(Array.from({ length: 20 }, (_, i) => guess(`wrong-${i}`)));
+    const statuses = burst.map((response) => response.status);
+    assert.equal(statuses.filter((s) => s === 401).length, 10);
+    assert.equal(statuses.filter((s) => s === 429).length, 10);
+    later(60_000);
+    assert.equal((await guess('clock-secret')).status, 200);
+  });
+
   it('never limits the right code, however often it comes', async () => {
     const { app } = setup();
     for (let i = 0; i < 8; i += 1) {

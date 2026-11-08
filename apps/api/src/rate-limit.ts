@@ -64,8 +64,8 @@ export function counter(now: () => number) {
     for (const [key, count] of counts) if (count.resetsAt <= at) counts.delete(key);
   };
 
-  /** `use: false` only looks, without counting this request. */
-  return (key: string, allowed: number, use = true): number => {
+  /** A step of -1 gives a place back, for a request that turned out not to count. */
+  return (key: string, allowed: number, step = 1): number => {
     const at = now();
     if (counts.size > PRUNE_ABOVE) prune(at);
     let count = counts.get(key);
@@ -73,8 +73,8 @@ export function counter(now: () => number) {
       count = { used: 0, resetsAt: at + WINDOW_MS };
       counts.set(key, count);
     }
-    if (count.used >= allowed) return Math.max(1, Math.ceil((count.resetsAt - at) / 1000));
-    if (use) count.used += 1;
+    if (step > 0 && count.used >= allowed) return Math.max(1, Math.ceil((count.resetsAt - at) / 1000));
+    count.used = Math.max(0, count.used + step);
     return 0;
   };
 }
@@ -113,18 +113,17 @@ export function rateLimit(deps: { now: () => number; verifyToken: TokenVerifier 
     const limit = limits[category];
     const addressKey = `a:${category}:${addressOf((name) => c.req.header(name))}`;
 
-    // The clock code and alarm secret use the same header, but they aren't player tokens.
-    // Only a wrong one is counted, after the route refused it.
-    if (category === 'secret') {
-      const wait = take(addressKey, limit.perAddress, false);
-      if (wait) throw new RateLimited(wait);
-      await next();
-      if (c.res.status === 401) take(addressKey, Number.POSITIVE_INFINITY);
-      return;
-    }
-
+    // Every request takes a place first, so a burst of guesses sent at once is still capped.
     const byAddress = take(addressKey, limit.perAddress);
     if (byAddress) throw new RateLimited(byAddress);
+
+    // The clock code and alarm secret use the same header, but they aren't player tokens.
+    // A right one gives its place back, so only wrong ones count and the alarm is never slowed.
+    if (category === 'secret') {
+      await next();
+      if (c.res.status !== 401) take(addressKey, limit.perAddress, -1);
+      return;
+    }
     const token = c.req.header('Authorization')?.match(/^Bearer (.+)$/)?.[1];
     const uid = token ? await deps.verifyToken(token) : null;
     if (uid) {
