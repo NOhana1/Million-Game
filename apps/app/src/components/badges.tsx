@@ -1,86 +1,216 @@
 // Small awards on a profile. League badges come from finished weeks, so everyone can see them.
-// The first trade and the streak are only known to the player, so they show on your own page.
+// What you hold and your streak are only known to you, so those show on your own page only.
 // Your own page also shows the ones still to earn, as goals.
 
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from "react-native";
 
-import type { Profile } from '@/api/client';
+import { DIVISIONS, type Division } from "@portfolio-league/engine";
+import type { Profile } from "@/api/client";
 
-import { colors, font } from './ui';
+import { colors, font } from "./ui";
 
-const STREAK_GOAL = 7;
+const REGULAR_WEEKS = 4;
+const CHAMPION_WINS = 3;
+const SPREAD = 5;
 
 type Badge = { icon: string; name: string; how: string; times: number };
 
-/** Your own facts the server doesn't share: whether you've traded and your best streak. */
-export type OwnFacts = { traded: boolean; bestStreak: number };
+/** Your own facts the server doesn't share: what you hold and your best streak. */
+export type OwnFacts = {
+  traded: boolean;
+  bestStreak: number;
+  holdings: number;
+  bothMarkets: boolean;
+};
 
-export function badgesOf(honours: Profile['honours'], own?: OwnFacts): Badge[] {
+const once = (earned: boolean) => (earned ? 1 : 0);
+
+const reached = (honours: Profile["honours"], division: Division) =>
+  honours.highestDivision
+    ? DIVISIONS.indexOf(honours.highestDivision) >= DIVISIONS.indexOf(division)
+    : false;
+
+export function badgesOf(honours: Profile["honours"], own?: OwnFacts): Badge[] {
   const league: Badge[] = [
-    { icon: '🌱', name: 'First week', how: 'Finish a week in the league', times: honours.weeksPlayed },
-    { icon: '📈', name: 'Beat the market', how: 'Beat every index fund in a week', times: honours.beatMarket ?? 0 },
-    { icon: '⬆️', name: 'Moved up', how: 'Move up a division', times: honours.movedUp ?? 0 },
-    { icon: '🥉', name: 'Top 3', how: 'Finish a week in the top 3', times: honours.top3 },
-    { icon: '🏆', name: 'Winner', how: 'Win a week', times: honours.wins },
+    {
+      icon: "🌱",
+      name: "First week",
+      how: "Finish a week in the league",
+      times: once(honours.weeksPlayed > 0),
+    },
+    {
+      icon: "📅",
+      name: "Regular",
+      how: `Play ${REGULAR_WEEKS} weeks`,
+      times: once(honours.weeksPlayed >= REGULAR_WEEKS),
+    },
+    {
+      icon: "📈",
+      name: "Beat the market",
+      how: "Beat every index fund in a week",
+      times: honours.beatMarket ?? 0,
+    },
+    {
+      icon: "🚀",
+      name: "Big week",
+      how: "Make 5% or more in one week",
+      times: honours.bigWeeks ?? 0,
+    },
+    {
+      icon: "🛡️",
+      name: "Steady hand",
+      how: "End a week up, with no fall over 1%",
+      times: honours.steadyWeeks ?? 0,
+    },
+    {
+      icon: "⬆️",
+      name: "Moved up",
+      how: "Move up a division",
+      times: honours.movedUp ?? 0,
+    },
+    {
+      icon: "🥈",
+      name: "Silver",
+      how: "Reach the Silver division",
+      times: once(reached(honours, "silver")),
+    },
+    {
+      icon: "🥇",
+      name: "Gold",
+      how: "Reach the Gold division",
+      times: once(reached(honours, "gold")),
+    },
+    {
+      icon: "💎",
+      name: "Diamond",
+      how: "Reach the Diamond division",
+      times: once(reached(honours, "diamond")),
+    },
+    {
+      icon: "🥉",
+      name: "Top 3",
+      how: "Finish a week in the top 3",
+      times: honours.top3,
+    },
+    { icon: "🏆", name: "Winner", how: "Win a week", times: honours.wins },
+    {
+      icon: "👑",
+      name: "Champion",
+      how: `Win ${CHAMPION_WINS} weeks`,
+      times: once(honours.wins >= CHAMPION_WINS),
+    },
   ];
   if (!own) return league;
   return [
-    { icon: '🛒', name: 'First trade', how: 'Place your first order', times: own.traded ? 1 : 0 },
+    {
+      icon: "🛒",
+      name: "First trade",
+      how: "Place your first order",
+      times: once(own.traded),
+    },
+    {
+      icon: "🧺",
+      name: "Well spread",
+      how: `Hold ${SPREAD} different securities at once`,
+      times: once(own.holdings >= SPREAD),
+    },
+    {
+      icon: "🌍",
+      name: "Two markets",
+      how: "Hold Tel Aviv and US securities at once",
+      times: once(own.bothMarkets),
+    },
     ...league,
     {
-      icon: '🔥',
-      name: `${STREAK_GOAL} days in a row`,
-      how: `Open the game ${STREAK_GOAL} days in a row`,
-      times: own.bestStreak >= STREAK_GOAL ? 1 : 0,
+      icon: "🔥",
+      name: "7 days in a row",
+      how: "Open the game 7 days in a row",
+      times: once(own.bestStreak >= 7),
+    },
+    {
+      icon: "⚡",
+      name: "30 days in a row",
+      how: "Open the game 30 days in a row",
+      times: once(own.bestStreak >= 30),
     },
   ];
 }
 
-export function Badges({ honours, own }: { honours: Profile['honours']; own?: OwnFacts }) {
+export function Badges({
+  honours,
+  own,
+}: {
+  honours: Profile["honours"];
+  own?: OwnFacts;
+}) {
   const all = badgesOf(honours, own);
   // Someone else's page shows only what they've earned. Yours shows the rest too, faded.
-  const shown = own ? all : all.filter((badge) => badge.times > 0);
-  if (shown.length === 0) return <Text style={styles.empty}>No badges yet.</Text>;
+  // Earned ones come first.
+  const shown = (own ? all : all.filter((badge) => badge.times > 0)).sort(
+    (a, b) => Number(b.times > 0) - Number(a.times > 0),
+  );
+  const earned = all.filter((badge) => badge.times > 0).length;
+  if (shown.length === 0)
+    return <Text style={styles.empty}>No badges yet.</Text>;
 
   return (
-    <View style={styles.list}>
-      {shown.map((badge) => {
-        const earned = badge.times > 0;
-        return (
-          <View key={badge.name} style={[styles.badge, earned ? styles.earned : styles.locked]}>
-            <Text style={[styles.icon, !earned && styles.faded]}>{badge.icon}</Text>
-            <View style={styles.text}>
-              <Text style={[styles.name, !earned && styles.lockedText]}>
-                {badge.name}
-                {badge.times > 1 ? ` ×${badge.times}` : ''}
+    <View style={styles.box}>
+      {own ? (
+        <Text style={styles.count}>
+          {earned} of {all.length} earned
+        </Text>
+      ) : null}
+      <View style={styles.list}>
+        {shown.map((badge) => {
+          const got = badge.times > 0;
+          return (
+            <View
+              key={badge.name}
+              style={[styles.badge, got ? styles.earned : styles.locked]}
+            >
+              <Text style={[styles.icon, !got && styles.faded]}>
+                {badge.icon}
               </Text>
-              <Text style={styles.how}>{earned ? 'Earned' : badge.how}</Text>
+              <View style={styles.text}>
+                <Text style={[styles.name, !got && styles.lockedText]}>
+                  {badge.name}
+                  {badge.times > 1 ? ` ×${badge.times}` : ""}
+                </Text>
+                <Text style={styles.how}>{got ? "Earned" : badge.how}</Text>
+              </View>
             </View>
-          </View>
-        );
-      })}
+          );
+        })}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  list: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+  box: { gap: 10 },
+  count: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
+  list: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   badge: {
-    alignItems: 'center',
+    alignItems: "center",
     borderRadius: 6,
     borderWidth: 1,
     flexBasis: 200,
-    flexDirection: 'row',
+    flexDirection: "row",
     flexGrow: 1,
     gap: 10,
     padding: 12,
   },
   earned: { backgroundColor: colors.raised, borderColor: colors.brand },
-  locked: { borderColor: colors.line, borderStyle: 'dashed' },
+  locked: { borderColor: colors.line, borderStyle: "dashed" },
   icon: { fontSize: 26 },
   faded: { opacity: 0.3 },
   text: { flex: 1, gap: 2 },
-  name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  name: {
+    color: colors.ink,
+    fontFamily: font.body,
+    fontSize: 15,
+    fontWeight: "600",
+  },
   lockedText: { color: colors.muted },
   how: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 15 },

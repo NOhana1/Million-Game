@@ -31,6 +31,9 @@ describe('honours', () => {
       bestScore: 90,
       beatMarket: 0,
       movedUp: 0,
+      bigWeeks: 0,
+      steadyWeeks: 0,
+      highestDivision: 'bronze',
     });
   });
 
@@ -43,24 +46,35 @@ describe('honours', () => {
       bestScore: null,
       beatMarket: 0,
       movedUp: 0,
+      bigWeeks: 0,
+      steadyWeeks: 0,
+      highestDivision: null,
     });
   });
 
   it('counts weeks that beat every index fund and moves up a division', () => {
-    const table = (returnPpm: number, nextDivision: string, indexes: Record<string, number>) =>
+    const table = (
+      returnPpm: number,
+      nextDivision: string,
+      indexes: Record<string, number>,
+      maxFallPpm = 20_000,
+    ) =>
       ({
         weekEndsAt: 1,
         indexes,
-        rows: [{ id: 'a', name: 'a', rank: 2, score: 50, returnPpm, division: 'bronze', nextDivision }],
+        rows: [{ id: 'a', name: 'a', rank: 2, score: 50, returnPpm, maxFallPpm, division: 'bronze', nextDivision }],
       }) as unknown as LeagueTable;
     const played = [
-      table(30_000, 'silver', { ta35: 10_000, sp500: 20_000 }), // beat both, moved up
-      table(15_000, 'bronze', { ta35: 10_000, sp500: 20_000 }), // beat only one
-      table(5_000, 'bronze', {}), // no funds that week: nothing to beat
+      table(60_000, 'silver', { ta35: 10_000, sp500: 20_000 }), // beat both, moved up, a big week
+      table(15_000, 'bronze', { ta35: 10_000, sp500: 20_000 }, 5_000), // beat only one, steady
+      table(-5_000, 'bronze', {}, 5_000), // no funds to beat, and a loss isn't steady
     ];
     const honours = honoursOf(played, 'a');
     assert.equal(honours.beatMarket, 1);
     assert.equal(honours.movedUp, 1);
+    assert.equal(honours.bigWeeks, 1);
+    assert.equal(honours.steadyWeeks, 1);
+    assert.equal(honours.highestDivision, 'silver');
   });
 });
 

@@ -58,6 +58,9 @@ export type Profile = {
     bestScore: number | null;
     beatMarket: number;
     movedUp: number;
+    bigWeeks?: number;
+    steadyWeeks?: number;
+    highestDivision?: Division | null;
   };
   photo: string | null;
 };

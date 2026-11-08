@@ -29,7 +29,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `GET /me/history` | Yes | Private, 30s | The player's value over time, rebuilt from their fills. Optional `?range=` as for market history. Points use `price` for the value in agorot, so charts share one shape |
 | `POST /me/visit` | Yes | No | Counts today's visit toward the daily streak, on Israel's calendar. Returns `{ "streak": { "days", "best", "lastDay" } }`. Only the first call of a day changes it. `GET /me` returns it as `streak` |
 | `PUT /me/watchlist` | Yes | No | Saves the security ids the player watches. Body `{ "ids": ["TAIX"] }`, up to 20. `GET /me` returns them as `watchlist` |
-| `GET /players/:id/profile` | No | 30s | A player's results: `division`, `thisWeek` (or null) and `honours` counted from finished weeks (weeks played, wins, top 3, best place and score, weeks that beat every index fund, moves up a division). Never their holdings |
+| `GET /players/:id/profile` | No | 30s | A player's results: `division`, `thisWeek` (or null) and `honours` counted from finished weeks (weeks played, wins, top 3, best place and score, weeks that beat every index fund, moves up a division, 5% weeks, steady weeks, highest division). Never their holdings |
 | `GET /group` | Yes | No | The player's group with each member's results this week, best first, or `{ "group": null }`. Never holdings |
 | `POST /groups` | Yes | No | Starts a group. Body `{ "name": "The Bulls" }`, 3 to 30 characters. A player is in one group at most |
 | `POST /groups/join` | Yes | No | Joins with an invite code. Body `{ "code": "R3H2CD" }`. Groups hold up to 20 |
