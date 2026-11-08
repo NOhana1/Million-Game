@@ -176,14 +176,16 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 222 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 227 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
 
 **Emergency brake:** the admin page can pause trading for everyone with the clock code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
 
-**Not built yet:** error tracking (Sentry), uptime alerts, encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
+**Watchdog:** about every 15 minutes, GitHub checks that the game is up and that orders fill on time, and emails an alert if not. See [watchdog](#watchdog).
+
+**Not built yet:** error tracking (Sentry), encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
 
 **Limits I know about:**
 
@@ -226,6 +228,61 @@ Every request to the server falls into one category, and each category allows a 
 - **Many accounts** on one address share 150 costly requests a minute, so opening more accounts doesn't multiply the damage. Many addresses would.
 - **Real growth** hits the same wall. At about 60 reads a minute, a few hundred player-hours a day is enough to reach 50,000.
 - **What would fix it:** a daily allowance per player kept in the database, an alert at 80% of the quota, and the paid Blaze plan, where the quota becomes a bill instead of an outage. Firebase has no hard spending cap, so that needs a budget alert too. I left these out because they need a credit card or another stored counter, and the brief asks for neither.
+
+## Watchdog
+
+A GitHub job, [`watchdog.yml`](.github/workflows/watchdog.yml), runs [`scripts/watchdog.mjs`](scripts/watchdog.mjs) about every 15 minutes against the live game. It's free and needs no outside service.
+
+**What it checks.** It only reads: every request is a GET, so it can't place orders, move money or touch the clock.
+
+| Check | Fails when |
+|---|---|
+| Website loads | The home page doesn't answer 200, or isn't the game |
+| Server answers | `/api/health` doesn't say ok |
+| Database answers | `/api/world` fails, so Firestore is down or out of free quota |
+| Orders fill on time | `/api/status` says a market open or close passed more than 10 real minutes ago without being worked through, or an order has been due for more than 10 minutes and is still waiting, or the answer is more than 5 minutes old |
+
+`/api/status` is cached for 60 seconds and reads at most 3 documents, so checking it costs almost nothing. A paused clock is never "late", because time isn't moving.
+
+**How alerts work.** A check counts as failed only after 3 tries, 20 seconds apart, so one slow answer doesn't wake anyone. Then the job opens one GitHub issue labelled `watchdog`, and GitHub emails it. The issue says what failed, when (Israel time and UTC), and links to the run. While the same failure goes on, nothing more is sent. If a different check starts failing, the issue is updated and you get one email. When everything passes again, the issue is closed with a note, which is one last email.
+
+**How to run it by hand.** In GitHub: Actions → Watchdog → Run workflow. Choose "live" or "this branch's preview". Alerts are off for button runs unless you tick them, so testing doesn't send email.
+
+**Getting the email.** The alert mentions @NOhana1, so GitHub emails the owner even when not watching the repo. Check GitHub → Settings → Notifications → "Participating, @mentions and custom" has Email on, and look in spam for the first one. Alerts are GitHub issues with the `watchdog` label: [all alerts](https://github.com/NOhana1/Million-Game/issues?q=label%3Awatchdog).
+
+**Closing alerts.** Don't close an alert by hand while the problem is still there: the next run opens a new one and emails again. Fix the problem and let the next run close it. Close one by hand only if it came from a test, so the live watchdog doesn't later "recover" from it.
+
+**Testing the alert.** A button run with alerts ticked against a preview opens a real issue and a real email. Previews use the test project, which has no every-minute alarm, so "Orders fill on time" fails there on purpose. Tested this way on 2026-11-08 ([#13](https://github.com/NOhana1/Million-Game/issues/13)): the first run opened one alert, the second sent nothing new, then the test alert was closed by hand. The button only exists once the workflow is on `main`.
+
+**The pieces.**
+
+| File | Job |
+|---|---|
+| [`apps/api/src/routes/status.ts`](apps/api/src/routes/status.ts) | `GET /api/status`: how far behind order filling is. Read-only |
+| [`scripts/watchdog.mjs`](scripts/watchdog.mjs) | The checks, the retries and the alert issue |
+| [`scripts/watchdog.test.mjs`](scripts/watchdog.test.mjs) | Tests for when to open, update, close or stay quiet. Run in CI |
+| [`.github/workflows/watchdog.yml`](.github/workflows/watchdog.yml) | The timer (minutes 3, 18, 33, 48) and the button |
+
+To run it from a terminal (report only, never alerts without `SEND_ALERT=true`): `node scripts/watchdog.mjs`. Add `SITE_URL=<preview url>` and `VERCEL_BYPASS=<the bypass secret>` to check a preview.
+
+**Limits.**
+
+- GitHub's timer is best effort. In this repo the backup alarm's 15-minute timer has run far less often than asked, so a problem may be noticed 15 minutes to a few hours late. For a steadier timer, cron-job.org (which already knocks the alarm) can start this workflow through GitHub's API. That needs a GitHub token kept in cron-job.org, which only the owner should set up.
+- GitHub turns off timers in a repo with no activity for 60 days.
+- It sees what any visitor sees. It doesn't catch wrong prices, a wrong score, or an error only some players hit. That's what error tracking (Sentry) would add.
+- It checks the live game only on its timer. Previews are checked only by the button.
+- If GitHub itself is down, nothing is checked.
+
+**When an alert comes:**
+
+| Failed check | First things to look at |
+|---|---|
+| Website loads | Vercel dashboard → Deployments: is the latest one ready? Roll back to the last good one if not |
+| Server answers | Vercel → the project's Logs for errors. A missing secret stops the server at start |
+| Database answers | Firebase console → Usage. The free plan stops at 50k reads or 20k writes a day and resets at midnight Pacific time |
+| Orders fill on time | cron-job.org: is the job still on, and does it get 200? Then run the Backup alarm workflow by hand, which catches up everything missed. If trading must stop meanwhile, use the emergency brake on the admin page |
+
+Every check passing again closes the issue by itself.
 
 ## Running it locally
 

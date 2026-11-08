@@ -29,6 +29,8 @@ jobs:
         run: npm test
       - name: API tests
         run: npm test --workspace @portfolio-league/api
+      - name: Watchdog tests
+        run: node --test scripts/watchdog.test.mjs
       - name: Vercel build
         run: npm run build:vercel
 
