@@ -39,11 +39,13 @@ const refundText = (order: Order) => {
 };
 
 function OrderRow({ order }: { order: Order }) {
-  const { market } = useGame();
+  const { market, world } = useGame();
   const row = market ? findRow(market, order.securityId) : undefined;
   const pending = order.status === 'pending';
   const detail = pending
-    ? order.execution.kind === 'close'
+    ? world && order.execution.at <= world.worldTime
+      ? 'Going through now…'
+      : order.execution.kind === 'close'
       ? 'Waiting for the close'
       : 'Waiting for the next open'
     : `Filled ${formatWorldTime(order.fill?.at ?? 0)} · ${toUnits(order.fill?.units ?? 0).toFixed(3)} units${refundText(order)}`;

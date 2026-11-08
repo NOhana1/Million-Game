@@ -56,6 +56,8 @@ export type Profile = {
     top3: number;
     bestRank: number | null;
     bestScore: number | null;
+    beatMarket: number;
+    movedUp: number;
   };
   photo: string | null;
 };

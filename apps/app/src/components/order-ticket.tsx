@@ -8,6 +8,8 @@ import { useGame } from '@/game/store';
 import {
   canSellAll,
   displayPrice,
+  fillingOrder,
+  findRow,
   MARKET_LABEL,
   maxOrderAmount,
   orderProblem,
@@ -49,6 +51,10 @@ export function OrderTicket({
   const problem = orderProblem(me, market, security, side, amount);
   const open = world.markets[security.market].open;
   const paused = world.clock.tradingPaused;
+  // An earlier order is going through. The buttons open again by themselves once it has.
+  const filling = fillingOrder(me, world.worldTime);
+  const fillingName = filling ? (findRow(market, filling.securityId)?.name ?? filling.securityId) : '';
+  const blocked = sending || paused || Boolean(filling);
   const currency = security.market === 'US' ? '$' : '₪';
   const held = me.positions.find((p) => p.securityId === security.id);
   const spare =
@@ -171,17 +177,25 @@ export function OrderTicket({
           {tried && problem ? <Text style={styles.error}>{problem}</Text> : null}
           {serverProblem ? <Text style={styles.error}>{serverProblem}</Text> : null}
           {paused ? <Text style={styles.error}>{problemText('TRADING_PAUSED')}</Text> : null}
+          {filling && !paused ? (
+            <View style={styles.filling}>
+              <Text style={styles.fillingText}>
+                Your {filling.side} order for {fillingName} is going through now. You can trade
+                again in about a minute. This window updates by itself.
+              </Text>
+            </View>
+          ) : null}
           <Button
             label={`${side === 'buy' ? 'Buy' : 'Sell'}${amount > 0 ? ` ${ils(amount)}` : ''}`}
             onPress={submit}
-            disabled={sending || paused}
+            disabled={blocked}
           />
           {side === 'sell' && canSellAll(me, security.id) ? (
             <Button
               variant="quiet"
               label="Sell everything"
               onPress={sellEverything}
-              disabled={sending || paused}
+              disabled={blocked}
             />
           ) : null}
         </View>
@@ -245,5 +259,7 @@ const styles = StyleSheet.create({
   chipText: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   notice: { backgroundColor: colors.warnSoft, borderRadius: 3, padding: 12 },
   noticeText: { color: colors.warnInk, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
+  filling: { backgroundColor: colors.raised, borderColor: colors.line, borderRadius: 3, borderWidth: 1, padding: 12 },
+  fillingText: { color: colors.ink, fontFamily: font.body, fontSize: 14, lineHeight: 20 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
 });

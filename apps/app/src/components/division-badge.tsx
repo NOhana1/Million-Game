@@ -27,7 +27,8 @@ const DIAMOND = asImage(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32
 <path d="M3 13h26M12.5 13L16 28l3.5-15M9 5l3.5 8L16 5l3.5 8L23 5" fill="none" stroke="#2C7F9C" stroke-width=".8"/>
 </svg>`);
 
-const BADGES: Record<Division, string> = {
+/** Each division's trophy as a picture, also drawn on the share card. */
+export const BADGES: Record<Division, string> = {
   bronze: trophy('b', ['#EBC29A', '#B4733F', '#6E3F1F']),
   silver: trophy('s', ['#F7F8FA', '#B4BCC8', '#667080']),
   gold: trophy('g', ['#FCEBAE', '#D9AE35', '#8A6510']),

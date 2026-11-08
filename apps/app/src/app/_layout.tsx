@@ -1,4 +1,6 @@
+import { router, usePathname } from 'expo-router';
 import { Tabs, TabList, TabSlot, TabTrigger, TabTriggerSlotProps } from 'expo-router/ui';
+import { useEffect } from 'react';
 import { ActivityIndicator, Platform, Pressable, PressableProps, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
@@ -55,9 +57,17 @@ function TabButton({ children, icon, isFocused, ...props }: TabTriggerSlotProps 
   );
 }
 
+// Pages that need a player. A guest who arrives on one by a link goes to the Market instead.
+const PLAYERS_ONLY = ['/portfolio', '/group', '/profile/me'];
+
 function Game() {
   const { status, guest } = useGame();
   const wide = useWide();
+  const pathname = usePathname();
+  const playersOnly = guest && PLAYERS_ONLY.includes(pathname);
+  useEffect(() => {
+    if (playersOnly) router.replace('/');
+  }, [playersOnly]);
   if (status === 'loading') return <ActivityIndicator style={styles.flex} color={colors.brand} />;
   if (status !== 'signedIn' && !guest) return <SignIn />;
 

@@ -29,6 +29,8 @@ describe('honours', () => {
       top3: 2,
       bestRank: 1,
       bestScore: 90,
+      beatMarket: 0,
+      movedUp: 0,
     });
   });
 
@@ -39,7 +41,26 @@ describe('honours', () => {
       top3: 0,
       bestRank: null,
       bestScore: null,
+      beatMarket: 0,
+      movedUp: 0,
     });
+  });
+
+  it('counts weeks that beat every index fund and moves up a division', () => {
+    const table = (returnPpm: number, nextDivision: string, indexes: Record<string, number>) =>
+      ({
+        weekEndsAt: 1,
+        indexes,
+        rows: [{ id: 'a', name: 'a', rank: 2, score: 50, returnPpm, division: 'bronze', nextDivision }],
+      }) as unknown as LeagueTable;
+    const played = [
+      table(30_000, 'silver', { ta35: 10_000, sp500: 20_000 }), // beat both, moved up
+      table(15_000, 'bronze', { ta35: 10_000, sp500: 20_000 }), // beat only one
+      table(5_000, 'bronze', {}), // no funds that week: nothing to beat
+    ];
+    const honours = honoursOf(played, 'a');
+    assert.equal(honours.beatMarket, 1);
+    assert.equal(honours.movedUp, 1);
   });
 });
 

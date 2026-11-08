@@ -8,9 +8,11 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import { api, Profile } from '@/api/client';
 import { currentToken } from '@/api/session';
 import { Avatar } from '@/components/avatar';
+import { Badges } from '@/components/badges';
 import { DivisionBadge } from '@/components/division-badge';
 import { Button, changeColor, colors, Eyebrow, font, hover, Page, percent, useWide } from '@/components/ui';
 import { PhotoEditor } from '@/components/photo-editor';
+import { ShareWeek } from '@/components/share-card';
 import { choosePhoto, cutPhoto, NO_CROP, PhotoCrop } from '@/game/photo';
 import { useGame } from '@/game/store';
 import { DIVISION_LABEL, ppmToPercent } from '@/game/view';
@@ -107,7 +109,7 @@ function Stat({ label, value, color }: { label: string; value: string; color?: s
 
 export default function ProfileScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { me, signOut } = useGame();
+  const { me, orders, signOut } = useGame();
   const wide = useWide();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [failed, setFailed] = useState(false);
@@ -184,6 +186,21 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      {mine && thisWeek ? (
+        <View style={styles.share}>
+          <ShareWeek
+            card={{
+              name,
+              division: profile.division,
+              rank: thisWeek.rank,
+              total: thisWeek.total,
+              returnPercent: weekReturn,
+              score: thisWeek.score,
+            }}
+          />
+        </View>
+      ) : null}
+
       <View style={styles.section}>
         <Text style={styles.title}>Achievements</Text>
         <View style={styles.stats}>
@@ -202,6 +219,21 @@ export default function ProfileScreen() {
             </>
           ) : null}
         </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.title}>Badges</Text>
+        <Badges
+          honours={honours}
+          own={
+            mine && me
+              ? {
+                  traded: me.positions.length > 0 || me.pendingOrders.length > 0 || orders.length > 0,
+                  bestStreak: me.streak?.best ?? 0,
+                }
+              : undefined
+          }
+        />
       </View>
 
       {mine ? (
@@ -239,4 +271,5 @@ const styles = StyleSheet.create({
   },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 15, lineHeight: 22 },
   signOut: { alignSelf: 'flex-start' },
+  share: { alignSelf: 'flex-start', marginTop: -4 },
 });

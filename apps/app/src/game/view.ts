@@ -191,6 +191,13 @@ export const canSellAll = (me: Me, id: string) =>
   Boolean(me.holdings[id]) &&
   !me.pendingOrders.some((o) => o.status === 'pending' && o.securityId === id && o.sellAll);
 
+/**
+ * An order whose time has come but which hasn't gone through yet. It takes up to a minute.
+ * New orders wait for it, because the cash and holdings change when it does.
+ */
+export const fillingOrder = (me: Me, worldTime: number) =>
+  me.pendingOrders.find((order) => order.status === 'pending' && order.execution.at <= worldTime);
+
 const PROBLEM_TEXT: Record<string, string> = {
   INVALID_AMOUNT: 'Enter an amount.',
   BELOW_MINIMUM: 'The minimum order is ₪100.',
@@ -198,7 +205,7 @@ const PROBLEM_TEXT: Record<string, string> = {
   INSUFFICIENT_CASH: 'You don’t have enough cash.',
   POSITION_LIMIT: 'This would put more than 20% of your portfolio in one security.',
   TOO_MANY_PENDING: 'You have too many orders waiting. Wait for some to fill.',
-  ORDER_SETTLING: 'An earlier order is filling right now. Please try again in a moment.',
+  ORDER_SETTLING: 'Your last order is going through right now. You can trade again in about a minute.',
   TRADING_PAUSED: 'Trading is paused for a short while. Your orders and money are safe.',
 };
 
