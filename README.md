@@ -209,7 +209,7 @@ Every request to the server falls into one category, and each category allows a 
 - **Normal play never gets near them.** Tests play a busy session, a busy minute on the portfolio screen (every chart range, five orders, the refreshes after fills), and five colleagues on one address. None is limited. A test plays ten busy minutes with the real limits (every poll, every security page opened twice a minute, and orders) and is never limited.
 - **Search costs nothing.** It filters the list the app already has, in the browser, so it sends no requests and needs no category.
 - **The client can't skip it.** It runs on the server before every route. The player count uses the verified sign-in token, so made-up tokens don't help. The address comes from headers Vercel sets itself.
-- **The clock code can't be guessed.** Ten tries a minute, then even the right code waits.
+- **The clock code can't be guessed.** Ten wrong tries a minute, then even the right code waits. Right codes never count, so the alarm is never slowed.
 - **Sign-in itself isn't ours to limit.** Email and password go straight from the browser to Firebase Auth, which has its own protection against repeated tries.
 - **Honest limit:** counts live in the server's memory. Vercel can run a few copies at once and each counts on its own, so the real ceiling is a few times higher, and a restart clears the counts. That's enough to stop floods and needs no extra service. A shared counter (for example Redis) would be the next step.
 
