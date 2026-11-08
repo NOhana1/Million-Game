@@ -21,7 +21,7 @@ const LABEL = 'watchdog';
 const TRIES = 3; // a check fails only if it fails this many times in a row
 const RETRY_MS = 20_000;
 const FRESH_MS = 5 * 60_000; // a status answer older than this is itself a problem
-const README = 'https://github.com/NOhana1/Million-Game#watchdog';
+const README = 'https://github.com/NOhana1/Million-Game/blob/main/README.md#watchdog';
 
 const sleep = (ms) => new Promise((done) => setTimeout(done, ms));
 

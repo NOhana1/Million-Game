@@ -248,6 +248,23 @@ A GitHub job, [`watchdog.yml`](.github/workflows/watchdog.yml), runs [`scripts/w
 
 **How to run it by hand.** In GitHub: Actions → Watchdog → Run workflow. Choose "live" or "this branch's preview". Alerts are off for button runs unless you tick them, so testing doesn't send email.
 
+**Getting the email.** The alert mentions @NOhana1, so GitHub emails the owner even when not watching the repo. Check GitHub → Settings → Notifications → "Participating, @mentions and custom" has Email on, and look in spam for the first one. Alerts are GitHub issues with the `watchdog` label: [all alerts](https://github.com/NOhana1/Million-Game/issues?q=label%3Awatchdog).
+
+**Closing alerts.** Don't close an alert by hand while the problem is still there: the next run opens a new one and emails again. Fix the problem and let the next run close it. Close one by hand only if it came from a test, so the live watchdog doesn't later "recover" from it.
+
+**Testing the alert.** A button run with alerts ticked against a preview opens a real issue and a real email. Previews use the test project, which has no every-minute alarm, so "Orders fill on time" fails there on purpose. Tested this way on 2026-11-08 ([#13](https://github.com/NOhana1/Million-Game/issues/13)): the first run opened one alert, the second sent nothing new, then the test alert was closed by hand. The button only exists once the workflow is on `main`.
+
+**The pieces.**
+
+| File | Job |
+|---|---|
+| [`apps/api/src/routes/status.ts`](apps/api/src/routes/status.ts) | `GET /api/status`: how far behind order filling is. Read-only |
+| [`scripts/watchdog.mjs`](scripts/watchdog.mjs) | The checks, the retries and the alert issue |
+| [`scripts/watchdog.test.mjs`](scripts/watchdog.test.mjs) | Tests for when to open, update, close or stay quiet. Run in CI |
+| [`.github/workflows/watchdog.yml`](.github/workflows/watchdog.yml) | The timer (minutes 3, 18, 33, 48) and the button |
+
+To run it from a terminal (report only, never alerts without `SEND_ALERT=true`): `node scripts/watchdog.mjs`. Add `SITE_URL=<preview url>` and `VERCEL_BYPASS=<the bypass secret>` to check a preview.
+
 **Limits.**
 
 - GitHub's timer is best effort. In this repo the backup alarm's 15-minute timer has run far less often than asked, so a problem may be noticed 15 minutes to a few hours late. For a steadier timer, cron-job.org (which already knocks the alarm) can start this workflow through GitHub's API. That needs a GitHub token kept in cron-job.org, which only the owner should set up.
