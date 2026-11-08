@@ -9,7 +9,6 @@ name: Watchdog
 on:
   schedule:
     - cron: '3,18,33,48 * * * *' # between the backup alarm's knocks
-  pull_request: # TEMPORARY: one test run on the preview, removed before merge
   workflow_dispatch:
     inputs:
       target:
@@ -42,8 +41,8 @@ jobs:
       - name: Check, and alert if something is wrong
         run: node scripts/watchdog.mjs
         env:
-          SITE_URL: ${{ (github.event_name == 'pull_request' || inputs.target == 'this branch''s preview') && format('https://million-game-git-{0}-portfolio-league.vercel.app', github.head_ref || github.ref_name) || 'https://million-game-three.vercel.app' }}
-          VERCEL_BYPASS: ${{ (github.event_name == 'pull_request' || inputs.target == 'this branch''s preview') && secrets.VERCEL_BYPASS || '' }}
+          SITE_URL: ${{ inputs.target == 'this branch''s preview' && format('https://million-game-git-{0}-portfolio-league.vercel.app', github.ref_name) || 'https://million-game-three.vercel.app' }}
+          VERCEL_BYPASS: ${{ inputs.target == 'this branch''s preview' && secrets.VERCEL_BYPASS || '' }}
           # Scheduled runs always alert. A button press alerts only when asked.
           SEND_ALERT: ${{ github.event_name == 'schedule' || inputs.send_alert }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
