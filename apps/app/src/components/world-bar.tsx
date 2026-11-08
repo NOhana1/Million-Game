@@ -13,6 +13,33 @@ export function OfflineNotice() {
   return <Text style={styles.offline}>Can’t reach the server. Retrying…</Text>;
 }
 
+/** For a visitor looking around: what they get by joining, and the way in. */
+export function GuestBanner() {
+  const { guest, join } = useGame();
+  if (!guest) return null;
+  return (
+    <View style={styles.guest}>
+      <Text style={styles.guestText}>
+        You’re looking around. Join free to get ₪1,000,000 and play in the weekly league.
+      </Text>
+      <Pressable accessibilityRole="button" onPress={join} {...hover('solid')} style={styles.guestButton}>
+        <Text style={styles.guestButtonText}>Join free</Text>
+      </Pressable>
+    </View>
+  );
+}
+
+/** Shown to everyone while the trading switch is off. */
+export function TradingNotice() {
+  const { world } = useGame();
+  if (!world?.clock.tradingPaused) return null;
+  return (
+    <Text style={styles.paused}>
+      Trading is paused for a short while. Prices and the table keep going, and your orders are safe.
+    </Text>
+  );
+}
+
 export function Brand() {
   return (
     <View style={styles.brandBox}>
@@ -100,6 +127,30 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   statusMarkets: { color: colors.onDeep, fontFamily: font.body, fontSize: 12 },
+  guest: {
+    alignItems: 'center',
+    backgroundColor: colors.raised,
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  guestText: { color: colors.ink, flexShrink: 1, fontFamily: font.body, fontSize: 13 },
+  guestButton: { backgroundColor: colors.brand, borderRadius: 3, paddingHorizontal: 14, paddingVertical: 6 },
+  guestButtonText: { color: colors.onBrand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
+  paused: {
+    backgroundColor: colors.warnSoft,
+    color: colors.warnInk,
+    fontFamily: font.body,
+    fontSize: 13,
+    fontWeight: '600',
+    padding: 8,
+    textAlign: 'center',
+  },
   offline: {
     backgroundColor: colors.down,
     color: colors.ink,

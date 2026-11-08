@@ -106,6 +106,30 @@ describe('/admin/clock', () => {
     assert.equal(moving.worldTime, TEST_WORLD + 7_000);
   });
 
+  it('pauses and reopens trading, while time keeps moving', async () => {
+    const { app, send, wait } = setup();
+    const headers = { Authorization: 'Bearer noa', 'Content-Type': 'application/json' };
+    const order = () =>
+      app.request('/api/orders', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ id: randomUUID(), securityId: 'TAIX', side: 'buy', amount: 100_000 }),
+      });
+    await app.request('/api/players', { method: 'POST', headers, body: '{"name":"Noa"}' });
+
+    assert.equal((await send({ action: 'trading', open: false })).status, 200);
+    const shut = await order();
+    assert.equal(shut.status, 503);
+    assert.equal(((await shut.json()) as { error: { code: string } }).error.code, 'TRADING_PAUSED');
+    wait(1_000);
+    const world = (await (await app.request('/api/world')).json()) as any;
+    assert.equal(world.clock.tradingPaused, true);
+    assert.equal(world.worldTime, TEST_WORLD + 7_000);
+
+    await send({ action: 'trading', open: true });
+    assert.equal((await order()).status, 201);
+  });
+
   it('limits the speed and rejects bad requests', async () => {
     const { send } = setup();
     assert.equal((await send({ action: 'speed', speed: 60 })).status, 200);
@@ -115,6 +139,8 @@ describe('/admin/clock', () => {
       { action: 'advance' },
       { action: 'advance', to: -5 },
       { action: 'rewind' },
+      { action: 'trading' },
+      { action: 'trading', open: 'no' },
     ]) {
       assert.equal((await send(body)).status, 400, JSON.stringify(body));
     }

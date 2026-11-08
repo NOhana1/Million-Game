@@ -27,6 +27,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | Method and path | Sign-in | Cached | Purpose |
 |---|---|---|---|
 | `GET /me/history` | Yes | Private, 30s | The player's value over time, rebuilt from their fills. Optional `?range=` as for market history. Points use `price` for the value in agorot, so charts share one shape |
+| `POST /me/visit` | Yes | No | Counts today's visit toward the daily streak, on Israel's calendar. Returns `{ "streak": { "days", "best", "lastDay" } }`. Only the first call of a day changes it. `GET /me` returns it as `streak` |
 | `PUT /me/watchlist` | Yes | No | Saves the security ids the player watches. Body `{ "ids": ["TAIX"] }`, up to 20. `GET /me` returns them as `watchlist` |
 | `GET /players/:id/profile` | No | 30s | A player's results: `division`, `thisWeek` (or null) and `honours` counted from finished weeks. Never their holdings |
 | `GET /group` | Yes | No | The player's group with each member's results this week, best first, or `{ "group": null }`. Never holdings |
@@ -116,3 +117,4 @@ Bodies for `POST /admin/clock`:
 | `{ "action": "advance", "to": "next" }` | Jumps to the next market open or close. Each call moves on again |
 | `{ "action": "pause" }`, `{ "action": "resume" }` | Stops or restarts time |
 | `{ "action": "speed", "speed": 7 }` | World time per real time, from 1 to 60 |
+| `{ "action": "trading", "open": false }` | The emergency brake. New orders get `503 TRADING_PAUSED`, while time, prices, fills and the table go on. `"open": true` lifts it. `GET /world` shows it as `clock.tradingPaused` |

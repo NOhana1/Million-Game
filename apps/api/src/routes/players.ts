@@ -13,6 +13,7 @@ import { readBody } from '../body.ts';
 import { worldTime } from '../clock.ts';
 import { ApiError } from '../errors.ts';
 import { findListing, isRange, quotesAt } from '../market/quotes.ts';
+import { israelDay } from '../services/streak.ts';
 import { toAccount } from '../player.ts';
 import { portfolioHistory } from '../services/portfolio-history.ts';
 import type { Order } from '@portfolio-league/engine';
@@ -133,6 +134,13 @@ export function playerRoutes(deps: Deps) {
         value: holdingValue(account, securityId, quotes),
       })),
     });
+  });
+
+  // The app calls this when it opens. Only the first call of a day changes anything.
+  routes.post('/me/visit', signedIn, async (c) => {
+    const streak = await deps.store.recordVisit(c.get('uid'), israelDay(deps.now()));
+    if (!streak) throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+    return c.json({ streak });
   });
 
   routes.get('/me/history', signedIn, async (c) => {

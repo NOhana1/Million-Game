@@ -24,7 +24,7 @@ const PASSWORD_RULES = [
 ];
 
 export function SignIn() {
-  const { status, signUp, signIn, chooseName } = useGame();
+  const { status, signUp, signIn, chooseName, lookAround } = useGame();
   const wide = useWide();
   const [mode, setMode] = useState<Mode>('create');
   const [email, setEmail] = useState('');
@@ -194,6 +194,16 @@ export function SignIn() {
               </Text>
             </Pressable>
           ) : null}
+          {onlyName ? null : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={lookAround}
+              {...hover('link')}
+              style={styles.lookAround}>
+              <Text style={styles.lookAroundText}>Look around first →</Text>
+              <Text style={styles.lookAroundHint}>See the market, the league table and the rules. No account needed.</Text>
+            </Pressable>
+          )}
         </Card>
       </View>
     </ScrollView>
@@ -220,5 +230,15 @@ const styles = StyleSheet.create({
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   notice: { color: colors.up, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   link: { alignItems: 'center', paddingVertical: 4 },
+  lookAround: {
+    alignItems: 'center',
+    borderTopColor: colors.line,
+    borderTopWidth: 1,
+    gap: 3,
+    marginTop: 4,
+    paddingTop: 14,
+  },
+  lookAroundText: { color: colors.brand, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  lookAroundHint: { color: colors.muted, fontFamily: font.body, fontSize: 12, textAlign: 'center' },
   linkText: { color: colors.muted, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
 });

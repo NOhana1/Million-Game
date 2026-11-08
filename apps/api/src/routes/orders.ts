@@ -49,6 +49,9 @@ function decide(
   clock: Clock,
 ): Decision {
   if (!player) throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+  if (clock.tradingPaused) {
+    throw new ApiError(503, 'TRADING_PAUSED', 'Trading is paused for a short while. Your orders are safe.');
+  }
   if (player.pendingOrders.length >= MAX_PENDING_ORDERS) {
     throw new ApiError(409, 'TOO_MANY_PENDING', 'Wait for some orders to fill first.');
   }

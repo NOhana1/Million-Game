@@ -85,6 +85,18 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.equal((await store.getPlayer(ownerId))?.groupId, undefined);
     });
 
+    it('counts a visit once a day, without touching the rest of the player', async () => {
+      const uid = newUid();
+      assert.equal(await store.recordVisit(uid, '2026-11-07'), null);
+      await store.createPlayer(player(uid));
+      assert.equal((await store.recordVisit(uid, '2026-11-07'))?.days, 1);
+      assert.equal((await store.recordVisit(uid, '2026-11-07'))?.days, 1);
+      assert.deepEqual(await store.recordVisit(uid, '2026-11-08'), { days: 2, best: 2, lastDay: '2026-11-08' });
+      const stored = await store.getPlayer(uid);
+      assert.equal(stored?.streak?.days, 2);
+      assert.equal(stored?.name, 'Noa');
+    });
+
     it('saves a watchlist without touching the rest of the player', async () => {
       const uid = newUid();
       assert.equal(await store.setWatchlist(uid, ['TAIX']), false);

@@ -9,7 +9,7 @@ const STAR = 'M11.525 2.295a.53.53 0 0 1 .95 0l2.31 4.679a2.123 2.123 0 0 0 1.59
 
 /** Adds a security to the player's watchlist, or takes it off. */
 export function WatchStar({ id, name, size = 20 }: { id: string; name: string; size?: number }) {
-  const { me, toggleWatch } = useGame();
+  const { me, toggleWatch, join } = useGame();
   const watching = me?.watchlist?.includes(id) ?? false;
   return (
     <Pressable
@@ -17,7 +17,7 @@ export function WatchStar({ id, name, size = 20 }: { id: string; name: string; s
       accessibilityLabel={`${watching ? 'Stop watching' : 'Watch'} ${name}`}
       aria-selected={watching}
       hitSlop={8}
-      onPress={() => toggleWatch(id)}
+      onPress={() => (me ? toggleWatch(id) : join())}
       {...hover('link')}
       style={styles.star}>
       <Svg width={size} height={size} viewBox="0 0 24 24">

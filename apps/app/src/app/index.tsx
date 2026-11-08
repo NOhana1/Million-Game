@@ -8,6 +8,7 @@ import { DivisionTag } from '@/components/division-badge';
 import { GoalBar } from '@/components/goal';
 import { MarketCompare, WeekSummary } from '@/components/league-cards';
 import { OrderTicket } from '@/components/order-ticket';
+import { TodayCard } from '@/components/today-card';
 import { RecapCard } from '@/components/recap-card';
 import { Spark } from '@/components/spark';
 import { NewsStrip } from '@/components/news-strip';
@@ -187,7 +188,7 @@ function useSparks() {
 }
 
 export default function MarketScreen() {
-  const { market, me } = useGame();
+  const { market, me, join } = useGame();
   const { table, previous } = useLeague();
   const wide = useWide();
   const sparks = useSparks();
@@ -217,6 +218,7 @@ export default function MarketScreen() {
       {wide ? null : cash}
       <Page>
         <WeekSummary previous={previous} />
+        <TodayCard />
         {wide ? (
           <View style={styles.top}>
             {cash}
@@ -276,7 +278,7 @@ export default function MarketScreen() {
                 key={item.id}
                 item={item}
                 spark={sparks[item.id]}
-                onBuy={() => setSelectedId(item.id)}
+                onBuy={() => (me ? setSelectedId(item.id) : join())}
               />
             ))}
           </View>

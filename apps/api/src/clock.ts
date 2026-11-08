@@ -8,6 +8,9 @@ export type Clock = {
   anchorReal: number;
   speed: number; // world milliseconds per real millisecond
   paused: boolean;
+  // The emergency brake: new orders are refused while prices, settlement and the table go on.
+  // Kept on the clock because every order already reads it, so checking it costs nothing.
+  tradingPaused?: boolean;
 };
 
 const DEFAULT_SPEED = 7; // one world week per real day
@@ -41,6 +44,9 @@ export const paused = (clock: Clock, realNow: number, value: boolean): Clock => 
   ...reanchored(clock, realNow),
   paused: value,
 });
+
+/** Time doesn't move, so there's no need for a new anchor. */
+export const withTrading = (clock: Clock, open: boolean): Clock => ({ ...clock, tradingPaused: !open });
 
 export const withSpeed = (clock: Clock, realNow: number, speed: number): Clock => ({
   ...reanchored(clock, realNow),

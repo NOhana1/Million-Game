@@ -4,6 +4,7 @@
 import type { Agorot, Division, Order, Ranked, Units, WeekRecord } from '@portfolio-league/engine';
 
 import type { Clock } from '../clock.ts';
+import type { Streak } from '../services/streak.ts';
 
 export type Player = {
   uid: string;
@@ -17,6 +18,7 @@ export type Player = {
   goal?: Agorot; // the portfolio value the player is aiming for
   watchlist?: string[]; // the security ids they follow
   groupId?: string; // a player is in one group at most
+  streak?: Streak; // days in a row the player opened the game
 };
 
 export type GroupMember = { id: string; name: string; joinedAt: number };
@@ -113,6 +115,11 @@ export type Store = {
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
   /** Changes only the goal, so it can't overwrite a fill. False means there's no such player. */
   setGoal(uid: string, goal: number): Promise<boolean>;
+  /**
+   * Counts today's visit toward the streak, changing only the streak. All or nothing, so two tabs
+   * opening at once count once. Null means there's no such player.
+   */
+  recordVisit(uid: string, today: string): Promise<Streak | null>;
   /** Changes only the watchlist, for the same reason. False means there's no such player. */
   setWatchlist(uid: string, ids: string[]): Promise<boolean>;
   /**

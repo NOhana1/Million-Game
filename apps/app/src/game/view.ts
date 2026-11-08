@@ -199,6 +199,7 @@ const PROBLEM_TEXT: Record<string, string> = {
   POSITION_LIMIT: 'This would put more than 20% of your portfolio in one security.',
   TOO_MANY_PENDING: 'You have too many orders waiting. Wait for some to fill.',
   ORDER_SETTLING: 'An earlier order is filling right now. Please try again in a moment.',
+  TRADING_PAUSED: 'Trading is paused for a short while. Your orders and money are safe.',
 };
 
 export const problemText = (code: string) =>
