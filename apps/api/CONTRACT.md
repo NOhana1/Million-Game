@@ -14,6 +14,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | Method and path | Sign-in | Cached | Purpose |
 |---|---|---|---|
 | `GET /health` | No | No | Is the API up, and which version |
+| `GET /status` | No | 60s | For the watchdog: the clock, how far fills have got (`settledUpTo`) and `fills: {late, slotLateSeconds, overdueOrders}`. Reads only |
 | `POST /players` | Yes | No | Create the player. Body `{ "name": "Noa" }`, 2 to 24 characters. Returns 201, or 200 with the existing player, who is never reset |
 | `GET /me` | Yes | No | The player's portfolio. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 | `GET /world` | No | 5s | World time, the clock's `speed` and `paused`, and for each market whether it's open and when that next changes |

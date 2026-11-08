@@ -1,0 +1,49 @@
+# The watchdog. About every 15 minutes it checks that the live game is up and that orders are
+# being filled on time, and opens one issue (emailed by GitHub) if not. It only reads: it never
+# places orders, moves money or touches the clock. See "Watchdog" in the README.
+#
+# Scheduled runs only start from the main branch. The button can also check a branch's preview.
+
+name: Watchdog
+
+on:
+  schedule:
+    - cron: '3,18,33,48 * * * *' # between the backup alarm's knocks
+  workflow_dispatch:
+    inputs:
+      target:
+        description: 'What to check'
+        type: choice
+        options: [live, this branch's preview]
+        default: live
+      send_alert:
+        description: 'Open, update or close the alert issue (off = report only)'
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write # for the alert issue only
+
+concurrency:
+  group: watchdog
+
+jobs:
+  watch:
+    name: Check the game
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check, and alert if something is wrong
+        run: node scripts/watchdog.mjs
+        env:
+          SITE_URL: ${{ inputs.target == 'this branch''s preview' && format('https://million-game-git-{0}-portfolio-league.vercel.app', github.ref_name) || 'https://million-game-three.vercel.app' }}
+          VERCEL_BYPASS: ${{ inputs.target == 'this branch''s preview' && secrets.VERCEL_BYPASS || '' }}
+          # Scheduled runs always alert. A button press alerts only when asked.
+          SEND_ALERT: ${{ github.event_name == 'schedule' || inputs.send_alert }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
