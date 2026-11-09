@@ -299,9 +299,6 @@ export default function LeagueScreen() {
         <Link href="/guide" style={styles.link} {...hover('link')}>
           Full rules
         </Link>
-        <Link href="/admin" style={styles.link} {...hover('link')}>
-          World clock
-        </Link>
       </View>
     </Page>
   );

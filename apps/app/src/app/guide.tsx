@@ -83,7 +83,7 @@ const APP: Line[] = [
   { term: 'League', text: 'Your division, this week’s table and last week’s top 3.' },
   {
     term: 'World clock',
-    text: 'At the bottom of the League page. Moving the clock needs a code, because it changes the time for everyone.',
+    text: 'Everyone shares one clock. It runs by itself, and only the game’s owner can move it, because it changes the time for everyone.',
   },
 ];
 

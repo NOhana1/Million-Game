@@ -52,13 +52,13 @@ Why not real prices? A real feed would tie the game to market hours and to a pai
 
 The clock runs by itself at 7× speed, so one game week passes in about one real day.
 
-1. Open the live link, go to **League**, and press **World clock** at the bottom. It's also at `/admin`. Without an account, press **Look around first** on the sign-up page to get there.
-2. Enter the clock code. **I'll send it to you by email.** It's never in the repo.
+1. Open **https://million-game-three.vercel.app/admin**. There's no link to it in the game, so players don't see it. It opens without an account.
+2. Enter the clock code and press **Unlock**. **I'll send it to you by email.** It's never in the repo. Until the server accepts the code, the page shows only the code box.
 3. Press **Jump to...** to go to the next market open or close. You can also stop and start time, or set the speed (real time, 7×, 30× or 60×).
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
 
-The code can move the clock and, lower on the same page, show the **Players** list, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. It shows names only, no emails, and it can't change players or orders. The server checks the code, and the screen keeps it in memory only. Anyone can see the World clock link, but it does nothing without the code.
+The code can move the clock and, lower on the same page, show the **Players** list, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. It shows names only, no emails, and it can't change players or orders. The server checks the code, and the screen keeps it in memory only. The page has no link in the game, so players don't come across it. Anyone who types the address sees it, but it does nothing without the code.
 
 ## The daily feature: Divisions
 
