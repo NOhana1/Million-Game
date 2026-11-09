@@ -46,7 +46,7 @@ const PRUNE_ABOVE = 5_000; // entries kept before expired ones are cleared out
 /** Which limit a request falls under, or null for the health check. */
 export function categoryOf(method: string, path: string): Category | null {
   if (path.endsWith('/health')) return null;
-  if (path.endsWith('/tick') || path.endsWith('/admin/clock')) return 'secret';
+  if (path.endsWith('/tick') || path.includes('/admin/')) return 'secret';
   const reading = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
   if (reading && COSTLY.some((end) => path.endsWith(end))) return 'costly';
   if (reading) return 'read';

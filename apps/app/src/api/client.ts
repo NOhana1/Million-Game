@@ -109,6 +109,10 @@ export type ClockChange =
   | { action: 'speed'; speed: number }
   | { action: 'trading'; open: boolean };
 
+/** Who's in the game, for the admin page. Names only. */
+export type RosterRow = { id: string; name: string };
+export type Roster = { players: RosterRow[]; bots: RosterRow[] };
+
 export type ClockResult = {
   worldTime: number;
   settlement: { status: 'idle' | 'busy' | 'finished' | 'partial'; filled: number };
@@ -178,6 +182,8 @@ export const api = {
     call<unknown>('POST', '/groups', { token, body: { name } }),
   joinGroup: (token: string, code: string) =>
     call<unknown>('POST', '/groups/join', { token, body: { code } }),
+  newGroupCode: (token: string) =>
+    call<{ code: string }>('POST', '/group/code', { token, body: {} }),
   leaveGroup: (token: string) => call<unknown>('POST', '/group/leave', { token, body: {} }),
   removeMember: (token: string, id: string) =>
     call<unknown>('DELETE', `/group/members/${id}`, { token }),
@@ -201,4 +207,5 @@ export const api = {
   finishedWeek: (endsAt: number) => call<LeagueTable>('GET', `/league/weeks/${endsAt}`),
   moveClock: (code: string, change: ClockChange) =>
     call<ClockResult>('POST', '/admin/clock', { token: code, body: change }),
+  roster: (code: string) => call<Roster>('POST', '/admin/players', { token: code }),
 };

@@ -116,6 +116,13 @@ export function groupRoutes(deps: Deps) {
     return c.json({ left: true });
   });
 
+  // The owner can swap the invite code, so an old code that was shared too widely stops working.
+  // People already in the group stay.
+  routes.post('/group/code', signedIn, async (c) => {
+    const group = done(await store.changeGroupCode(c.get('uid'), await unusedCode()));
+    return c.json({ code: group?.code });
+  });
+
   routes.delete('/group/members/:id', signedIn, async (c) => {
     done(await store.removeMember(c.get('uid'), c.req.param('id')));
     return c.json({ removed: true });

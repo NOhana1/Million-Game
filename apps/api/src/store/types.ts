@@ -145,6 +145,8 @@ export type Store = {
   /** The next member takes over from an owner who leaves. The last one out deletes the group. */
   leaveGroup(uid: string): Promise<GroupChange>;
   removeMember(ownerId: string, memberId: string): Promise<GroupChange>;
+  /** Owner only. The old code stops working at once. */
+  changeGroupCode(ownerId: string, code: string): Promise<GroupChange>;
   getGroup(id: string): Promise<Group | null>;
   findGroupByCode(code: string): Promise<Group | null>;
   addMessage(uid: string, message: Omit<ChatMessage, 'uid' | 'name'>): Promise<GroupChange>;

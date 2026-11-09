@@ -231,15 +231,17 @@ export default function LeagueScreen() {
       <Card ruled style={styles.divisions}>
         <View style={styles.divisionsTop}>
           <Text style={styles.title}>Divisions</Text>
-          <Pressable
-            accessibilityRole="button"
-            aria-selected={shown === 'everyone'}
-            onPress={() => setPicked('everyone')}
-            {...hover('link')}>
-            <Text style={[styles.everyone, shown === 'everyone' && styles.everyoneActive]}>
-              Show everyone
-            </Text>
-          </Pressable>
+          {/* Once everyone is shown, it's a label, not a link: pressing it again did nothing. */}
+          {shown === 'everyone' ? (
+            <Text style={[styles.everyone, styles.everyoneActive]}>Showing everyone</Text>
+          ) : (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => setPicked('everyone')}
+              {...hover('link')}>
+              <Text style={styles.everyone}>Show everyone</Text>
+            </Pressable>
+          )}
         </View>
         <Ladder table={table} mine={mine} shown={shown} onShow={setPicked} />
         {mine && week === 'this' ? (
@@ -320,8 +322,9 @@ const styles = StyleSheet.create({
   divisions: { gap: 14 },
   divisionsTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
-  everyone: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
-  everyoneActive: { color: colors.ink, fontWeight: '600', textDecorationLine: 'underline' },
+  // The link looks like a link. Once everyone is shown, it turns into plain grey text.
+  everyone: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600', textDecorationLine: 'underline' },
+  everyoneActive: { color: colors.muted, fontWeight: '500', textDecorationLine: 'none' },
   ladder: { flexDirection: 'row', gap: 6 },
   step: {
     alignItems: 'center',

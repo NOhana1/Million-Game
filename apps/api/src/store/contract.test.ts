@@ -75,6 +75,13 @@ function storeContract(name: string, makeStore: () => Store) {
       });
       assert.equal((await store.getMessages(groupId))[0]?.name, 'Noa');
 
+      const newCode = `N${code.slice(1)}`;
+      assert.deepEqual(await store.changeGroupCode(friendId, newCode), { problem: 'NOT_OWNER' });
+      const changed = await store.changeGroupCode(ownerId, newCode);
+      assert.equal('group' in changed ? changed.group?.code : null, newCode);
+      assert.equal(await store.findGroupByCode(code), null);
+      assert.equal((await store.findGroupByCode(newCode))?.id, groupId);
+
       assert.deepEqual(await store.removeMember(friendId, ownerId), { problem: 'NOT_OWNER' });
       await store.removeMember(ownerId, friendId);
       assert.equal((await store.getPlayer(friendId))?.groupId, undefined);

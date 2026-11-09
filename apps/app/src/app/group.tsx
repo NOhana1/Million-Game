@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { api, ApiProblem, GroupMember, MyGroup } from '@/api/client';
 import { currentToken } from '@/api/session';
+import { Confirm } from '@/components/confirm';
 import { DivisionBadge } from '@/components/division-badge';
 import { GroupChat } from '@/components/group-chat';
 import {
@@ -165,6 +166,9 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
   const wide = useWide();
   const [copied, setCopied] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [busyLeaving, setBusyLeaving] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+  const [busyRenewing, setBusyRenewing] = useState(false);
   const owner = group.members.find((m) => m.owner)?.id === me?.uid;
 
   const copy = async () => {
@@ -201,6 +205,31 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
           <Text style={styles.codeText}>{group.code}</Text>
         </Pressable>
       </View>
+      {owner ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setRenewing(true)}
+          style={[styles.newCode, wide && styles.newCodeWide]}
+          {...hover('link')}>
+          <Text style={styles.newCodeText}>Make a new invite code</Text>
+        </Pressable>
+      ) : null}
+      {renewing ? (
+        <Confirm
+          title="Make a new invite code?"
+          text={`${group.code} stops working at once, so nobody new can join with it. Everyone already in the group stays.`}
+          yes="Make a new code"
+          no="Keep this code"
+          busy={busyRenewing}
+          onYes={async () => {
+            setBusyRenewing(true);
+            await act((token) => api.newGroupCode(token));
+            setBusyRenewing(false);
+            setRenewing(false);
+          }}
+          onNo={() => setRenewing(false)}
+        />
+      ) : null}
 
       <View style={[styles.columns, wide && styles.columnsWide]}>
         <View style={[styles.column, wide && styles.columnMembers]}>
@@ -231,12 +260,24 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
       </View>
 
       <View style={styles.leave}>
-        <Button
-          variant="quiet"
-          label={leaving ? 'Yes, leave this group' : 'Leave group'}
-          onPress={() => (leaving ? act((token) => api.leaveGroup(token)) : setLeaving(true))}
-        />
+        <Button variant="quiet" label="Leave group" onPress={() => setLeaving(true)} />
       </View>
+      {leaving ? (
+        <Confirm
+          title="Leave this group?"
+          text={`You’ll leave ${group.name} and its chat. To come back, you’ll need the invite code again.`}
+          yes="Yes, leave"
+          no="Stay in the group"
+          busy={busyLeaving}
+          onYes={async () => {
+            setBusyLeaving(true);
+            await act((token) => api.leaveGroup(token));
+            setBusyLeaving(false);
+            setLeaving(false);
+          }}
+          onNo={() => setLeaving(false)}
+        />
+      ) : null}
     </Page>
   );
 }
@@ -287,6 +328,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
+  newCode: { alignSelf: 'flex-start', marginTop: -6 },
+  newCodeWide: { alignSelf: 'flex-end' },
+  newCodeText: { color: colors.muted, fontFamily: font.body, fontSize: 13, textDecorationLine: 'underline' },
   codeText: {
     color: colors.brand,
     fontFamily: font.display,

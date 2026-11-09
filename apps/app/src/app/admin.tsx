@@ -13,6 +13,7 @@ import {
   Page,
   Segments,
 } from '@/components/ui';
+import { RosterCard } from '@/components/roster';
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { formatClock, formatDay, formatWorldTime, MARKET_LABEL, nextEvent } from '@/game/view';
 
@@ -149,6 +150,8 @@ export default function AdminScreen() {
           ))}
         </Card>
       ) : null}
+
+      <RosterCard code={code} />
     </Page>
   );
 }

@@ -47,6 +47,11 @@ export function removeProblem(group: Group | null, ownerId: string, memberId: st
   return null;
 }
 
+export function ownerProblem(group: Group | null, ownerId: string) {
+  if (!group) return problem('NO_GROUP');
+  return group.ownerId === ownerId ? null : problem('NOT_OWNER');
+}
+
 /** The name comes from the player, so nobody can post as someone else. */
 export function withMessage(
   messages: readonly ChatMessage[],

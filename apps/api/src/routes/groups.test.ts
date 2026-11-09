@@ -88,6 +88,19 @@ describe('groups', () => {
     assert.equal((await call('noa', 'POST', '/groups', { name: 'Fresh' })).status, 201);
   });
 
+  it('lets only the owner swap the code; the old one stops working and members stay', async () => {
+    const { code } = await start();
+    await friend('dan', code);
+    assert.equal((await call('dan', 'POST', '/group/code')).status, 403);
+    const swapped = await call('noa', 'POST', '/group/code');
+    assert.equal(swapped.status, 200);
+    assert.match(swapped.body.code, /^[A-Z2-9]{6}$/);
+    assert.notEqual(swapped.body.code, code);
+    assert.equal((await friend('eve', code)).status, 404);
+    assert.equal((await call('eve', 'POST', '/groups/join', { code: swapped.body.code })).status, 200);
+    assert.deepEqual(await members('noa'), ['dan', 'eve', 'noa']);
+  });
+
   it('lets only the owner remove a member', async () => {
     const { code } = await start();
     await friend('dan', code);

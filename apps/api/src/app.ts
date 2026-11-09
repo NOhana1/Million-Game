@@ -7,6 +7,7 @@ import { ApiError } from './errors.ts';
 import type { PriceFeed } from './market/feed.ts';
 import { type Limits, LIMITS, RateLimited, rateLimit } from './rate-limit.ts';
 import { clockRoutes } from './routes/clock.ts';
+import { rosterRoutes } from './routes/roster.ts';
 import { statusRoutes } from './routes/status.ts';
 import { groupRoutes } from './routes/groups.ts';
 import { leagueRoutes } from './routes/league.ts';
@@ -66,6 +67,7 @@ export function createApp(deps: Deps) {
   app.route('/', leagueRoutes(deps));
   app.route('/', tickRoutes(deps));
   app.route('/', clockRoutes(deps));
+  app.route('/', rosterRoutes(deps));
   app.route('/', statusRoutes(deps));
 
   return app;
