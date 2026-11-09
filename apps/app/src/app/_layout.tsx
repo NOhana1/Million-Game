@@ -61,14 +61,21 @@ function TabButton({ children, icon, isFocused, ...props }: TabTriggerSlotProps 
 const PLAYERS_ONLY = ['/portfolio', '/group', '/profile/me'];
 
 function Game() {
-  const { status, guest } = useGame();
+  const { status, guest, lookAround } = useGame();
   const wide = useWide();
   const pathname = usePathname();
   const playersOnly = guest && PLAYERS_ONLY.includes(pathname);
   useEffect(() => {
     if (playersOnly) router.replace('/');
   }, [playersOnly]);
+  // The clock page has no link anywhere: the owner and the reviewer open /admin directly. It
+  // opens without an account, because the clock code is what protects it.
+  const adminSignedOut = pathname === '/admin' && status === 'signedOut' && !guest;
+  useEffect(() => {
+    if (adminSignedOut) lookAround();
+  }, [adminSignedOut, lookAround]);
   if (status === 'loading') return <ActivityIndicator style={styles.flex} color={colors.brand} />;
+  if (adminSignedOut) return <ActivityIndicator style={styles.flex} color={colors.brand} />;
   if (status !== 'signedIn' && !guest) return <SignIn />;
 
   return (
@@ -108,7 +115,7 @@ function Game() {
           <TabTrigger name="guide" href="/guide" asChild>
             <TabButton icon="rules">Rules</TabButton>
           </TabTrigger>
-          {/* Reached from a link on the League screen, so it needs no button here. */}
+          {/* No button or link: opened by its address, /admin. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
           <TabTrigger name="security" href="/security/TAIX" style={styles.hidden} />
           <TabTrigger name="profile" href="/profile/me" style={styles.hidden} />
