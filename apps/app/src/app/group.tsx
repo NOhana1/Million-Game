@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { api, ApiProblem, GroupMember, MyGroup } from '@/api/client';
 import { currentToken } from '@/api/session';
+import { Confirm } from '@/components/confirm';
 import { DivisionBadge } from '@/components/division-badge';
 import { GroupChat } from '@/components/group-chat';
 import {
@@ -165,6 +166,7 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
   const wide = useWide();
   const [copied, setCopied] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [busyLeaving, setBusyLeaving] = useState(false);
   const owner = group.members.find((m) => m.owner)?.id === me?.uid;
 
   const copy = async () => {
@@ -231,12 +233,24 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
       </View>
 
       <View style={styles.leave}>
-        <Button
-          variant="quiet"
-          label={leaving ? 'Yes, leave this group' : 'Leave group'}
-          onPress={() => (leaving ? act((token) => api.leaveGroup(token)) : setLeaving(true))}
-        />
+        <Button variant="quiet" label="Leave group" onPress={() => setLeaving(true)} />
       </View>
+      {leaving ? (
+        <Confirm
+          title="Leave this group?"
+          text={`You’ll leave ${group.name} and its chat. To come back, you’ll need the invite code again.`}
+          yes="Yes, leave"
+          no="Stay in the group"
+          busy={busyLeaving}
+          onYes={async () => {
+            setBusyLeaving(true);
+            await act((token) => api.leaveGroup(token));
+            setBusyLeaving(false);
+            setLeaving(false);
+          }}
+          onNo={() => setLeaving(false)}
+        />
+      ) : null}
     </Page>
   );
 }

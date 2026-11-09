@@ -41,10 +41,11 @@ export function RosterCard({ code }: { code: string }) {
   const active = roster?.players.filter((p) => p.activeToday).length ?? 0;
 
   return (
+    <>
     <Card style={styles.card}>
       <Text style={styles.title}>Players</Text>
       <Text style={styles.hint}>
-        Everyone who signed up, and the bots, kept apart. Only someone with the clock code can see
+        Everyone who signed up, and the bots below it. Only someone with the clock code can see
         this. Emails aren’t shown.
       </Text>
       <Button
@@ -63,7 +64,8 @@ export function RosterCard({ code }: { code: string }) {
             <Fact value={roster.bots.length} label="bots" />
           </View>
 
-          <Text style={styles.section}>Real players</Text>
+          <Text style={styles.section}>Real players · {roster.players.length}</Text>
+          <Text style={styles.hint}>Signed up with an email.</Text>
           {roster.players.length === 0 ? <Text style={styles.hint}>Nobody has signed up yet.</Text> : null}
           {roster.players.map((player) => (
             <View key={player.id} style={styles.row}>
@@ -86,7 +88,16 @@ export function RosterCard({ code }: { code: string }) {
             </View>
           ))}
 
-          <Text style={styles.section}>Bots</Text>
+        </>
+      ) : null}
+    </Card>
+
+      {roster ? (
+        <Card style={[styles.card, styles.botCard]}>
+          <Text style={styles.title}>Bots · {roster.bots.length}</Text>
+          <Text style={styles.hint}>
+            Made by the game so the table is never empty. Each plays one fixed style.
+          </Text>
           {roster.bots.map((bot) => (
             <View key={bot.id} style={styles.botRow}>
               <Text style={styles.botName} numberOfLines={1}>
@@ -96,9 +107,9 @@ export function RosterCard({ code }: { code: string }) {
               <DivisionBadge division={bot.division} size={14} />
             </View>
           ))}
-        </>
+        </Card>
       ) : null}
-    </Card>
+    </>
   );
 }
 
@@ -113,6 +124,7 @@ function Fact({ value, label }: { value: number; label: string }) {
 
 const styles = StyleSheet.create({
   card: { gap: 12 },
+  botCard: { backgroundColor: colors.page },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
   hint: { color: colors.muted, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
@@ -133,6 +145,6 @@ const styles = StyleSheet.create({
   name: { color: colors.ink, flexShrink: 1, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
   live: { color: colors.up, fontFamily: font.body, fontSize: 12, fontWeight: '600' },
   detail: { color: colors.muted, fontFamily: font.body, fontSize: 13 },
-  botRow: { alignItems: 'center', flexDirection: 'row', gap: 10 },
+  botRow: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: 1, flexDirection: 'row', gap: 10, paddingTop: 8 },
   botName: { color: colors.ink, flex: 1, fontFamily: font.body, fontSize: 14 },
 });
