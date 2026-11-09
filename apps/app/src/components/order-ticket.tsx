@@ -40,6 +40,7 @@ export function OrderTicket({
   const [text, setText] = useState('');
   const [tried, setTried] = useState(false);
   const [sending, setSending] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [serverProblem, setServerProblem] = useState<string | null>(null);
   // One id per order: a retry of the same order reuses it, so it can't be charged twice.
   const [orderId, setOrderId] = useState(newId);
@@ -135,13 +136,15 @@ export function OrderTicket({
             ]}
           />
 
-          <View style={styles.amount}>
+          <View style={[styles.amount, focused && styles.amountFocused]}>
             <Text style={styles.shekel}>₪</Text>
             <TextInput
               accessibilityLabel="Amount in shekels"
               autoFocus
               inputMode="numeric"
+              onBlur={() => setFocused(false)}
               onChangeText={setAmount}
+              onFocus={() => setFocused(true)}
               placeholder="0"
               placeholderTextColor={colors.muted}
               style={styles.input}
@@ -234,6 +237,7 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 16,
   },
+  amountFocused: { borderColor: colors.brand },
   shekel: { color: colors.muted, fontFamily: font.display, fontSize: 30, fontWeight: '500' },
   input: {
     color: colors.ink,
@@ -243,7 +247,10 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     fontWeight: '500',
     minWidth: 0,
-    outlineColor: 'transparent', // the amount box around it is the visible field
+    // No ring of its own: the browser drew a second box inside the amount box. The amount box
+    // shows focus instead.
+    outlineStyle: 'solid',
+    outlineWidth: 0,
     paddingVertical: 10,
   },
   quick: { flexDirection: 'row', gap: 8 },

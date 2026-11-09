@@ -109,6 +109,25 @@ export type ClockChange =
   | { action: 'speed'; speed: number }
   | { action: 'trading'; open: boolean };
 
+/** Everyone in the game, for the admin page. No emails. */
+export type RosterRow = {
+  id: string;
+  name: string;
+  division: Division;
+  rank: number | null;
+  value: number | null; // agorot
+};
+export type RosterPlayer = RosterRow & {
+  joinedAt: number;
+  lastDay: string | null;
+  activeToday: boolean;
+  streakDays: number;
+  holdings: number;
+  pendingOrders: number;
+  inGroup: boolean;
+};
+export type Roster = { checkedAt: number; today: string; players: RosterPlayer[]; bots: RosterRow[] };
+
 export type ClockResult = {
   worldTime: number;
   settlement: { status: 'idle' | 'busy' | 'finished' | 'partial'; filled: number };
@@ -201,4 +220,5 @@ export const api = {
   finishedWeek: (endsAt: number) => call<LeagueTable>('GET', `/league/weeks/${endsAt}`),
   moveClock: (code: string, change: ClockChange) =>
     call<ClockResult>('POST', '/admin/clock', { token: code, body: change }),
+  roster: (code: string) => call<Roster>('POST', '/admin/players', { token: code }),
 };

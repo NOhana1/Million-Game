@@ -58,7 +58,7 @@ The clock runs by itself at 7× speed, so one game week passes in about one real
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
 
-The code can only move the clock. It can't touch players or orders. The server checks it, and the screen keeps it in memory only. Anyone can see the World clock link, but it does nothing without the code.
+The code can move the clock and, lower on the same page, show the **Players** list: everyone who signed up, apart from the bots, with when they joined, when they last opened the game, what they hold and their place this week. It shows no emails, and it can't change players or orders. The server checks the code, and the screen keeps it in memory only. Anyone can see the World clock link, but it does nothing without the code.
 
 ## The daily feature: Divisions
 
@@ -162,7 +162,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 - **Real S&P 500 and Nasdaq numbers.** The game's prices are invented, so a real index would mean nothing next to them. The comparison uses the game's own index funds.
 - **Native apps.** The brief asks for a browser link, so only web has been tested. Some code assumes the browser.
 - **Hebrew and right-to-left layout.** The app is in English. The required work came first.
-- **Firebase custom claims for the clock.** One secret that can only move the clock is simpler and does the same job here.
+- **Firebase custom claims for the clock.** One secret that can only move the clock and read the players list is simpler and does the same job here.
 - **Cloud Functions.** The whole backend runs as a single Vercel function, so it's one host and one deploy.
 
 ## Tomorrow this goes to customers
@@ -176,7 +176,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 227 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 231 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
