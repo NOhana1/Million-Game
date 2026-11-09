@@ -93,6 +93,7 @@ function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }
 }
 
 function Mover({ item, spark }: { item: MarketRow; spark?: number[] }) {
+  const wide = useWide();
   const change = dayChange(item);
   return (
     <Pressable
@@ -106,7 +107,7 @@ function Mover({ item, spark }: { item: MarketRow; spark?: number[] }) {
         <Spark prices={spark} width={64} height={22} />
       </View>
       <Text style={[styles.moverChange, { color: changeColor(change) }]}>{percent(change)}</Text>
-      <Text style={styles.meta} numberOfLines={1}>
+      <Text style={styles.meta} numberOfLines={wide ? 1 : 2}>
         {item.name}
       </Text>
     </Pressable>
@@ -133,14 +134,15 @@ function SecurityRow({
         style={({ pressed }) => [styles.rowLink, pressed && styles.pressed]}>
         <Tile id={item.id} name={item.name} size={wide ? 42 : 38} />
         <View style={styles.names}>
-          <Text style={styles.name} numberOfLines={1} {...namePart}>
+          <Text style={styles.name} numberOfLines={wide ? 1 : 2} {...namePart}>
             {item.name}
           </Text>
           <Text style={styles.meta} numberOfLines={1}>
             {item.sector} · {MARKET_LABEL[item.market]}
           </Text>
         </View>
-        <Spark prices={spark} width={wide ? 132 : 52} height={wide ? 34 : 26} />
+        {/* On a phone the name needs the room more than the mini chart does. */}
+        {wide ? <Spark prices={spark} width={132} height={34} /> : null}
         <View style={wide ? styles.pricesWide : styles.prices}>
           <Text style={styles.price}>{money(displayPrice(item.price), item.market === 'US' ? '$' : '₪')}</Text>
           <Text style={[styles.change, { color: changeColor(change) }]}>{percent(change)}</Text>
