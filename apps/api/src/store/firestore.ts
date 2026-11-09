@@ -8,6 +8,7 @@ import { nextStreak } from '../services/streak.ts';
 import {
   createProblem,
   joinProblem,
+  ownerProblem,
   removeProblem,
   withMember,
   withMessage,
@@ -229,6 +230,18 @@ export function firestoreStore(db: Firestore): Store {
         if (next) tx.set(groupDoc(group.id), next);
         tx.update(playerDoc(memberId), { groupId: FieldValue.delete() });
         return { group: next };
+      });
+    },
+
+    changeGroupCode(ownerId, code) {
+      return db.runTransaction(async (tx) => {
+        const owner = (await tx.get(playerDoc(ownerId))).data() as Player | undefined;
+        const stored = owner?.groupId ? await tx.get(groupDoc(owner.groupId)) : null;
+        const group = (stored?.data() as Group | undefined) ?? null;
+        const problem = ownerProblem(group, ownerId);
+        if (problem || !group) return problem ?? { problem: 'NO_GROUP' };
+        tx.update(groupDoc(group.id), { code });
+        return { group: { ...group, code } };
       });
     },
 

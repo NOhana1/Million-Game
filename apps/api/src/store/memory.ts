@@ -7,6 +7,7 @@ import { nextStreak } from '../services/streak.ts';
 import {
   createProblem,
   joinProblem,
+  ownerProblem,
   removeProblem,
   withMember,
   withMessage,
@@ -162,6 +163,16 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       const next = withoutMember(group, memberId);
       if (next) groups.set(group.id, next);
       delete players.get(memberId)?.groupId;
+      return { group: structuredClone(next) };
+    },
+
+    async changeGroupCode(ownerId, code) {
+      const groupId = players.get(ownerId)?.groupId;
+      const group = groupId ? (groups.get(groupId) ?? null) : null;
+      const problem = ownerProblem(group, ownerId);
+      if (problem || !group) return problem ?? { problem: 'NO_GROUP' };
+      const next = { ...group, code };
+      groups.set(group.id, next);
       return { group: structuredClone(next) };
     },
 

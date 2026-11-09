@@ -78,7 +78,9 @@ function Game() {
       <TradingNotice />
       {wide ? null : <WorldBar />}
       <InstallTip />
-      <Tabs style={[styles.flex, wide && styles.menuOnTop]}>
+      {/* "history": Back returns to the page you came from, such as the League after a profile.
+          Without it, Back always went to the Market. */}
+      <Tabs options={{ backBehavior: 'history' }} style={[styles.flex, wide && styles.menuOnTop]}>
         <TabSlot style={styles.flex} />
         <TabList style={wide ? styles.topMenu : styles.tabs}>
           {wide ? <Brand /> : null}

@@ -36,6 +36,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `POST /groups/join` | Yes | No | Joins with an invite code. Body `{ "code": "R3H2CD" }`. Groups hold up to 20 |
 | `POST /group/leave` | Yes | No | Leaves. The next member takes over from an owner, and the last one out deletes the group |
 | `DELETE /group/members/:id` | Yes | No | The owner removes a member |
+| `POST /group/code` | Yes | No | The owner swaps the invite code. The old one stops working, members stay. Returns `{ code }` |
 | `PUT /me/photo` | Yes | No | Saves a profile photo. Body `{ "photo": "data:image/jpeg;base64,…", "original": "data:image/jpeg;base64,…", "crop": { "zoom": 1.5, "x": 0.1, "y": 0 } }`. `photo` is the 160×160 JPEG everyone sees, up to 60,000 characters. `original` is the larger picture it was cut from, up to 300,000, kept with `crop` so the player can adjust it later |
 | `GET /me/photo` | Yes | No | `{ "saved": { "original", "crop" } }`, or `{ "saved": null }`. Only for the photo's owner |
 | `DELETE /me/photo` | Yes | No | Removes the profile photo |

@@ -197,6 +197,8 @@ export const api = {
     call<unknown>('POST', '/groups', { token, body: { name } }),
   joinGroup: (token: string, code: string) =>
     call<unknown>('POST', '/groups/join', { token, body: { code } }),
+  newGroupCode: (token: string) =>
+    call<{ code: string }>('POST', '/group/code', { token, body: {} }),
   leaveGroup: (token: string) => call<unknown>('POST', '/group/leave', { token, body: {} }),
   removeMember: (token: string, id: string) =>
     call<unknown>('DELETE', `/group/members/${id}`, { token }),

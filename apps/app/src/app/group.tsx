@@ -167,6 +167,8 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
   const [copied, setCopied] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [busyLeaving, setBusyLeaving] = useState(false);
+  const [renewing, setRenewing] = useState(false);
+  const [busyRenewing, setBusyRenewing] = useState(false);
   const owner = group.members.find((m) => m.owner)?.id === me?.uid;
 
   const copy = async () => {
@@ -203,6 +205,31 @@ function GroupPage({ group, onChanged }: { group: MyGroup; onChanged: () => Prom
           <Text style={styles.codeText}>{group.code}</Text>
         </Pressable>
       </View>
+      {owner ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setRenewing(true)}
+          style={[styles.newCode, wide && styles.newCodeWide]}
+          {...hover('link')}>
+          <Text style={styles.newCodeText}>Make a new invite code</Text>
+        </Pressable>
+      ) : null}
+      {renewing ? (
+        <Confirm
+          title="Make a new invite code?"
+          text={`${group.code} stops working at once, so nobody new can join with it. Everyone already in the group stays.`}
+          yes="Make a new code"
+          no="Keep this code"
+          busy={busyRenewing}
+          onYes={async () => {
+            setBusyRenewing(true);
+            await act((token) => api.newGroupCode(token));
+            setBusyRenewing(false);
+            setRenewing(false);
+          }}
+          onNo={() => setRenewing(false)}
+        />
+      ) : null}
 
       <View style={[styles.columns, wide && styles.columnsWide]}>
         <View style={[styles.column, wide && styles.columnMembers]}>
@@ -301,6 +328,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 10,
   },
+  newCode: { alignSelf: 'flex-start', marginTop: -6 },
+  newCodeWide: { alignSelf: 'flex-end' },
+  newCodeText: { color: colors.muted, fontFamily: font.body, fontSize: 13, textDecorationLine: 'underline' },
   codeText: {
     color: colors.brand,
     fontFamily: font.display,
