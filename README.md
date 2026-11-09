@@ -185,7 +185,9 @@ The main decisions are below. All of them, with code references, are in [`packag
 
 **Watchdog:** about every 15 minutes, GitHub checks that the game is up and that orders fill on time, and emails an alert if not. See [watchdog](#watchdog).
 
-**Not built yet:** error tracking (Sentry), encrypted backups (the free Firebase plan has none), a rollback drill, and a load test. Until those exist, I wouldn't go on vacation.
+**Undoing a bad release:** see [rolling back](#rolling-back).
+
+**Not built yet:** error tracking (Sentry), encrypted backups (the free Firebase plan has none), a practised rollback, and a load test. Until those exist, I wouldn't go on vacation.
 
 **Limits I know about:**
 
@@ -194,6 +196,24 @@ The main decisions are below. All of them, with code references, are in [`packag
 - A player with a due order that hasn't filled yet can't place another until it does. The order window says so and opens again by itself, usually within a minute.
 - The table shows the top 500 players. A player below that doesn't see their division yet.
 - `saveSlot` writes everything in one transaction, which is fine up to about 20,000 players and then needs splitting.
+
+## Rolling back
+
+If a release breaks the live game, put the last good version back first and find the cause after.
+
+1. **Vercel → the project → Deployments.** Find the last production deployment that worked, open its menu and choose **Instant Rollback**. It goes live within seconds, with no new build. On the free plan this goes back one release at a time.
+2. **Undo the change in GitHub.** Open the bad PR and press **Revert**, then merge the revert PR once CI passes. Until then, the next merge to `main` would bring the problem back. After a rollback, Vercel still builds new merges but doesn't put them live by itself: when the revert's deployment is ready, open it and choose **Promote**.
+3. **Check it worked.** Open the live link, and run the watchdog by hand (Actions → Watchdog → Run workflow, "live").
+
+What a rollback does **not** undo:
+
+- **Data.** Anything the bad version wrote to Firestore stays. The free plan has no backups, so a bad write must be fixed by hand or by a script.
+- **Firestore rules.** They're published by hand in the Firebase console, not deployed with the code. Republish the previous `firestore.rules` from Git.
+- **Secrets.** Vercel settings aren't part of a deployment. A wrong or missing secret has to be fixed in Vercel, then redeployed.
+
+To stop trading while you work it out, use the emergency brake on the admin page. Never change `WORLD_SEED` on the live project: it would change every price.
+
+This hasn't been practised on the live game, because a practice would take it back a version for a minute.
 
 ## Request limits
 
