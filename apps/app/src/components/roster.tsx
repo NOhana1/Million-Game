@@ -1,4 +1,4 @@
-// Everyone in the game, on the admin page: real players first, then the bots. It needs the clock
+// Everyone in the game, on the admin page: a switch shows the real players or the bots. It needs the clock
 // code, like the clock controls, and shows no emails.
 
 import { useState } from 'react';
@@ -8,7 +8,7 @@ import { api, ApiProblem, Roster, RosterPlayer, RosterRow } from '@/api/client';
 import { toShekels } from '@/game/view';
 
 import { DivisionBadge } from './division-badge';
-import { Button, Card, colors, font, ils } from './ui';
+import { Button, Card, colors, font, ils, Segments } from './ui';
 
 const JOINED = new Intl.DateTimeFormat('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jerusalem' });
 
@@ -25,6 +25,7 @@ export function RosterCard({ code }: { code: string }) {
   const [roster, setRoster] = useState<Roster | null>(null);
   const [loading, setLoading] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
+  const [list, setList] = useState<'players' | 'bots'>('players');
 
   const load = async () => {
     setLoading(true);
@@ -40,13 +41,14 @@ export function RosterCard({ code }: { code: string }) {
 
   const active = roster?.players.filter((p) => p.activeToday).length ?? 0;
 
+  const showing = roster ? (list === 'players' ? roster.players.length : roster.bots.length) : 0;
+
   return (
-    <>
     <Card style={styles.card}>
       <Text style={styles.title}>Players</Text>
       <Text style={styles.hint}>
-        Everyone who signed up, and the bots below it. Only someone with the clock code can see
-        this. Emails aren’t shown.
+        Everyone who signed up, and the bots. Only someone with the clock code can see this.
+        Emails aren’t shown.
       </Text>
       <Button
         variant="quiet"
@@ -64,52 +66,59 @@ export function RosterCard({ code }: { code: string }) {
             <Fact value={roster.bots.length} label="bots" />
           </View>
 
-          <Text style={styles.section}>Real players · {roster.players.length}</Text>
-          <Text style={styles.hint}>Signed up with an email.</Text>
-          {roster.players.length === 0 ? <Text style={styles.hint}>Nobody has signed up yet.</Text> : null}
-          {roster.players.map((player) => (
-            <View key={player.id} style={styles.row}>
-              <View style={styles.rowTop}>
-                <Text style={styles.name} numberOfLines={1}>
-                  {player.name}
-                </Text>
-                {player.activeToday ? <Text style={styles.live}>● Today</Text> : null}
-                <DivisionBadge division={player.division} size={16} />
-              </View>
-              <Text style={styles.detail}>
-                Joined {JOINED.format(player.joinedAt)} · Last opened {lastSeen(player)}
-                {player.streakDays > 1 ? ` · ${player.streakDays} days in a row` : ''}
-              </Text>
-              <Text style={styles.detail}>
-                {player.holdings === 1 ? '1 holding' : `${player.holdings} holdings`}
-                {player.pendingOrders ? ` · ${player.pendingOrders} waiting to fill` : ''}
-                {player.inGroup ? ' · In a group' : ''} · {place(player)}
-              </Text>
-            </View>
-          ))}
+          {/* One list at a time: real players or bots, never mixed. */}
+          <Segments
+            value={list}
+            onChange={setList}
+            options={[
+              { value: 'players', label: `Real players · ${roster.players.length}` },
+              { value: 'bots', label: `Bots · ${roster.bots.length}` },
+            ]}
+          />
+          <Text style={styles.hint}>
+            {list === 'players'
+              ? 'People who signed up with an email, newest first.'
+              : 'Made by the game so the table is never empty. Each plays one fixed style.'}
+          </Text>
+          {showing === 0 ? (
+            <Text style={styles.hint}>
+              {list === 'players' ? 'Nobody has signed up yet.' : 'The bots arrive at the next market open.'}
+            </Text>
+          ) : null}
 
+          {list === 'players'
+            ? roster.players.map((player) => (
+                <View key={player.id} style={styles.row}>
+                  <View style={styles.rowTop}>
+                    <Text style={styles.name} numberOfLines={1}>
+                      {player.name}
+                    </Text>
+                    {player.activeToday ? <Text style={styles.live}>● Today</Text> : null}
+                    <DivisionBadge division={player.division} size={16} />
+                  </View>
+                  <Text style={styles.detail}>
+                    Joined {JOINED.format(player.joinedAt)} · Last opened {lastSeen(player)}
+                    {player.streakDays > 1 ? ` · ${player.streakDays} days in a row` : ''}
+                  </Text>
+                  <Text style={styles.detail}>
+                    {player.holdings === 1 ? '1 holding' : `${player.holdings} holdings`}
+                    {player.pendingOrders ? ` · ${player.pendingOrders} waiting to fill` : ''}
+                    {player.inGroup ? ' · In a group' : ''} · {place(player)}
+                  </Text>
+                </View>
+              ))
+            : roster.bots.map((bot) => (
+                <View key={bot.id} style={styles.botRow}>
+                  <Text style={styles.botName} numberOfLines={1}>
+                    {bot.name.replace(/ \(bot\)$/, '')}
+                  </Text>
+                  <Text style={styles.detail}>{place(bot)}</Text>
+                  <DivisionBadge division={bot.division} size={14} />
+                </View>
+              ))}
         </>
       ) : null}
     </Card>
-
-      {roster ? (
-        <Card style={[styles.card, styles.botCard]}>
-          <Text style={styles.title}>Bots · {roster.bots.length}</Text>
-          <Text style={styles.hint}>
-            Made by the game so the table is never empty. Each plays one fixed style.
-          </Text>
-          {roster.bots.map((bot) => (
-            <View key={bot.id} style={styles.botRow}>
-              <Text style={styles.botName} numberOfLines={1}>
-                {bot.name.replace(/ \(bot\)$/, '')}
-              </Text>
-              <Text style={styles.detail}>{place(bot)}</Text>
-              <DivisionBadge division={bot.division} size={14} />
-            </View>
-          ))}
-        </Card>
-      ) : null}
-    </>
   );
 }
 
@@ -124,7 +133,6 @@ function Fact({ value, label }: { value: number; label: string }) {
 
 const styles = StyleSheet.create({
   card: { gap: 12 },
-  botCard: { backgroundColor: colors.page },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 22, fontWeight: '500' },
   hint: { color: colors.muted, fontFamily: font.body, fontSize: 13, lineHeight: 19 },
   error: { color: colors.down, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
