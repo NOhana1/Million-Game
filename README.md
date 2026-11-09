@@ -23,7 +23,7 @@ Browser ──► Vercel static site (Expo web export)
 Alarm ── POST /api/tick (secret) ──► same function
 ```
 
-## Not proven yet
+## What's proven on the live game
 
 | What | State |
 |---|---|
@@ -58,7 +58,7 @@ The clock runs by itself at 7× speed, so one game week passes in about one real
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
 
-The code can move the clock and, lower on the same page, show the **Players** list, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. It shows names only, no emails, and it can't change players or orders. The server checks the code, and the screen keeps it in memory only. The page has no link in the game, so players don't come across it. Anyone who types the address sees it, but it does nothing without the code.
+The same page has the emergency brake and the **Players** list, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. The list shows names only, no emails, and it can't change players or orders. The server checks the code on every action, and the screen keeps it in memory only. Anyone who types the address sees the code box, but nothing else without the code.
 
 ## The daily feature: Divisions
 
@@ -306,7 +306,7 @@ Every check passing again closes the issue by itself.
 
 ## Running it locally
 
-Needs Node 22 or newer. With no `.env`, the API runs in memory and orders fill every 5 seconds.
+Needs Node 22 or newer. With no `.env`, the API runs in memory, orders fill every 5 seconds, and the clock code at `/admin` is `local`.
 
 ```bash
 npm ci
@@ -328,6 +328,10 @@ npm test --workspace @portfolio-league/engine
 
 ```bash
 npm test --workspace @portfolio-league/api
+```
+
+```bash
+node --test scripts/watchdog.test.mjs
 ```
 
 More detail: [every route](apps/api/CONTRACT.md), [connecting Firebase](apps/api/CONNECT.md), [every rule](packages/engine/RULES.md).
