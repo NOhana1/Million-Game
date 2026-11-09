@@ -5,7 +5,7 @@ import { Avatar } from '@/components/avatar';
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { formatWorldTime, marketsText } from '@/game/view';
 
-import { colors, font, hover } from './ui';
+import { colors, font, hover, useWide } from './ui';
 
 export function OfflineNotice() {
   const { offline } = useGame();
@@ -16,11 +16,15 @@ export function OfflineNotice() {
 /** For a visitor looking around: what they get by joining, and the way in. */
 export function GuestBanner() {
   const { guest, join } = useGame();
+  const wide = useWide();
   if (!guest) return null;
+  // On a phone it's one short line beside the button, so it doesn't take the top of the screen.
   return (
-    <View style={styles.guest}>
-      <Text style={styles.guestText}>
-        You’re looking around. Join free to get ₪1,000,000 and play in the weekly league.
+    <View style={[styles.guest, !wide && styles.guestPhone]}>
+      <Text style={[styles.guestText, !wide && styles.guestTextPhone]} numberOfLines={wide ? undefined : 1}>
+        {wide
+          ? 'You’re looking around. Join free to get ₪1,000,000 and play in the weekly league.'
+          : 'Get ₪1,000,000 to play with.'}
       </Text>
       <Pressable accessibilityRole="button" onPress={join} {...hover('solid')} style={styles.guestButton}>
         <Text style={styles.guestButtonText}>Join free</Text>
@@ -139,7 +143,9 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
+  guestPhone: { flexWrap: 'nowrap', justifyContent: 'space-between', paddingVertical: 6 },
   guestText: { color: colors.ink, flexShrink: 1, fontFamily: font.body, fontSize: 13 },
+  guestTextPhone: { flex: 1 },
   guestButton: { backgroundColor: colors.brand, borderRadius: 3, paddingHorizontal: 14, paddingVertical: 6 },
   guestButtonText: { color: colors.onBrand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
   paused: {
