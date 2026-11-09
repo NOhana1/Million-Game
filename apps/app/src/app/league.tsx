@@ -180,7 +180,7 @@ function TableHead() {
 }
 
 export default function LeagueScreen() {
-  const { me } = useGame();
+  const { me, guest } = useGame();
   const wide = useWide();
   const [week, setWeek] = useState<Week>('this');
   const [picked, setPicked] = useState<Shown | null>(null);
@@ -220,7 +220,9 @@ export default function LeagueScreen() {
             </Text>
           ) : (
             <Text style={styles.heroLabel}>
-              Hold a security this week to join. The table updates at each market open and close.
+              {guest
+                ? 'Join free and buy a security to get on the table. It updates at each market open and close.'
+                : 'Hold a security this week to join. The table updates at each market open and close.'}
             </Text>
           )}
           {week === 'this' && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
@@ -410,7 +412,7 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     width: SCORE,
   },
-  scorePhone: { width: 32 },
+  scorePhone: { width: 44 }, // fits 100
   links: { flexDirection: 'row', gap: 20 },
   link: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
 });
