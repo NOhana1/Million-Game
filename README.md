@@ -28,7 +28,7 @@ Alarm ── POST /api/tick (secret) ──► same function
 | What | State |
 |---|---|
 | Orders filling by themselves on the live game | Working. cron-job.org knocks every minute, and a real order filled with nobody pressing anything. The GitHub backup is unreliable: its 15-minute timer ran by itself only once in about 10 hours, so I don't count on it. Runs by hand work, and a late knock catches up on everything missed |
-| Cold start with real prices | Not measured. Prices rebuild from the start of the world, about 0.2 seconds per game week on my Mac, so it grows with game time |
+| Cold start with real prices | Measured on 2026-11-09 on my Mac: a new server needs about 3.7 seconds to rebuild prices from the start of the world, 23 game weeks in (about 0.16 seconds per game week). A server that's already running answers in about 0.3 seconds, and the minute alarm keeps one running. So mostly the first players after a deploy or in a burst wait. It grows by about 0.16 seconds per real day at 7×. The fix, if it gets too slow, is to save prices at the end of each game week and rebuild only from there |
 | Thousands of players at once | Not load tested |
 | Divisions on the live game | Tested with automated tests, in a browser and on the test site. Divisions first move on live when a game week closes after this version went live |
 
