@@ -109,24 +109,9 @@ export type ClockChange =
   | { action: 'speed'; speed: number }
   | { action: 'trading'; open: boolean };
 
-/** Everyone in the game, for the admin page. No emails. */
-export type RosterRow = {
-  id: string;
-  name: string;
-  division: Division;
-  rank: number | null;
-  value: number | null; // agorot
-};
-export type RosterPlayer = RosterRow & {
-  joinedAt: number;
-  lastDay: string | null;
-  activeToday: boolean;
-  streakDays: number;
-  holdings: number;
-  pendingOrders: number;
-  inGroup: boolean;
-};
-export type Roster = { checkedAt: number; today: string; players: RosterPlayer[]; bots: RosterRow[] };
+/** Who's in the game, for the admin page. Names only. */
+export type RosterRow = { id: string; name: string };
+export type Roster = { players: RosterRow[]; bots: RosterRow[] };
 
 export type ClockResult = {
   worldTime: number;

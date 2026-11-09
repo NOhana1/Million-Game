@@ -58,7 +58,7 @@ The clock runs by itself at 7× speed, so one game week passes in about one real
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
 
-The code can move the clock and, lower on the same page, show the **Players** list: everyone who signed up, apart from the bots, with when they joined, when they last opened the game, what they hold and their place this week. It shows no emails, and it can't change players or orders. The server checks the code, and the screen keeps it in memory only. Anyone can see the World clock link, but it does nothing without the code.
+The code can move the clock and, lower on the same page, show the **Players** list, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. It shows names only, no emails, and it can't change players or orders. The server checks the code, and the screen keeps it in memory only. Anyone can see the World clock link, but it does nothing without the code.
 
 ## The daily feature: Divisions
 

@@ -110,7 +110,7 @@ Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, st
 |---|---|---|
 | `POST /tick` | `Bearer <TICK_SECRET>` | Fills due orders. Called by the cron, never by the app. Returns `{ status, cursor, filled, failed, slots }`, where `slots` lists each market open and close it finished, oldest first |
 | `POST /admin/clock` | `Bearer <CLOCK_SECRET>` | Moves the clock, then fills what became due. Returns `{ worldTime, clock, settlement }` |
-| `POST /admin/players` | `Bearer <CLOCK_SECRET>` | Read-only. Real players and bots, kept apart: `{ checkedAt, today, players, bots }`. No emails. Reads every player once |
+| `POST /admin/players` | `Bearer <CLOCK_SECRET>` | Read-only. Real players and bots, kept apart, names only: `{ players, bots }`. Reads every player once |
 
 Bodies for `POST /admin/clock`:
 

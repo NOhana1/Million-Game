@@ -4,7 +4,7 @@ import { describe, it } from 'node:test';
 
 import { memoryStore } from '../store/memory.ts';
 import { testApp, TEST_WORLD } from '../testing.ts';
-import type { RealPlayer, RosterRow } from './roster.ts';
+import type { RosterRow } from './roster.ts';
 
 const CLOSE = Date.UTC(2026, 10, 9, 15, 30);
 
@@ -47,12 +47,9 @@ describe('/admin/players', () => {
     const response = await roster();
     assert.equal(response.status, 200);
     assert.equal(response.headers.get('Cache-Control'), 'no-store');
-    const body = (await response.json()) as { players: RealPlayer[]; bots: RosterRow[] };
+    const body = (await response.json()) as { players: RosterRow[]; bots: RosterRow[] };
 
     assert.deepEqual(body.players.map((p) => p.name).sort(), ['Dan', 'Noa']);
-    const noa = body.players.find((p) => p.name === 'Noa')!;
-    assert.equal(noa.holdings, 1);
-    assert.equal(noa.pendingOrders, 0);
     assert.ok(body.bots.length > 0);
     assert.ok(body.bots.every((bot) => !body.players.some((p) => p.id === bot.id)));
     assert.doesNotMatch(JSON.stringify(body), /@|email/i);
