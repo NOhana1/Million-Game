@@ -30,7 +30,7 @@ Alarm ── POST /api/tick (secret) ──► same function
 | Orders filling by themselves on the live game | Working. cron-job.org knocks every minute, and a real order filled with nobody pressing anything. The GitHub backup is unreliable: its 15-minute timer ran by itself only once in about 10 hours, so I don't count on it. Runs by hand work, and a late knock catches up on everything missed |
 | Cold start with real prices | Measured on 2026-11-09 on my Mac: a new server needs about 3.7 seconds to rebuild prices from the start of the world, 23 game weeks in (about 0.16 seconds per game week). A server that's already running answers in about 0.3 seconds, and the minute alarm keeps one running. So mostly the first players after a deploy or in a burst wait. It grows by about 0.16 seconds per real day at 7×. The fix, if it gets too slow, is to save prices at the end of each game week and rebuild only from there |
 | Thousands of players at once | Not load tested |
-| Divisions on the live game | Tested with automated tests, in a browser and on the test site. Divisions first move on live when a game week closes after this version went live |
+| Divisions on the live game | Working. Game weeks have closed on live since it shipped: players are spread over all four divisions, and the table shows who's moving up and down |
 
 ## How I built the world
 
@@ -52,7 +52,7 @@ Why not real prices? A real feed would tie the game to market hours and to a pai
 
 The clock runs by itself at 7× speed, so one game week passes in about one real day.
 
-1. Open the live link, go to **League**, and press **World clock** at the bottom. It's also at `/admin`.
+1. Open the live link, go to **League**, and press **World clock** at the bottom. It's also at `/admin`. Without an account, press **Look around first** on the sign-up page to get there.
 2. Enter the clock code. **I'll send it to you by email.** It's never in the repo.
 3. Press **Jump to...** to go to the next market open or close. You can also stop and start time, or set the speed (real time, 7×, 30× or 60×).
 
