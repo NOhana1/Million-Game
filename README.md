@@ -53,7 +53,7 @@ Why not real prices? A real feed would tie the game to market hours and to a pai
 The clock runs by itself at 7× speed, so one game week passes in about one real day.
 
 1. Open **https://million-game-three.vercel.app/admin**. There's no link to it in the game, so players don't see it. It opens without an account.
-2. Enter the clock code. **I'll send it to you by email.** It's never in the repo.
+2. Enter the clock code and press **Unlock**. **I'll send it to you by email.** It's never in the repo. Until the server accepts the code, the page shows only the code box.
 3. Press **Jump to...** to go to the next market open or close. You can also stop and start time, or set the speed (real time, 7×, 30× or 60×).
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
