@@ -25,6 +25,8 @@ export type Deps = {
   store: Store;
   feed: PriceFeed;
   verifyToken: TokenVerifier;
+  /** Whether the account's email is confirmed. Without it, as locally and in tests, every email counts as confirmed. */
+  emailConfirmed?: (uid: string) => Promise<boolean>;
   now: () => number; // real time
   tickSecret: string;
   clockSecret: string;

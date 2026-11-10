@@ -56,6 +56,19 @@ describe('the goal', () => {
 });
 
 describe('players', () => {
+  it('lets a player join only once their email is confirmed', async () => {
+    const confirmed = new Set(['dan']);
+    const app = testApp({ emailConfirmed: async (uid) => confirmed.has(uid) });
+    const refused = await post(app, 'Noa');
+    assert.equal(refused.status, 403);
+    assert.equal(((await refused.json()) as { error: { code: string } }).error.code, 'EMAIL_NOT_CONFIRMED');
+    assert.equal((await me(app)).status, 404);
+
+    confirmed.add('noa');
+    assert.equal((await post(app, 'Noa')).status, 201);
+    assert.equal((await post(app, 'Dan', 'dan')).status, 201);
+  });
+
   it('rejects a missing or invalid token', async () => {
     const app = testApp();
     assert.equal((await app.request('/api/me')).status, 401);

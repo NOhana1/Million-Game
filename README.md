@@ -12,6 +12,7 @@ A weekly virtual trading game. Each player gets ₪1,000,000, buys and sells 20 
 - **All writes go through the server.** The browser can read only its own player and orders. It can never write to the database.
 - **20 labelled bots** in five styles, so a new player sees a real table and not an empty one.
 - **A first-time welcome and a Rules page,** because orders wait for market times, which can look broken to a new player.
+- **A confirmed email to join.** After sign-up, Firebase emails a link, and the server creates the player only once the address is confirmed, so nobody plays under an email that isn't theirs. Players who joined before this rule keep playing.
 - **Divisions, a personal goal, a market comparison and a weekly top 3,** so there's a reason to come back. See [the daily feature](#the-daily-feature-divisions).
 
 ```
@@ -151,7 +152,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 |---|---|---|
 | **Stability rewards cash** | All cash has a drawdown of 0, so it's a free 100 on stability. My table rule removes players who held nothing all week, but "gain on Monday, sell, sit in cash" still works | Score stability only for time spent invested |
 | **85% on one week's return rank** | Rank rewards the extreme, so the best strategy is a concentrated gamble. That's an odd lesson for a financial education product | Lower the weight, or score over several weeks |
-| **Free sign-ups** | Open many accounts, make a wild bet in each, keep the winner. Email isn't verified today, so this works in the game now | Require a verified email at minimum |
+| **Free sign-ups** | Open many accounts, make a wild bet in each, keep the winner. A new player must now confirm their email, but one Gmail inbox still takes endless `name+1@gmail.com` addresses | Score one account per person, for example by phone number |
 | **The 20% limit is per security** | Several stocks in one sector are almost one bet, and they pass the limit | Add a limit per sector |
 | **No fees** | Churn is free | Add a small fee |
 
@@ -176,7 +177,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 232 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 233 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |

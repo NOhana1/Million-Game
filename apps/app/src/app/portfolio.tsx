@@ -7,7 +7,6 @@ import { HoldingsPie, type Slice } from '@/components/holdings-pie';
 import { SLICE_COLORS } from '@/components/palette';
 import { PortfolioChart } from '@/components/portfolio-chart';
 import {
-  Button,
   Card,
   changeColorOnDeep,
   colors,
@@ -64,7 +63,7 @@ function OrderRow({ order }: { order: Order }) {
 }
 
 export default function PortfolioScreen() {
-  const { me, market, orders, signOut } = useGame();
+  const { me, market, orders } = useGame();
   const wide = useWide();
   const [active, setActive] = useState<string | null>(null);
 
@@ -203,10 +202,6 @@ export default function PortfolioScreen() {
           {holdingsCard}
           {orderLists}
         </View>
-
-        <View style={styles.signOut}>
-          <Button variant="quiet" label="Sign out" onPress={signOut} />
-        </View>
       </Page>
     </>
   );
@@ -262,5 +257,4 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   empty: { color: colors.muted, fontFamily: font.body, fontSize: 14, paddingVertical: 10 },
-  signOut: { alignSelf: 'flex-start', marginTop: 12 },
 });

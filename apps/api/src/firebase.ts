@@ -34,6 +34,8 @@ export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
     store: firestoreStore(getFirestore(firebase)),
     feed: worldFeed(config.WORLD_SEED),
     verifyToken,
+    // Read fresh from Firebase, so a player who just clicked the link can join straight away.
+    emailConfirmed: async (uid) => (await auth.getUser(uid)).emailVerified,
     now: Date.now,
     tickSecret: config.TICK_SECRET,
     clockSecret: config.CLOCK_SECRET,

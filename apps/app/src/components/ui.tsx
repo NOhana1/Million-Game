@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -145,6 +145,37 @@ export function Tile({
           </Svg>
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/** A password box with an eye button that shows or hides what was typed. */
+export function PasswordField({ label, ...input }: Omit<TextInputProps, 'secureTextEntry'> & { label: string }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <View style={styles.field}>
+      <Text style={styles.label}>{label}</Text>
+      <View>
+        <TextInput
+          accessibilityLabel={label}
+          placeholderTextColor={colors.muted}
+          style={[styles.input, styles.passwordInput]}
+          secureTextEntry={!visible}
+          {...input}
+        />
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={visible ? 'Hide password' : 'Show password'}
+          onPress={() => setVisible((shown) => !shown)}
+          hitSlop={8}
+          style={styles.eye}>
+          <Svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke={colors.muted} strokeWidth={1.8}>
+            <Path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z" strokeLinejoin="round" />
+            <Circle cx={12} cy={12} r={3} />
+            {visible ? <Path d="M4 4l16 16" strokeLinecap="round" /> : null}
+          </Svg>
+        </Pressable>
+      </View>
     </View>
   );
 }
@@ -298,6 +329,8 @@ const styles = StyleSheet.create({
     outlineColor: colors.brand,
     padding: 13,
   },
+  passwordInput: { paddingRight: 48 },
+  eye: { alignItems: 'center', bottom: 0, justifyContent: 'center', position: 'absolute', right: 0, top: 0, width: 46 },
   button: {
     alignItems: 'center',
     borderRadius: 3,

@@ -109,6 +109,11 @@ export function playerRoutes(deps: Deps) {
 
   routes.post('/players', signedIn, async (c) => {
     const { name } = await readBody(c, NewPlayer);
+    // A new player needs a confirmed email, so nobody plays under an address that isn't theirs.
+    // Players who joined before this rule keep playing: the check is only here, at joining.
+    if (deps.emailConfirmed && !(await deps.emailConfirmed(c.get('uid')))) {
+      throw new ApiError(403, 'EMAIL_NOT_CONFIRMED', 'Confirm your email first. We sent you a link.');
+    }
     const realNow = deps.now();
     const world = worldTime(await deps.store.getClock(realNow), realNow);
     const { player, created } = await deps.store.createPlayer(

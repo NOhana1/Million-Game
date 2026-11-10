@@ -5,6 +5,7 @@ import { FirebaseError, initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
   getAuth,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signInWithEmailAndPassword,
   signOut,
@@ -44,10 +45,30 @@ export async function currentToken(): Promise<string | null> {
   return (await firebase.currentUser?.getIdToken()) ?? null;
 }
 
+/** With real accounts, Firebase also emails a link that confirms the address is theirs. */
 export async function createAccount(email: string, password: string) {
-  if (firebase) await createUserWithEmailAndPassword(firebase, email, password);
-  else storage()?.setItem(KEY, newId());
+  if (!firebase) return storage()?.setItem(KEY, newId());
+  const { user } = await createUserWithEmailAndPassword(firebase, email, password);
+  await sendEmailVerification(user);
 }
+
+/** Whether the signed-in account's email is confirmed. Asks Firebase again, since the link is
+ *  clicked in another tab or app. Without real accounts there's nothing to confirm. */
+export async function emailConfirmed() {
+  if (!firebase) return true;
+  await firebase.authStateReady();
+  const user = firebase.currentUser;
+  if (!user) return false;
+  await user.reload();
+  return user.emailVerified;
+}
+
+export async function resendConfirmation() {
+  const user = firebase?.currentUser;
+  if (user) await sendEmailVerification(user);
+}
+
+export const signedInEmail = () => firebase?.currentUser?.email ?? null;
 
 export async function logIn(email: string, password: string) {
   if (firebase) await signInWithEmailAndPassword(firebase, email, password);

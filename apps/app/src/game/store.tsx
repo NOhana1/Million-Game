@@ -12,7 +12,7 @@ import {
 import { AppState } from 'react-native';
 
 import { api, ApiProblem, MarketData, Me, NewOrder, WorldData } from '@/api/client';
-import { createAccount, currentToken, logIn, logOut } from '@/api/session';
+import { createAccount, currentToken, emailConfirmed, logIn, logOut } from '@/api/session';
 import { visitDue } from '@/game/streak';
 
 // Shared data is cached by the CDN, so it can refresh often. A player's own data reads the
@@ -25,9 +25,11 @@ const ORDERS_AT_LEAST_EVERY_MS = 60_000;
 // The CDN can answer with a copy up to 10 seconds old, which would show the time before a jump.
 const SKIP_CACHE_AFTER_MOVE_MS = 12_000;
 const NOTICE_MS = 8_000;
+const EMAIL_CHECK_MS = 4_000;
 
 type Game = {
-  status: 'loading' | 'signedOut' | 'needsName' | 'signedIn';
+  /** needsEmail: the account exists, but its email isn't confirmed yet, so it can't join. */
+  status: 'loading' | 'signedOut' | 'needsEmail' | 'needsName' | 'signedIn';
   offline: boolean;
   world: WorldData | null;
   market: MarketData | null;
@@ -36,6 +38,8 @@ type Game = {
   signUp(email: string, password: string, name: string): Promise<void>;
   signIn(email: string, password: string): Promise<void>;
   chooseName(name: string): Promise<void>;
+  /** Asks again whether the email is confirmed, and joins with the name given at sign-up if so. */
+  checkEmail(): Promise<boolean>;
   signOut(): Promise<void>;
   placeOrder(order: NewOrder): Promise<void>;
   notice: string | null;
@@ -126,7 +130,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       const code = error instanceof ApiProblem ? error.code : null;
-      if (code === 'PLAYER_NOT_FOUND') return setStatus('needsName');
+      if (code === 'PLAYER_NOT_FOUND') return setStatus((await emailConfirmed()) ? 'needsName' : 'needsEmail');
       if (code !== 'UNAUTHENTICATED') return setOffline(true);
       await logOut();
       setMe(null);
@@ -148,11 +152,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
   }, [refreshShared, refreshOwn]);
 
+  // The name typed at sign-up, kept until the email is confirmed and the player can be created.
+  const nameToJoin = useRef<string | null>(null);
+
   const chooseName = useCallback(
     async (name: string) => {
       const token = await currentToken();
       if (!token) return;
-      await api.createPlayer(token, name);
+      try {
+        await api.createPlayer(token, name);
+      } catch (error) {
+        if (!(error instanceof ApiProblem && error.code === 'EMAIL_NOT_CONFIRMED')) throw error;
+        nameToJoin.current = name;
+        return setStatus('needsEmail');
+      }
+      nameToJoin.current = null;
       await refreshOwn();
     },
     [refreshOwn],
@@ -161,11 +175,37 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const signUp = useCallback(
     async (email: string, password: string, name: string) => {
       await createAccount(email, password);
+      if (!(await emailConfirmed())) {
+        nameToJoin.current = name;
+        return setStatus('needsEmail');
+      }
       setStatus('needsName'); // if naming fails, the account exists and only the name is left
       await chooseName(name);
     },
     [chooseName],
   );
+
+  const checkEmail = useCallback(async () => {
+    if (!(await emailConfirmed())) return false;
+    const name = nameToJoin.current;
+    if (name) await chooseName(name);
+    else setStatus('needsName'); // the page was reloaded since sign-up, so ask for the name again
+    return true;
+  }, [chooseName]);
+
+  // The link is clicked in another tab or in the email app, so keep looking while waiting.
+  useEffect(() => {
+    if (status !== 'needsEmail') return;
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') checkEmail().catch(() => undefined);
+    }, EMAIL_CHECK_MS);
+    return () => clearInterval(timer);
+  }, [status, checkEmail]);
+
+  // If the regular refresh noticed the confirmation first, join with the name already given.
+  useEffect(() => {
+    if (status === 'needsName' && nameToJoin.current) chooseName(nameToJoin.current).catch(() => undefined);
+  }, [status, chooseName]);
 
   const signIn = useCallback(
     async (email: string, password: string) => {
@@ -176,6 +216,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
+    nameToJoin.current = null;
     await logOut();
     setMe(null);
     setOrders([]);
@@ -243,6 +284,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       chooseName,
+      checkEmail,
       signOut,
       placeOrder,
       notice,
@@ -267,6 +309,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       chooseName,
+      checkEmail,
       signOut,
       placeOrder,
       notice,
