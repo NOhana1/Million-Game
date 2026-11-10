@@ -11,7 +11,7 @@ import {
   View,
 } from "react-native";
 
-import { api, Profile } from "@/api/client";
+import { api, ApiProblem, Profile } from "@/api/client";
 import { currentToken } from "@/api/session";
 import { AccountEditor } from "@/components/account-editor";
 import { Avatar } from "@/components/avatar";
@@ -161,7 +161,7 @@ export default function ProfileScreen() {
   const { me, market, orders, signOut } = useGame();
   const wide = useWide();
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [failed, setFailed] = useState<"gone" | "error" | null>(null);
   const [editing, setEditing] = useState(false);
   // Changes after a rename, so the page asks past the CDN's copy for the new name.
   const [fresh, setFresh] = useState<number | undefined>(undefined);
@@ -171,11 +171,15 @@ export default function ProfileScreen() {
     if (!uid) return;
     let current = true;
     if (!fresh) setProfile(null);
-    setFailed(false);
+    setFailed(null);
     api
       .profile(uid, fresh)
       .then((result) => current && setProfile(result))
-      .catch(() => current && setFailed(true));
+      .catch(
+        (error) =>
+          current &&
+          setFailed(error instanceof ApiProblem && error.status === 404 ? "gone" : "error"),
+      );
     return () => {
       current = false;
     };
@@ -190,12 +194,12 @@ export default function ProfileScreen() {
   if (failed) {
     return (
       <Page maxWidth={640}>
-        <Text style={styles.empty}>We can’t find that player.</Text>
-        <Button
-          variant="quiet"
-          label="Back to the league"
-          onPress={() => router.replace("/league")}
-        />
+        <Text style={styles.empty}>
+          {failed === "gone"
+            ? "This player is no longer in the game."
+            : "We can’t load this player right now. Please try again."}
+        </Text>
+        <Button variant="quiet" label="Back" onPress={back} />
       </Page>
     );
   }

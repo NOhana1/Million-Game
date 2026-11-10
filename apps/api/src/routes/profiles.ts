@@ -19,10 +19,14 @@ export function profileRoutes(deps: Deps) {
 
   routes.get('/players/:id/profile', async (c) => {
     const id = c.req.param('id');
+    // A deleted player still appears in past weeks' results, so a real player must still exist.
+    // Bots have no player record; they're only in the league.
+    const player = id.startsWith('bot-') ? null : await deps.store.getPlayer(id);
+    if (!id.startsWith('bot-') && !player) throw new ApiError(404, 'PLAYER_NOT_FOUND', 'No such player.');
     const table = await deps.store.getTable();
     const weeks = await finishedWeeks(table?.previousWeekEndsAt ?? null);
     const row = table?.rows.find((r) => r.id === id);
-    const name = row?.name ?? nameIn(weeks, id) ?? (await deps.store.getPlayer(id))?.name;
+    const name = player?.name ?? row?.name ?? nameIn(weeks, id);
     if (!name) throw new ApiError(404, 'PLAYER_NOT_FOUND', 'No such player.');
 
     const photos = await deps.store.getPhotos([id]);

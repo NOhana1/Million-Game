@@ -112,6 +112,8 @@ describe('DELETE /admin/players/:id', () => {
 
     const response = await remove('noa');
     assert.equal(response.status, 200);
+    // Past weeks still list Noa, but their page is gone.
+    assert.equal((await app.request('/api/players/noa/profile')).status, 404);
     assert.deepEqual(deleted, ['noa']);
     assert.equal(await store.getPlayer('noa'), null);
     assert.deepEqual(await store.listOrders('noa', { limit: 10 }), []);
