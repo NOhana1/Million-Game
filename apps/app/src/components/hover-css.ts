@@ -8,11 +8,6 @@ const on = (kind: string) => `[data-hover="${kind}"]:not([aria-disabled="true"])
 const idle = (kind: string) =>
   `[data-hover="${kind}"]:not([aria-disabled="true"]):not([aria-selected="true"]):hover`;
 
-const STAGGER_STEP = 0.05;
-const staggered = [1, 2, 3, 4, 5, 6, 7, 8]
-  .map((n) => `[data-rise] > :nth-child(${n}) { animation-delay: ${n * STAGGER_STEP}s; }`)
-  .join('\n');
-
 export const HOVER_CSS = `
 :root { color-scheme: dark; }
 html, body { background: ${colors.page}; }
@@ -26,9 +21,9 @@ input:-webkit-autofill { -webkit-text-fill-color: ${colors.ink}; box-shadow: 0 0
 }
 [data-hover]:focus-visible { outline: 2px solid ${colors.brand}; outline-offset: 2px; }
 
-@keyframes rise { from { opacity: .4; transform: translateY(12px); } }
-[data-rise] > * { animation: rise .5s cubic-bezier(.2, .7, .2, 1) both; }
-${staggered}
+/* A game screen loads straight into the task: one quick fade, no sections sliding in one by one. */
+@keyframes rise { from { opacity: .6; } }
+[data-rise] { animation: rise .15s ease-out both; }
 
 @keyframes tape { to { transform: translateX(-50%); } }
 [data-tape] { animation: tape 70s linear infinite; }
@@ -59,6 +54,6 @@ ${staggered}
 @media (prefers-reduced-motion: reduce) {
   [data-hover], [data-hover] *, input { transition: none; }
   [data-hover]:hover { transform: none !important; }
-  [data-rise] > *, [data-tape], [data-news], [data-breathe] { animation: none; }
+  [data-rise], [data-tape], [data-news], [data-breathe] { animation: none; }
 }
 `;

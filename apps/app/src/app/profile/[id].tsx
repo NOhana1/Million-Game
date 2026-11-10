@@ -294,7 +294,7 @@ export default function ProfileScreen() {
           />
           {mine && me?.streak ? (
             <>
-              <Stat label="Daily streak" value={`🔥 ${me.streak.days}`} />
+              <Stat label="Daily streak" value={`${me.streak.days} ${me.streak.days === 1 ? 'day' : 'days'}`} />
               <Stat label="Best streak" value={String(me.streak.best)} />
             </>
           ) : null}

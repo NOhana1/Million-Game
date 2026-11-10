@@ -53,7 +53,7 @@ export const changeColor = (n: number) =>
 export const changeColorOnDeep = (n: number) =>
   n > 0.004 ? colors.upOnDeep : n < -0.004 ? colors.downOnDeep : colors.onDeep;
 
-/** A scrolling screen. Its sections rise into place one after another. */
+/** A scrolling screen. It fades in quickly, so a new page doesn't look like a flash. */
 export function Page({ children, maxWidth = 1160 }: { children: ReactNode; maxWidth?: number }) {
   const wide = useWide();
   return (
@@ -80,7 +80,7 @@ export function Card({
   return <View style={[ruled ? styles.ruled : styles.card, style]}>{children}</View>;
 }
 
-/** The small spaced capitals above a heading or a number. */
+/** A quiet label above a number or a group of facts, in plain sentence case. */
 export function Eyebrow({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
   return <Text style={[styles.eyebrow, style]}>{children}</Text>;
 }
@@ -274,10 +274,8 @@ const styles = StyleSheet.create({
   eyebrow: {
     color: colors.muted,
     fontFamily: font.body,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 1.6,
-    textTransform: 'uppercase',
+    fontSize: 13,
+    fontWeight: '500',
   },
   pill: {
     borderColor: colors.deepSoft,
