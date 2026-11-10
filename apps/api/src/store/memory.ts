@@ -13,6 +13,7 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
+import { nameKey } from './player-names.ts';
 import { shardsWithout, tableWithout } from './player-removal.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
@@ -20,6 +21,19 @@ export type MemoryStore = Store & { setClock(next: Clock): void };
 
 export function memoryStore(startClock?: Clock): MemoryStore {
   const players = new Map<string, Player>();
+  // Built from the players on first use, like Firestore's one-time catch-up. The earliest keeps a
+  // name that two players already share.
+  let names: Map<string, string> | null = null;
+  const nameOwners = () => {
+    if (!names) {
+      names = new Map();
+      for (const player of [...players.values()].sort((a, b) => a.createdAt - b.createdAt)) {
+        const key = nameKey(player.name);
+        if (!names.has(key)) names.set(key, player.uid);
+      }
+    }
+    return names;
+  };
   const orders = new Map<string, Map<string, Order>>();
   let clock = startClock;
   let cursor = WORLD_START;
@@ -48,6 +62,18 @@ export function memoryStore(startClock?: Clock): MemoryStore {
 
     async getPlayer(uid) {
       return structuredClone(players.get(uid) ?? null);
+    },
+
+    async nameOwner(key) {
+      return nameOwners().get(key) ?? null;
+    },
+
+    async claimName(key, uid) {
+      const owners = nameOwners();
+      const owner = owners.get(key);
+      if (owner && owner !== uid) return false;
+      owners.set(key, uid);
+      return true;
     },
 
     async createPlayer(player) {
@@ -217,6 +243,9 @@ export function memoryStore(startClock?: Clock): MemoryStore {
         shards = shards.map((shard) => (shard.id === changed.id ? changed : shard));
       }
       table = tableWithout(table, uid) ?? table;
+      // Free their name. If the names aren't built yet, they'll be built later without this player.
+      const player = players.get(uid);
+      if (player && names?.get(nameKey(player.name)) === uid) names.delete(nameKey(player.name));
       players.delete(uid);
       orders.delete(uid);
       photos.delete(uid);

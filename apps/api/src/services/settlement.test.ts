@@ -45,7 +45,8 @@ function world(startAt = TEST_WORLD): World {
 const headers = (uid: string) => ({ Authorization: `Bearer ${uid}`, 'Content-Type': 'application/json' });
 
 async function join(w: World, uid = 'noa') {
-  await w.app.request('/api/players', { method: 'POST', headers: headers(uid), body: '{"name":"Noa"}' });
+  const body = JSON.stringify({ name: `Player ${uid}` }); // names are unique
+  await w.app.request('/api/players', { method: 'POST', headers: headers(uid), body });
 }
 
 async function order(w: World, fields: Record<string, unknown>, uid = 'noa', id: string = randomUUID()) {

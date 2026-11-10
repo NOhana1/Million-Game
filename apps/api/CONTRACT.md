@@ -15,7 +15,8 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 |---|---|---|---|
 | `GET /health` | No | No | Is the API up, and which version |
 | `GET /status` | No | 60s | For the watchdog: the clock, how far fills have got (`settledUpTo`) and `fills: {late, slotLateSeconds, overdueOrders}`. Reads only |
-| `POST /players` | Yes | No | Create the player. Body `{ "name": "Noa" }`, 2 to 24 characters. Returns 201, or 200 with the existing player, who is never reset. 403 `EMAIL_NOT_CONFIRMED` until the account's email is confirmed |
+| `POST /players` | Yes | No | Create the player. Body `{ "name": "Noa" }`, 2 to 24 characters. Returns 201, or 200 with the existing player, who is never reset. 403 `EMAIL_NOT_CONFIRMED` until the account's email is confirmed. 409 `NAME_TAKEN` if another player has the name, ignoring capitals and spaces, or it's a bot's name |
+| `GET /players/name?name=Noa` | No | No | Whether a name is free, before an account exists. Returns `{ "available": true, "problem": null }`, or `false` with a message to show |
 | `GET /me` | Yes | No | The player's portfolio. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 | `GET /world` | No | 5s | World time, the clock's `speed` and `paused`, and for each market whether it's open and when that next changes |
 | `GET /market` | No | 5s | All securities with `price`, `priceDayAgo`, `usdIls` and `usdIlsDayAgo` |
@@ -66,6 +67,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `UNKNOWN_SECURITY` | 404 | No such security |
 | `PLAYER_NOT_FOUND` | 404 | Call `POST /players` first |
 | `EMAIL_NOT_CONFIRMED` | 403 | Click the link Firebase emailed, then call `POST /players` again |
+| `NAME_TAKEN` | 409 | Choose another name |
 | `INVALID_BODY` | 400 | The request is malformed |
 | `UNAUTHENTICATED` | 401 | Sign in again |
 
@@ -114,7 +116,7 @@ Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, st
 | `POST /admin/players` | `Bearer <CLOCK_SECRET>` | Read-only. Real players and bots, kept apart, names only: `{ players, bots }`. Reads every player once |
 | `POST /admin/bots` | `Bearer <CLOCK_SECRET>` | Adds one bot: random style, random division, its own picks bought at once (they fill at the next market open or close, when it joins the table). Starts the league if it hasn't started. `409 BUSY` while the league updates. Returns `201 { bot: { id, name } }` |
 | `DELETE /admin/bots/:id` | `Bearer <CLOCK_SECRET>` | Removes a bot from the league and the table. Past weeks keep its results. `404 NO_BOT` if it isn't a bot; `409 BUSY` while the league updates. Returns `{ deleted: true }` |
-| `DELETE /admin/players/:id` | `Bearer <CLOCK_SECRET>` | Deletes a real player: game data, group spot, photo, orders, league place, then their sign-in, so the email can sign up again. Past weeks keep their results. `409 BUSY` while the league updates; `400 BOT` for a bot. Safe to repeat. Returns `{ deleted: true }` |
+| `DELETE /admin/players/:id` | `Bearer <CLOCK_SECRET>` | Deletes a real player: game data, group spot, photo, orders, league place and name (free for others again), then their sign-in, so the email can sign up again. Past weeks keep their results. `409 BUSY` while the league updates; `400 BOT` for a bot. Safe to repeat. Returns `{ deleted: true }` |
 
 Bodies for `POST /admin/clock`:
 

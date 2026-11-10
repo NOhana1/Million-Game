@@ -134,6 +134,14 @@ describe('DELETE /admin/players/:id', () => {
     assert.equal(fresh?.groupId, undefined);
   });
 
+  it('frees the deleted player’s name for someone else', async () => {
+    const { remove, join } = setup();
+    assert.equal((await join('noa', 'Noa')).status, 201);
+    assert.notEqual((await join('dan', 'noa')).status, 201, 'taken while Noa plays');
+    assert.equal((await remove('noa')).status, 200);
+    assert.equal((await join('dan', 'Noa')).status, 201);
+  });
+
   it('can be repeated, and won’t delete a bot', async () => {
     const { store, remove, join, close } = setup();
     await join('noa', 'Noa');

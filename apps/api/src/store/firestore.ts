@@ -14,6 +14,7 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
+import { nameKey } from './player-names.ts';
 import { shardsWithout, tableWithout } from './player-removal.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
@@ -31,6 +32,40 @@ export function firestoreStore(db: Firestore): Store {
   const shardDocs = db.collection('leagueShards');
   const weekDocs = db.collection('leagueWeeks');
   const playerDoc = (uid: string) => db.collection('players').doc(uid);
+  // One document per taken name, so two sign-ups can't take the same name at once. The id is
+  // encoded, since a name may hold a slash.
+  const nameDoc = (key: string) => db.collection('playerNames').doc(`n_${encodeURIComponent(key)}`);
+  const namesReadyDoc = db.doc('world/playerNames');
+  let namesReady = false;
+
+  // Players who joined before names were kept get their names written down once, earliest first,
+  // so a newcomer can't take an existing player's name. Safe to run twice: it only adds.
+  const catchUpNames = async () => {
+    if (namesReady) return;
+    if ((await namesReadyDoc.get()).exists) {
+      namesReady = true;
+      return;
+    }
+    const all = await db.collection('players').orderBy('createdAt').get();
+    const seen = new Set<string>();
+    let batch = db.batch();
+    let writes = 0;
+    for (const stored of all.docs) {
+      const { uid, name } = stored.data() as Player;
+      const key = nameKey(name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      batch.set(nameDoc(key), { uid }, { merge: false });
+      if (++writes === 400) {
+        await batch.commit();
+        batch = db.batch();
+        writes = 0;
+      }
+    }
+    batch.set(namesReadyDoc, { at: Date.now(), players: all.size });
+    await batch.commit();
+    namesReady = true;
+  };
   const orderDocs = (uid: string) => playerDoc(uid).collection('orders');
   const groupDoc = (id: string) => db.collection('groups').doc(id);
   // All of a group's messages sit in one document, so reading the chat costs a single read.
@@ -69,6 +104,22 @@ export function firestoreStore(db: Firestore): Store {
     async getPlayer(uid) {
       const stored = await playerDoc(uid).get();
       return stored.exists ? (stored.data() as Player) : null;
+    },
+
+    async nameOwner(key) {
+      await catchUpNames();
+      const stored = await nameDoc(key).get();
+      return stored.exists ? (stored.data() as { uid: string }).uid : null;
+    },
+
+    async claimName(key, uid) {
+      await catchUpNames();
+      return db.runTransaction(async (tx) => {
+        const stored = await tx.get(nameDoc(key));
+        if (stored.exists) return (stored.data() as { uid: string }).uid === uid;
+        tx.create(nameDoc(key), { uid });
+        return true;
+      });
     },
 
     async createPlayer(player) {
@@ -280,6 +331,9 @@ export function firestoreStore(db: Firestore): Store {
           : undefined;
         const shards = (await tx.get(shardDocs)).docs.map((doc) => doc.data() as Shard);
         const table = ((await tx.get(tableDoc)).data() as LeagueTable | undefined) ?? null;
+        // Their name, freed for someone else. Only if it's still theirs; missing means nothing to free.
+        const name = player ? nameDoc(nameKey(player.name)) : null;
+        const nameHolder = name ? ((await tx.get(name)).data() as { uid: string } | undefined) : undefined;
 
         if (group) {
           const next = withoutMember(group, uid);
@@ -295,6 +349,7 @@ export function firestoreStore(db: Firestore): Store {
         if (nextTable) tx.set(tableDoc, nextTable);
         tx.delete(photoDoc(uid));
         tx.delete(originalDoc(uid));
+        if (name && nameHolder?.uid === uid) tx.delete(name);
         tx.delete(playerDoc(uid));
         return 'deleted' as const;
       });

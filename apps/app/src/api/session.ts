@@ -70,6 +70,24 @@ export async function resendConfirmation() {
 
 export const signedInEmail = () => firebase?.currentUser?.email ?? null;
 
+/**
+ * For "use a different email": an account whose email was never confirmed is deleted, so a
+ * mistyped address is free again for its real owner. A confirmed account is only signed out.
+ */
+export async function dropUnconfirmedAccount() {
+  const user = firebase?.currentUser;
+  if (user && !user.emailVerified) {
+    try {
+      await user.delete();
+      return;
+    } catch {
+      // Firebase may want a fresh sign-in first. Then it stays, and its owner can still claim it
+      // with "Forgot password?".
+    }
+  }
+  await logOut();
+}
+
 export async function logIn(email: string, password: string) {
   if (firebase) await signInWithEmailAndPassword(firebase, email, password);
 }
@@ -90,7 +108,8 @@ export async function logOut() {
 }
 
 const SIGN_IN_PROBLEMS: Record<string, string> = {
-  'auth/email-already-in-use': 'That email already has an account. Try signing in.',
+  'auth/email-already-in-use':
+    'That email already has an account. Sign in, or if it’s yours and you never finished signing up, use “Forgot password?” on the Sign in tab.',
   'auth/invalid-email': 'That email doesn’t look right.',
   'auth/weak-password': 'Use a password of at least 8 characters.',
   'auth/invalid-credential': 'That email or password isn’t right.',
