@@ -4,6 +4,7 @@ import { describe, it } from 'node:test';
 import * as engine from './index.ts';
 import {
   type Account,
+  averageBuyPrices,
   fillOrder,
   FX_SCALE,
   holdingValue,
@@ -550,5 +551,44 @@ describe('invariants across random play', () => {
     }
     assert.ok(account.orders.some((o) => o.status === 'filled'));
     assert.ok(portfolioValue(account, quotes) > START_CASH - 2_000);
+  });
+});
+
+describe('averageBuyPrices', () => {
+  const filled = (id: string, side: Side, units: number, price: number, at: number): engine.Order => ({
+    id,
+    securityId: 'TASE1',
+    side,
+    amount: 0,
+    placedAt: at,
+    execution: { at } as engine.Order['execution'],
+    status: 'filled',
+    fill: { units, price, fx: FX_SCALE, value: 0, refund: 0, at },
+  });
+
+  it('weighs each buy by its units, and selling keeps the average', () => {
+    const orders = [
+      filled('a', 'buy', 1_000_000, 100_000, 1),
+      filled('b', 'buy', 3_000_000, 200_000, 2),
+      filled('c', 'sell', 2_000_000, 500_000, 3),
+    ];
+    assert.deepEqual(averageBuyPrices(orders), { TASE1: 175_000 });
+  });
+
+  it('starts again after selling everything, and skips waiting orders', () => {
+    const waiting = { ...filled('d', 'buy', 1_000_000, 1, 5), status: 'pending' as const, fill: undefined };
+    const orders = [
+      filled('a', 'buy', 1_000_000, 100_000, 1),
+      filled('b', 'sell', 1_000_000, 150_000, 2),
+      filled('c', 'buy', 2_000_000, 300_000, 3),
+      waiting,
+    ];
+    assert.deepEqual(averageBuyPrices(orders), { TASE1: 300_000 });
+    assert.deepEqual(averageBuyPrices([filled('a', 'buy', 1, 1, 1), filled('b', 'sell', 1, 1, 2)]), {});
+  });
+
+  it('matches a real fill', () => {
+    const account = holdingOf(10_000_000);
+    assert.deepEqual(averageBuyPrices(account.orders), { TASE1: TEN.price });
   });
 });

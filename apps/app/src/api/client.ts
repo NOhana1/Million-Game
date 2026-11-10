@@ -25,7 +25,8 @@ export type WorldData = {
   markets: Record<Market, { open: boolean; nextChange: number }>;
 };
 
-export type Position = { securityId: string; units: number; value: number };
+/** averagePrice: what was paid per unit on average, in the security's own currency (null if unknown). */
+export type Position = { securityId: string; units: number; value: number; averagePrice?: number | null };
 
 export type Me = {
   uid: string;

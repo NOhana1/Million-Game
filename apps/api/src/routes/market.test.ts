@@ -181,6 +181,9 @@ describe('portfolio value', () => {
       (feed.priceAt('USIX', TEST_WORLD) * feed.usdIlsAt(TEST_WORLD)) / 1_000_000,
     );
     assert.equal(me.value, expected);
-    assert.deepEqual(me.positions, [{ securityId: 'USIX', units: 1_000_000, value: expected }]);
+    // Holdings with no order history have no known average.
+    assert.deepEqual(me.positions, [
+      { securityId: 'USIX', units: 1_000_000, value: expected, averagePrice: null },
+    ]);
   });
 });

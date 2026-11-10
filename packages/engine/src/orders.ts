@@ -245,3 +245,28 @@ export function settleDueOrders(
     .sort((a, b) => a.execution.at - b.execution.at)
     .reduce((current, order) => fillOrder(current, order.id, quotesAtExecution(order)), account);
 }
+
+/**
+ * What the player paid per unit, on average, for what they hold now, in the security's own
+ * currency. Selling keeps the average; selling everything starts it again with the next buy.
+ */
+export function averageBuyPrices(orders: Order[]): Record<string, Price> {
+  const held = new Map<string, { units: Units; cost: number }>(); // cost: units × price
+  const filled = orders
+    .filter((o) => o.status === 'filled' && o.fill && o.fill.units > 0)
+    .sort((a, b) => a.fill!.at - b.fill!.at || a.placedAt - b.placedAt);
+  for (const { securityId, side, fill } of filled) {
+    const { units, price } = fill!;
+    const now = held.get(securityId) ?? { units: 0, cost: 0 };
+    if (side === 'buy') {
+      held.set(securityId, { units: now.units + units, cost: now.cost + units * price });
+    } else {
+      const left = Math.max(0, now.units - units);
+      if (left === 0) held.delete(securityId);
+      else held.set(securityId, { units: left, cost: (now.cost * left) / now.units });
+    }
+  }
+  return Object.fromEntries(
+    [...held].map(([securityId, { units, cost }]) => [securityId, Math.round(cost / units)]),
+  );
+}

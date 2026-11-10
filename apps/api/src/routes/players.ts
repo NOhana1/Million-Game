@@ -1,4 +1,5 @@
 import {
+  averageBuyPrices,
   holdingValue,
   newAccount,
   portfolioValue,
@@ -171,6 +172,8 @@ export function playerRoutes(deps: Deps) {
     const world = worldTime(await deps.store.getClock(deps.now()), deps.now());
     const quotes = quotesAt(deps.feed, world);
     const account = toAccount(player);
+    // Read only while holding something; the order list is remembered until the player changes.
+    const paid = Object.keys(player.holdings).length ? averageBuyPrices(await ordersOf(player)) : {};
     return c.json({
       ...player,
       worldTime: world,
@@ -180,6 +183,7 @@ export function playerRoutes(deps: Deps) {
         securityId,
         units,
         value: holdingValue(account, securityId, quotes),
+        averagePrice: paid[securityId] ?? null,
       })),
     });
   });
