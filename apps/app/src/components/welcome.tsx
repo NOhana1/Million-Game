@@ -23,18 +23,19 @@ export const FIRST_STEPS = [
   },
 ];
 
-// Only a convenience: if the browser blocks storage, a new player just sees this again.
-const alreadySeen = () => {
+// Remembered per player, so a second account on the same phone still gets its welcome. Only a
+// convenience: if the browser blocks storage, a new player just sees this again.
+const alreadySeen = (uid: string) => {
   try {
-    return globalThis.localStorage?.getItem(SEEN_KEY) === 'yes';
+    return globalThis.localStorage?.getItem(`${SEEN_KEY}-${uid}`) === 'yes';
   } catch {
     return false;
   }
 };
 
-const remember = () => {
+const remember = (uid: string) => {
   try {
-    globalThis.localStorage?.setItem(SEEN_KEY, 'yes');
+    globalThis.localStorage?.setItem(`${SEEN_KEY}-${uid}`, 'yes');
   } catch {
     // Nothing to do. See alreadySeen.
   }
@@ -59,12 +60,14 @@ export function Steps() {
 /** Shown once, to a player who hasn't traded yet. Players who already trade don't need it. */
 export function Welcome() {
   const { me, orders } = useGame();
-  const [open, setOpen] = useState(() => !alreadySeen());
-  if (!open || !me || me.positions.length > 0 || orders.length > 0) return null;
+  const [closedFor, setClosedFor] = useState<string | null>(null);
+  if (!me || closedFor === me.uid || alreadySeen(me.uid) || me.positions.length > 0 || orders.length > 0) {
+    return null;
+  }
 
   const close = () => {
-    remember();
-    setOpen(false);
+    remember(me.uid);
+    setClosedFor(me.uid);
   };
 
   const readRules = () => {
