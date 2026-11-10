@@ -69,6 +69,42 @@ describe('the goal', () => {
 });
 
 describe('players', () => {
+  it('frees an email whose sign-up was abandoned, and nothing else', async () => {
+    const MINUTE = 60_000;
+    let now = 100 * MINUTE;
+    const accounts: Record<string, { uid: string; confirmed: boolean; createdAt: number }> = {
+      'old@x.com': { uid: 'old', confirmed: false, createdAt: 0 },
+      'fresh@x.com': { uid: 'fresh', confirmed: false, createdAt: 99 * MINUTE },
+      'sure@x.com': { uid: 'sure', confirmed: true, createdAt: 0 },
+      'noa@x.com': { uid: 'noa', confirmed: false, createdAt: 0 },
+    };
+    const deleted: string[] = [];
+    const app = testApp({
+      now: () => now,
+      findAccount: async (email) => accounts[email] ?? null,
+      deleteAccount: async (uid) => void deleted.push(uid),
+    });
+    await post(app, 'Noa'); // noa joined before confirmation was required, so they play
+    const release = async (email: string) =>
+      (await (
+        await app.request('/api/accounts/release', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        })
+      ).json()) as { freed: boolean; reason: string | null };
+
+    assert.deepEqual(await release(' OLD@x.com '), { freed: true, reason: null });
+    assert.equal((await release('fresh@x.com')).reason, 'recent', 'someone may be waiting for the link');
+    assert.equal((await release('sure@x.com')).reason, 'in-use');
+    assert.equal((await release('noa@x.com')).reason, 'in-use', 'a player is never touched');
+    assert.equal((await release('nobody@x.com')).reason, 'none');
+    assert.deepEqual(deleted, ['old']);
+
+    now += 15 * MINUTE;
+    assert.equal((await release('fresh@x.com')).freed, true);
+  });
+
   it('gives every player their own name, ignoring capitals and spaces', async () => {
     const app = testApp();
     assert.equal((await post(app, 'Noam')).status, 201);

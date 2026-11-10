@@ -166,6 +166,11 @@ export const api = {
   me: (token: string) => call<Me>('GET', '/me', { token }),
   orders: (token: string) =>
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
+  /** Frees an email whose earlier sign-up was abandoned: never confirmed, never joined, not recent. */
+  releaseEmail: (email: string) =>
+    call<{ freed: boolean; reason: 'none' | 'in-use' | 'recent' | null }>('POST', '/accounts/release', {
+      body: { email },
+    }),
   /** Whether a player name is free. Asked before an account is made, so it needs no sign-in. */
   nameCheck: (name: string) =>
     call<{ available: boolean; problem: string | null }>('GET', `/players/name?name=${encodeURIComponent(name)}`),

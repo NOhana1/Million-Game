@@ -3,7 +3,14 @@ import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { api, ApiProblem } from '@/api/client';
-import { resendConfirmation, resetPassword, signedInEmail, signInProblem, usesAccounts } from '@/api/session';
+import {
+  emailTaken,
+  resendConfirmation,
+  resetPassword,
+  signedInEmail,
+  signInProblem,
+  usesAccounts,
+} from '@/api/session';
 import { useGame } from '@/game/store';
 
 import { Brand } from './world-bar';
@@ -88,7 +95,22 @@ export function SignIn() {
           setSending(false);
           return;
         }
-        await signUp(email.trim(), password, trimmed);
+        try {
+          await signUp(email.trim(), password, trimmed);
+        } catch (error) {
+          if (!emailTaken(error)) throw error;
+          // Maybe an earlier sign-up on this email was never finished. If so, the server frees it.
+          const { freed, reason } = await api.releaseEmail(email.trim());
+          if (!freed && reason === 'recent') {
+            setProblem(
+              'Someone started signing up with this email in the last 15 minutes. If that was you, click the link in that email, or try again a little later.',
+            );
+            setSending(false);
+            return;
+          }
+          if (!freed) throw error;
+          await signUp(email.trim(), password, trimmed);
+        }
       } else await signIn(email.trim(), password);
     } catch (error) {
       setProblem(error instanceof ApiProblem ? error.message : signInProblem(error));

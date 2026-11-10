@@ -50,7 +50,7 @@ export function categoryOf(method: string, path: string): Category | null {
   const reading = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
   if (reading && COSTLY.some((end) => path.endsWith(end))) return 'costly';
   if (reading) return 'read';
-  if (method === 'POST' && path.endsWith('/players')) return 'signup';
+  if (method === 'POST' && (path.endsWith('/players') || path.endsWith('/accounts/release'))) return 'signup';
   return 'write';
 }
 

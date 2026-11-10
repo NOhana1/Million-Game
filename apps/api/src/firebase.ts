@@ -44,6 +44,15 @@ export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
         if ((error as { code?: unknown }).code !== 'auth/user-not-found') throw error;
       }
     },
+    findAccount: async (email) => {
+      try {
+        const user = await auth.getUserByEmail(email);
+        return { uid: user.uid, confirmed: user.emailVerified, createdAt: Date.parse(user.metadata.creationTime) };
+      } catch (error) {
+        if ((error as { code?: unknown }).code === 'auth/user-not-found') return null;
+        throw error;
+      }
+    },
     now: Date.now,
     tickSecret: config.TICK_SECRET,
     clockSecret: config.CLOCK_SECRET,

@@ -16,6 +16,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `GET /health` | No | No | Is the API up, and which version |
 | `GET /status` | No | 60s | For the watchdog: the clock, how far fills have got (`settledUpTo`) and `fills: {late, slotLateSeconds, overdueOrders}`. Reads only |
 | `POST /players` | Yes | No | Create the player. Body `{ "name": "Noa" }`, 2 to 24 characters. Returns 201, or 200 with the existing player, who is never reset. 403 `EMAIL_NOT_CONFIRMED` until the account's email is confirmed. 409 `NAME_TAKEN` if another player has the name, ignoring capitals and spaces, or it's a bot's name |
+| `POST /accounts/release` | No | No | Body `{ "email": "a@b.com" }`. When sign-up finds the email taken: deletes its account only if it never confirmed the email, has no player, and is over 15 minutes old. Returns `{ "freed": true }`, or `false` with `reason` `none`, `in-use` or `recent`. Counts as sign-up for request limits |
 | `GET /players/name?name=Noa` | No | No | Whether a name is free, before an account exists. Returns `{ "available": true, "problem": null }`, or `false` with a message to show |
 | `GET /me` | Yes | No | The player's portfolio. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 | `GET /world` | No | 5s | World time, the clock's `speed` and `paused`, and for each market whether it's open and when that next changes |

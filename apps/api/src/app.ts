@@ -30,6 +30,8 @@ export type Deps = {
   emailConfirmed?: (uid: string) => Promise<boolean>;
   /** Deletes the sign-in account, which frees its email for a new sign-up. Missing locally and in tests. */
   deleteAccount?: (uid: string) => Promise<void>;
+  /** The sign-in account for an email, if there is one. Missing locally and in tests. */
+  findAccount?: (email: string) => Promise<{ uid: string; confirmed: boolean; createdAt: number } | null>;
   now: () => number; // real time
   tickSecret: string;
   clockSecret: string;
