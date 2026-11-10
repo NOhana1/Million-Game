@@ -9,7 +9,7 @@ import { useGame } from '@/game/store';
 import { Brand } from './world-bar';
 import { DivisionTag } from './division-badge';
 import { Spark } from './spark';
-import { Button, Card, colors, Eyebrow, Field, font, hover, PasswordField, Segments, useWide } from './ui';
+import { Button, Card, colors, Field, font, hover, PasswordField, Segments, useWide } from './ui';
 
 type Mode = 'create' | 'signIn' | 'reset';
 
@@ -86,11 +86,14 @@ export function SignIn() {
       <View style={[styles.layout, wide && styles.layoutWide]}>
         <View style={[styles.intro, wide && styles.half]}>
           <Brand />
-          <Eyebrow style={styles.starting}>Your starting capital</Eyebrow>
-          <Text numberOfLines={1} style={[styles.money, !wide && styles.moneyPhone]}>
-            ₪1,000,000
+          {/* One sentence instead of a label over a giant number: the heading says it itself. */}
+          <Text style={[styles.headline, !wide && styles.headlinePhone]}>
+            Start with <Text style={styles.money}>₪1,000,000</Text>
           </Text>
-          <Spark prices={line} width={wide ? 420 : 320} height={SHOWCASE_HEIGHT} color={colors.brand} />
+          <View style={styles.chart}>
+            <Spark prices={line} width={wide ? 420 : 320} height={SHOWCASE_HEIGHT} color={colors.brand} />
+            <Text style={styles.chartNote}>The game’s Tel Aviv index fund, since the game began</Text>
+          </View>
           <Text style={styles.lead}>
             Virtual money, real competition. Trade Tel Aviv and US securities and climb the weekly table.
           </Text>
@@ -277,9 +280,18 @@ const styles = StyleSheet.create({
   layoutWide: { alignItems: 'center', flexDirection: 'row', gap: 72, maxWidth: 960 },
   half: { flex: 1 },
   intro: { gap: 10, width: '100%' },
-  starting: { marginTop: 22 },
-  money: { color: colors.ink, fontFamily: font.display, fontSize: 60, fontWeight: '400', lineHeight: 72 },
-  moneyPhone: { fontSize: 52, lineHeight: 62 },
+  headline: {
+    color: colors.ink,
+    fontFamily: font.display,
+    fontSize: 44,
+    fontWeight: '400',
+    lineHeight: 52,
+    marginTop: 22,
+  },
+  headlinePhone: { fontSize: 34, lineHeight: 41 },
+  money: { color: colors.brand, fontVariant: ['tabular-nums'] },
+  chart: { gap: 6, marginBottom: 6 },
+  chartNote: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
   lead: { color: colors.onDeep, fontFamily: font.body, fontSize: 17, lineHeight: 26 },
   badges: { flexDirection: 'row', flexWrap: 'wrap', gap: 18, marginTop: 14 },
   card: { gap: 14, padding: 28, width: '100%' },

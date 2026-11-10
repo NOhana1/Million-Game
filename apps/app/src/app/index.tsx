@@ -92,6 +92,7 @@ function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }
   );
 }
 
+/** One line in the movers panel: the code, the name, the last days and today's change. */
 function Mover({ item, spark }: { item: MarketRow; spark?: number[] }) {
   const wide = useWide();
   const change = dayChange(item);
@@ -100,16 +101,15 @@ function Mover({ item, spark }: { item: MarketRow; spark?: number[] }) {
       accessibilityRole="button"
       accessibilityLabel={`Open ${item.name}`}
       onPress={() => openPage(item.id)}
-      {...hover('lift')}
+      {...hover('row')}
       style={styles.mover}>
-      <View style={styles.moverTop}>
-        <Eyebrow>{item.id}</Eyebrow>
-        <Spark prices={spark} width={64} height={22} />
-      </View>
-      <Text style={[styles.moverChange, { color: changeColor(change) }]}>{percent(change)}</Text>
-      <Text style={styles.meta} numberOfLines={wide ? 1 : 2}>
+      <Text style={styles.moverId}>{item.id}</Text>
+      <Text style={[styles.meta, styles.moverName]} numberOfLines={1} {...namePart}>
         {item.name}
       </Text>
+      {/* On a phone the name needs the room more than the mini chart does. */}
+      {wide ? <Spark prices={spark} width={56} height={20} /> : null}
+      <Text style={[styles.moverChange, { color: changeColor(change) }]}>{percent(change)}</Text>
     </Pressable>
   );
 }
@@ -164,14 +164,34 @@ function SecurityRow({
 }
 
 function Movers({ market, sparks }: { market: MarketData; sparks: Record<string, number[]> }) {
+  const wide = useWide();
   const ranked = [...market.securities].sort((a, b) => dayChange(b) - dayChange(a));
-  const shown = [...ranked.slice(0, MOVERS), ...ranked.slice(-MOVERS)];
+  // One panel with two short lists, instead of six boxes that all look the same.
+  // Only what really moved: a flat 0.00% isn't "strongest", for example while the US is closed.
+  const columns = [
+    {
+      title: 'Strongest today',
+      items: ranked.filter((item) => dayChange(item) > 0).slice(0, MOVERS),
+      none: 'Nothing is up yet today.',
+    },
+    {
+      title: 'Weakest today',
+      items: ranked.filter((item) => dayChange(item) < 0).slice(-MOVERS).reverse(),
+      none: 'Nothing is down yet today.',
+    },
+  ];
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>Biggest moves today</Text>
-      <View style={styles.movers}>
-        {shown.map((item) => (
-          <Mover key={item.id} item={item} spark={sparks[item.id]} />
+      <View style={[styles.movers, wide && styles.moversWide]}>
+        {columns.map((column, index) => (
+          <View key={column.title} style={[styles.moverColumn, index > 0 && (wide ? styles.moverSplitWide : styles.moverSplit)]}>
+            <Text style={styles.moverTitle}>{column.title}</Text>
+            {column.items.length === 0 ? <Text style={[styles.meta, styles.moverNone]}>{column.none}</Text> : null}
+            {column.items.map((item) => (
+              <Mover key={item.id} item={item} spark={sparks[item.id]} />
+            ))}
+          </View>
         ))}
       </View>
     </View>
@@ -325,23 +345,37 @@ const styles = StyleSheet.create({
   pills: { alignItems: 'center', flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 8 },
   section: { gap: 12 },
   sectionTitle: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
-  movers: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
-  mover: {
-    backgroundColor: colors.card,
-    borderColor: colors.line,
-    borderRadius: 4,
-    borderWidth: 1,
-    flexBasis: '30%',
-    flexGrow: 1,
-    gap: 6,
-    padding: 14,
-  },
-  moverTop: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
-  moverChange: {
-    fontFamily: font.display,
-    fontSize: 24,
-    fontVariant: ['tabular-nums'],
+  movers: { borderColor: colors.line, borderRadius: 4, borderWidth: 1 },
+  moversWide: { flexDirection: 'row' },
+  moverColumn: { flex: 1, paddingVertical: 6 },
+  moverSplit: { borderTopColor: colors.line, borderTopWidth: 1 },
+  moverSplitWide: { borderLeftColor: colors.line, borderLeftWidth: 1 },
+  moverTitle: {
+    color: colors.muted,
+    fontFamily: font.body,
+    fontSize: 13,
     fontWeight: '500',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  mover: { alignItems: 'center', flexDirection: 'row', gap: 12, paddingHorizontal: 14, paddingVertical: 9 },
+  moverId: {
+    color: colors.ink,
+    fontFamily: font.body,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    width: 46,
+  },
+  moverName: { flex: 1 },
+  moverNone: { paddingHorizontal: 14, paddingVertical: 9 },
+  moverChange: {
+    fontFamily: font.body,
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+    fontWeight: '600',
+    textAlign: 'right',
+    width: 72,
   },
   filter: {
     alignItems: 'center',

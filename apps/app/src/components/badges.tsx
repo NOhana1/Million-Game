@@ -7,13 +7,16 @@ import { StyleSheet, Text, View } from "react-native";
 import { DIVISIONS, type Division } from "@portfolio-league/engine";
 import type { Profile } from "@/api/client";
 
+import { DivisionBadge } from "./division-badge";
+import { LineIcon, type LineIconName } from "./line-icon";
 import { colors, font } from "./ui";
 
 const REGULAR_WEEKS = 4;
 const CHAMPION_WINS = 3;
 const SPREAD = 5;
 
-type Badge = { icon: string; name: string; how: string; times: number };
+// A division badge uses that division's own trophy; the rest are line icons.
+type Badge = { icon: LineIconName | Division; name: string; how: string; times: number };
 
 /** Your own facts the server doesn't share: what you hold and your best streak. */
 export type OwnFacts = {
@@ -33,68 +36,68 @@ const reached = (honours: Profile["honours"], division: Division) =>
 export function badgesOf(honours: Profile["honours"], own?: OwnFacts): Badge[] {
   const league: Badge[] = [
     {
-      icon: "🌱",
+      icon: "sprout",
       name: "First week",
       how: "Finish a week in the league",
       times: once(honours.weeksPlayed > 0),
     },
     {
-      icon: "📅",
+      icon: "calendar",
       name: "Regular",
       how: `Play ${REGULAR_WEEKS} weeks`,
       times: once(honours.weeksPlayed >= REGULAR_WEEKS),
     },
     {
-      icon: "📈",
+      icon: "trendingUp",
       name: "Beat the market",
       how: "Beat every index fund in a week",
       times: honours.beatMarket ?? 0,
     },
     {
-      icon: "🚀",
+      icon: "rocket",
       name: "Big week",
       how: "Make 5% or more in one week",
       times: honours.bigWeeks ?? 0,
     },
     {
-      icon: "🛡️",
+      icon: "shield",
       name: "Steady hand",
       how: "End a week up, with no fall over 1%",
       times: honours.steadyWeeks ?? 0,
     },
     {
-      icon: "⬆️",
+      icon: "arrowUp",
       name: "Moved up",
       how: "Move up a division",
       times: honours.movedUp ?? 0,
     },
     {
-      icon: "🥈",
+      icon: "silver",
       name: "Silver",
       how: "Reach the Silver division",
       times: once(reached(honours, "silver")),
     },
     {
-      icon: "🥇",
+      icon: "gold",
       name: "Gold",
       how: "Reach the Gold division",
       times: once(reached(honours, "gold")),
     },
     {
-      icon: "💎",
+      icon: "diamond",
       name: "Diamond",
       how: "Reach the Diamond division",
       times: once(reached(honours, "diamond")),
     },
     {
-      icon: "🥉",
+      icon: "medal",
       name: "Top 3",
       how: "Finish a week in the top 3",
       times: honours.top3,
     },
-    { icon: "🏆", name: "Winner", how: "Win a week", times: honours.wins },
+    { icon: "trophy", name: "Winner", how: "Win a week", times: honours.wins },
     {
-      icon: "👑",
+      icon: "crown",
       name: "Champion",
       how: `Win ${CHAMPION_WINS} weeks`,
       times: once(honours.wins >= CHAMPION_WINS),
@@ -103,38 +106,41 @@ export function badgesOf(honours: Profile["honours"], own?: OwnFacts): Badge[] {
   if (!own) return league;
   return [
     {
-      icon: "🛒",
+      icon: "cart",
       name: "First trade",
       how: "Place your first order",
       times: once(own.traded),
     },
     {
-      icon: "🧺",
+      icon: "layers",
       name: "Well spread",
       how: `Hold ${SPREAD} different securities at once`,
       times: once(own.holdings >= SPREAD),
     },
     {
-      icon: "🌍",
+      icon: "globe",
       name: "Two markets",
       how: "Hold Tel Aviv and US securities at once",
       times: once(own.bothMarkets),
     },
     ...league,
     {
-      icon: "🔥",
+      icon: "flame",
       name: "7 days in a row",
       how: "Open the game 7 days in a row",
       times: once(own.bestStreak >= 7),
     },
     {
-      icon: "⚡",
+      icon: "zap",
       name: "30 days in a row",
       how: "Open the game 30 days in a row",
       times: once(own.bestStreak >= 30),
     },
   ];
 }
+
+const isDivision = (icon: string): icon is Division =>
+  (DIVISIONS as readonly string[]).includes(icon);
 
 export function Badges({
   honours,
@@ -168,9 +174,13 @@ export function Badges({
               key={badge.name}
               style={[styles.badge, got ? styles.earned : styles.locked]}
             >
-              <Text style={[styles.icon, !got && styles.faded]}>
-                {badge.icon}
-              </Text>
+              <View style={[styles.icon, !got && styles.faded]}>
+                {isDivision(badge.icon) ? (
+                  <DivisionBadge division={badge.icon} size={26} />
+                ) : (
+                  <LineIcon name={badge.icon} size={24} color={got ? colors.brand : colors.muted} />
+                )}
+              </View>
               <View style={styles.text}>
                 <Text style={[styles.name, !got && styles.lockedText]}>
                   {badge.name}
@@ -202,7 +212,7 @@ const styles = StyleSheet.create({
   },
   earned: { backgroundColor: colors.raised, borderColor: colors.brand },
   locked: { borderColor: colors.line, borderStyle: "dashed" },
-  icon: { fontSize: 26 },
+  icon: { alignItems: "center", height: 28, justifyContent: "center", width: 28 },
   faded: { opacity: 0.3 },
   text: { flex: 1, gap: 2 },
   name: {
