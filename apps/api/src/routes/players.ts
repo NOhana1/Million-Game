@@ -18,6 +18,7 @@ import { toAccount } from '../player.ts';
 import { portfolioHistory } from '../services/portfolio-history.ts';
 import type { Order } from '@portfolio-league/engine';
 
+import { isBotName, nameKey } from '../store/player-names.ts';
 import type { Player, Store } from '../store/types.ts';
 
 const NewPlayer = z.object({
@@ -107,12 +108,35 @@ export function playerRoutes(deps: Deps) {
     return orders;
   };
 
+  /** Whether a name is free, so the app can ask before creating an account. Names are public. */
+  const nameProblem = async (name: string, uid?: string) => {
+    if (isBotName(name)) return 'That name belongs to a bot. Please choose another.';
+    const owner = await deps.store.nameOwner(nameKey(name));
+    return owner && owner !== uid ? `“${name.trim()}” is taken. Try another, like ${name.trim()}2.` : null;
+  };
+
+  routes.get('/players/name', async (c) => {
+    const parsed = NewPlayer.safeParse({ name: c.req.query('name') ?? '' });
+    if (!parsed.success) throw new ApiError(422, 'INVALID_NAME', 'Use 2 to 24 characters.');
+    const problem = await nameProblem(parsed.data.name);
+    c.header('Cache-Control', 'no-store');
+    return c.json({ available: problem === null, problem });
+  });
+
   routes.post('/players', signedIn, async (c) => {
     const { name } = await readBody(c, NewPlayer);
     // A new player needs a confirmed email, so nobody plays under an address that isn't theirs.
     // Players who joined before this rule keep playing: the check is only here, at joining.
     if (deps.emailConfirmed && !(await deps.emailConfirmed(c.get('uid')))) {
       throw new ApiError(403, 'EMAIL_NOT_CONFIRMED', 'Confirm your email first. We sent you a link.');
+    }
+    const uid = c.get('uid');
+    const existing = await deps.store.getPlayer(uid);
+    if (existing) return c.json(existing, 200); // never reset, and the name stays as it is
+    // Every player has their own name. Taking it is all or nothing, so two people can't both get it.
+    const problem = await nameProblem(name, uid);
+    if (problem || !(await deps.store.claimName(nameKey(name), uid))) {
+      throw new ApiError(409, 'NAME_TAKEN', problem ?? `“${name.trim()}” is taken. Try another.`);
     }
     const realNow = deps.now();
     const world = worldTime(await deps.store.getClock(realNow), realNow);

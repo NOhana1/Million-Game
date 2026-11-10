@@ -15,7 +15,8 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 |---|---|---|---|
 | `GET /health` | No | No | Is the API up, and which version |
 | `GET /status` | No | 60s | For the watchdog: the clock, how far fills have got (`settledUpTo`) and `fills: {late, slotLateSeconds, overdueOrders}`. Reads only |
-| `POST /players` | Yes | No | Create the player. Body `{ "name": "Noa" }`, 2 to 24 characters. Returns 201, or 200 with the existing player, who is never reset. 403 `EMAIL_NOT_CONFIRMED` until the account's email is confirmed |
+| `POST /players` | Yes | No | Create the player. Body `{ "name": "Noa" }`, 2 to 24 characters. Returns 201, or 200 with the existing player, who is never reset. 403 `EMAIL_NOT_CONFIRMED` until the account's email is confirmed. 409 `NAME_TAKEN` if another player has the name, ignoring capitals and spaces, or it's a bot's name |
+| `GET /players/name?name=Noa` | No | No | Whether a name is free, before an account exists. Returns `{ "available": true, "problem": null }`, or `false` with a message to show |
 | `GET /me` | Yes | No | The player's portfolio. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 | `GET /world` | No | 5s | World time, the clock's `speed` and `paused`, and for each market whether it's open and when that next changes |
 | `GET /market` | No | 5s | All securities with `price`, `priceDayAgo`, `usdIls` and `usdIlsDayAgo` |
@@ -66,6 +67,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `UNKNOWN_SECURITY` | 404 | No such security |
 | `PLAYER_NOT_FOUND` | 404 | Call `POST /players` first |
 | `EMAIL_NOT_CONFIRMED` | 403 | Click the link Firebase emailed, then call `POST /players` again |
+| `NAME_TAKEN` | 409 | Choose another name |
 | `INVALID_BODY` | 400 | The request is malformed |
 | `UNAUTHENTICATED` | 401 | Sign in again |
 

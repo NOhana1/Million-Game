@@ -3,7 +3,20 @@ import { describe, it } from 'node:test';
 
 import { START_CASH } from '@portfolio-league/engine';
 
-import { testApp, type TestApp } from '../testing.ts';
+import { memoryStore } from '../store/memory.ts';
+import type { Player } from '../store/types.ts';
+import { pausedAt, TEST_WORLD, testApp, type TestApp } from '../testing.ts';
+
+const newPlayerRecord = (uid: string): Player => ({
+  uid,
+  name: uid,
+  createdAt: 0,
+  cash: START_CASH,
+  holdings: {},
+  pendingOrders: [],
+  nextDueAt: null,
+  changedAt: 0,
+});
 
 const post = (app: TestApp, name: unknown, token = 'noa') =>
   app.request('/api/players', {
@@ -56,6 +69,45 @@ describe('the goal', () => {
 });
 
 describe('players', () => {
+  it('gives every player their own name, ignoring capitals and spaces', async () => {
+    const app = testApp();
+    assert.equal((await post(app, 'Noam')).status, 201);
+    const taken = await post(app, '  noam ', 'dan');
+    assert.equal(taken.status, 409);
+    assert.equal(((await taken.json()) as { error: { code: string } }).error.code, 'NAME_TAKEN');
+    assert.equal((await me(app, 'dan')).status, 404);
+    assert.equal((await post(app, 'Noam12', 'dan')).status, 201);
+    // Asking again as the same player is fine, and never renames or resets them.
+    assert.equal((await post(app, 'Something else')).status, 200);
+  });
+
+  it('keeps bot names for the bots', async () => {
+    const app = testApp();
+    assert.equal((await post(app, 'Cash Keeper 3')).status, 409);
+    assert.equal((await post(app, 'Noa (bot)')).status, 409);
+    assert.equal((await post(app, 'Cashew')).status, 201);
+  });
+
+  it('says whether a name is free before an account exists', async () => {
+    const app = testApp();
+    await post(app, 'Noam');
+    const ask = async (name: string) =>
+      (await (await app.request(`/api/players/name?name=${encodeURIComponent(name)}`)).json()) as {
+        available: boolean;
+      };
+    assert.equal((await ask('NOAM')).available, false);
+    assert.equal((await ask('Noam2')).available, true);
+    assert.equal((await ask('Index Holder 1')).available, false);
+    assert.equal((await app.request('/api/players/name?name=x')).status, 422);
+  });
+
+  it('counts players who joined before names were kept', async () => {
+    const store = memoryStore(pausedAt(TEST_WORLD));
+    await store.createPlayer({ ...newPlayerRecord('old'), name: 'Gil' });
+    const app = testApp({ store });
+    assert.equal((await post(app, 'gil', 'new')).status, 409);
+  });
+
   it('lets a player join only once their email is confirmed', async () => {
     const confirmed = new Set(['dan']);
     const app = testApp({ emailConfirmed: async (uid) => confirmed.has(uid) });

@@ -12,7 +12,7 @@ import {
 import { AppState } from 'react-native';
 
 import { api, ApiProblem, MarketData, Me, NewOrder, WorldData } from '@/api/client';
-import { createAccount, currentToken, emailConfirmed, logIn, logOut } from '@/api/session';
+import { createAccount, currentToken, dropUnconfirmedAccount, emailConfirmed, logIn, logOut } from '@/api/session';
 import { visitDue } from '@/game/streak';
 
 // Shared data is cached by the CDN, so it can refresh often. A player's own data reads the
@@ -40,6 +40,10 @@ type Game = {
   chooseName(name: string): Promise<void>;
   /** Asks again whether the email is confirmed, and joins with the name given at sign-up if so. */
   checkEmail(): Promise<boolean>;
+  /** Leaves the "check your email" step. An unconfirmed account is deleted, freeing its email. */
+  switchEmail(): Promise<void>;
+  /** Why joining failed, for example a name someone else took while the email was confirmed. */
+  joinProblem: string | null;
   signOut(): Promise<void>;
   placeOrder(order: NewOrder): Promise<void>;
   notice: string | null;
@@ -154,6 +158,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // The name typed at sign-up, kept until the email is confirmed and the player can be created.
   const nameToJoin = useRef<string | null>(null);
+  const [joinProblem, setJoinProblem] = useState<string | null>(null);
 
   const chooseName = useCallback(
     async (name: string) => {
@@ -162,11 +167,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
       try {
         await api.createPlayer(token, name);
       } catch (error) {
+        if (error instanceof ApiProblem && error.code === 'NAME_TAKEN') {
+          // Ask for another name, instead of trying the same one again.
+          nameToJoin.current = null;
+          setJoinProblem(error.message);
+          setStatus('needsName');
+          throw error;
+        }
         if (!(error instanceof ApiProblem && error.code === 'EMAIL_NOT_CONFIRMED')) throw error;
         nameToJoin.current = name;
         return setStatus('needsEmail');
       }
       nameToJoin.current = null;
+      setJoinProblem(null);
       await refreshOwn();
     },
     [refreshOwn],
@@ -215,14 +228,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [refreshOwn],
   );
 
-  const signOut = useCallback(async () => {
+  const leave = useCallback(async (end: () => Promise<void>) => {
     nameToJoin.current = null;
-    await logOut();
+    setJoinProblem(null);
+    await end();
     setMe(null);
     setOrders([]);
     ordersSeen.current = { for: '', at: 0 };
     setStatus('signedOut');
   }, []);
+  const signOut = useCallback(() => leave(logOut), [leave]);
+  const switchEmail = useCallback(() => leave(dropUnconfirmedAccount), [leave]);
 
   const placeOrder = useCallback(
     async (order: NewOrder) => {
@@ -285,6 +301,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signIn,
       chooseName,
       checkEmail,
+      switchEmail,
+      joinProblem,
       signOut,
       placeOrder,
       notice,
@@ -310,6 +328,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signIn,
       chooseName,
       checkEmail,
+      switchEmail,
+      joinProblem,
       signOut,
       placeOrder,
       notice,

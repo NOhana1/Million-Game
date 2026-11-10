@@ -111,6 +111,13 @@ export type Store = {
   /** All or nothing, on the latest stored clock. */
   updateClock(realNow: number, change: (clock: Clock) => Clock): Promise<Clock>;
   getPlayer(uid: string): Promise<Player | null>;
+  /**
+   * Who holds a player name, by its key (see player-names.ts), or null if it's free. Players who
+   * joined before names were kept count too: the first time, the store reads them all once.
+   */
+  nameOwner(key: string): Promise<string | null>;
+  /** Takes a name for a player, all or nothing. False means someone else already holds it. */
+  claimName(key: string, uid: string): Promise<boolean>;
   /** Creates the player unless one exists, and returns whichever is stored. */
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
   /** Changes only the goal, so it can't overwrite a fill. False means there's no such player. */

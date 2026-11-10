@@ -2,7 +2,7 @@ import { DIVISIONS } from '@portfolio-league/engine';
 import { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
-import { api } from '@/api/client';
+import { api, ApiProblem } from '@/api/client';
 import { resendConfirmation, resetPassword, signedInEmail, signInProblem, usesAccounts } from '@/api/session';
 import { useGame } from '@/game/store';
 
@@ -24,7 +24,7 @@ const PASSWORD_RULES = [
 ];
 
 export function SignIn() {
-  const { status, signUp, signIn, chooseName, lookAround, checkEmail, signOut } = useGame();
+  const { status, signUp, signIn, chooseName, lookAround, checkEmail, switchEmail, joinProblem } = useGame();
   const wide = useWide();
   const [mode, setMode] = useState<Mode>('create');
   const [email, setEmail] = useState('');
@@ -79,10 +79,19 @@ export function SignIn() {
         await resetPassword(email.trim());
         setNotice('If that email has an account, a reset link is on its way. Check spam too.');
         setSending(false);
-      } else if (mode === 'create') await signUp(email.trim(), password, trimmed);
-      else await signIn(email.trim(), password);
+      } else if (mode === 'create') {
+        // Ask about the name before making the account, so nobody confirms an email and only
+        // then finds the name taken.
+        const check = await api.nameCheck(trimmed);
+        if (!check.available) {
+          setProblem(check.problem ?? 'That name is taken. Try another.');
+          setSending(false);
+          return;
+        }
+        await signUp(email.trim(), password, trimmed);
+      } else await signIn(email.trim(), password);
     } catch (error) {
-      setProblem(signInProblem(error));
+      setProblem(error instanceof ApiProblem ? error.message : signInProblem(error));
       setSending(false);
     }
   };
@@ -111,7 +120,7 @@ export function SignIn() {
         </View>
 
         {status === 'needsEmail' ? (
-          <ConfirmEmail check={checkEmail} other={signOut} style={[styles.card, wide && styles.half]} />
+          <ConfirmEmail check={checkEmail} other={switchEmail} style={[styles.card, wide && styles.half]} />
         ) : (
           <Card style={[styles.card, wide && styles.half]}>
             {showAccount ? (
@@ -186,6 +195,7 @@ export function SignIn() {
               />
             ) : null}
             {problem ? <Text style={styles.error}>{problem}</Text> : null}
+            {!problem && onlyName && joinProblem ? <Text style={styles.error}>{joinProblem}</Text> : null}
             {notice ? <Text style={styles.notice}>{notice}</Text> : null}
             <Button
               label={showName ? 'Join the league' : mode === 'reset' ? 'Send reset link' : 'Sign in'}

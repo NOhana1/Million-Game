@@ -166,6 +166,9 @@ export const api = {
   me: (token: string) => call<Me>('GET', '/me', { token }),
   orders: (token: string) =>
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
+  /** Whether a player name is free. Asked before an account is made, so it needs no sign-in. */
+  nameCheck: (name: string) =>
+    call<{ available: boolean; problem: string | null }>('GET', `/players/name?name=${encodeURIComponent(name)}`),
   createPlayer: (token: string, name: string) =>
     call<unknown>('POST', '/players', { token, body: { name } }),
   // `fresh` skips the CDN's copy, for your own profile right after it changed.
