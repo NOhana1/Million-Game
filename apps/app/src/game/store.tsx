@@ -16,6 +16,7 @@ import {
   accountGone,
   createAccount,
   currentToken,
+  signUpName,
   dropUnconfirmedAccount,
   emailConfirmed,
   logIn,
@@ -46,6 +47,8 @@ type Game = {
   signUp(email: string, password: string, name: string): Promise<void>;
   signIn(email: string, password: string): Promise<void>;
   chooseName(name: string): Promise<void>;
+  /** Joining with the name chosen at sign-up, right after the email was confirmed. */
+  joining: boolean;
   /** Asks again whether the email is confirmed, and joins with the name given at sign-up if so. */
   checkEmail(): Promise<boolean>;
   /** Leaves the "check your email" step. An unconfirmed account is deleted, freeing its email. */
@@ -177,6 +180,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   // The name typed at sign-up, kept until the email is confirmed and the player can be created.
   const nameToJoin = useRef<string | null>(null);
+  const [joining, setJoining] = useState(false);
+  const triedNames = useRef(new Set<string>()); // tried by themselves, so a taken one isn't retried
+  const savedName = () => nameToJoin.current ?? signUpName();
   const [joinProblem, setJoinProblem] = useState<string | null>(null);
 
   const chooseName = useCallback(
@@ -206,7 +212,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const signUp = useCallback(
     async (email: string, password: string, name: string) => {
-      await createAccount(email, password);
+      await createAccount(email, password, name);
       if (!(await emailConfirmed())) {
         nameToJoin.current = name;
         return setStatus('needsEmail');
@@ -219,9 +225,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const checkEmail = useCallback(async () => {
     if (!(await emailConfirmed())) return false;
-    const name = nameToJoin.current;
+    const name = savedName();
     if (name) await chooseName(name);
-    else setStatus('needsName'); // the page was reloaded since sign-up, so ask for the name again
+    else setStatus('needsName'); // an account from before names were kept on it
     return true;
   }, [chooseName]);
 
@@ -234,9 +240,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [status, checkEmail]);
 
-  // If the regular refresh noticed the confirmation first, join with the name already given.
+  // Confirmed, but not a player yet, for example after a refresh or on another device: join with
+  // the name chosen at sign-up. The name box only shows if that name was taken in the meantime.
   useEffect(() => {
-    if (status === 'needsName' && nameToJoin.current) chooseName(nameToJoin.current).catch(() => undefined);
+    const name = savedName();
+    if (status !== 'needsName' || !name || triedNames.current.has(name)) return;
+    triedNames.current.add(name);
+    setJoining(true);
+    chooseName(name)
+      .catch(() => undefined)
+      .finally(() => setJoining(false));
   }, [status, chooseName]);
 
   const signIn = useCallback(
@@ -329,6 +342,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       chooseName,
+      joining,
       checkEmail,
       switchEmail,
       joinProblem,
@@ -357,6 +371,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signUp,
       signIn,
       chooseName,
+      joining,
       checkEmail,
       switchEmail,
       joinProblem,

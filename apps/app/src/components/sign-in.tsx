@@ -1,6 +1,6 @@
 import { DIVISIONS } from '@portfolio-league/engine';
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle } from 'react-native';
 
 import { api, ApiProblem } from '@/api/client';
 import {
@@ -31,7 +31,8 @@ const PASSWORD_RULES = [
 ];
 
 export function SignIn() {
-  const { status, signUp, signIn, chooseName, lookAround, checkEmail, switchEmail, joinProblem } = useGame();
+  const { status, signUp, signIn, chooseName, lookAround, checkEmail, switchEmail, joinProblem, joining } =
+    useGame();
   const wide = useWide();
   const [mode, setMode] = useState<Mode>('create');
   const [email, setEmail] = useState('');
@@ -143,6 +144,11 @@ export function SignIn() {
 
         {status === 'needsEmail' ? (
           <ConfirmEmail check={checkEmail} other={switchEmail} style={[styles.card, wide && styles.half]} />
+        ) : onlyName && joining ? (
+          <Card style={[styles.card, styles.joining, wide && styles.half]}>
+            <ActivityIndicator color={colors.brand} />
+            <Text style={styles.lead}>Email confirmed. Joining the league…</Text>
+          </Card>
         ) : (
           <Card style={[styles.card, wide && styles.half]}>
             {showAccount ? (
@@ -335,6 +341,7 @@ const styles = StyleSheet.create({
   card: { gap: 14, padding: 28, width: '100%' },
   title: { color: colors.ink, fontFamily: font.display, fontSize: 24, fontWeight: '500' },
   strong: { color: colors.ink, fontWeight: '600' },
+  joining: { alignItems: 'center' },
   rules: { gap: 4 },
   rule: { color: colors.muted, fontFamily: font.body, fontSize: 14 },
   ruleMet: { color: colors.up, fontWeight: '600' },

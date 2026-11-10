@@ -10,6 +10,7 @@ import {
   getAuth,
   sendEmailVerification,
   sendPasswordResetEmail,
+  updateProfile,
   signInWithEmailAndPassword,
   signOut,
 } from 'firebase/auth';
@@ -49,11 +50,17 @@ export async function currentToken(): Promise<string | null> {
 }
 
 /** With real accounts, Firebase also emails a link that confirms the address is theirs. */
-export async function createAccount(email: string, password: string) {
+export async function createAccount(email: string, password: string, name: string) {
   if (!firebase) return storage()?.setItem(KEY, newId());
   const { user } = await createUserWithEmailAndPassword(firebase, email, password);
+  // The name is kept on the account, so after the email link it's still there, also after a
+  // refresh or on another device, and nobody is asked for a name twice.
+  await updateProfile(user, { displayName: name });
   await sendEmailVerification(user);
 }
+
+/** The player name chosen at sign-up, kept on the account until the player is created. */
+export const signUpName = () => firebase?.currentUser?.displayName?.trim() || null;
 
 /** Whether the signed-in account's email is confirmed. Asks Firebase again, since the link is
  *  clicked in another tab or app. Without real accounts there's nothing to confirm. */
