@@ -1,12 +1,14 @@
 // The price chart. Points sit side by side, so nights and weekends don't leave gaps. Moving over
-// it shows the price at that moment, and a new range draws in from the left.
+// it shows the price at that moment, and a new range draws in from the left. It draws a line, or
+// candles: each candle groups neighbouring prices into an open, high, low and close.
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Animated, GestureResponderEvent, LayoutChangeEvent, Platform, StyleSheet, Text, View } from 'react-native';
-import Svg, { Circle, Defs, Line, LinearGradient, Path, Stop } from 'react-native-svg';
+import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 
 import type { PricePoint, Range } from '@/api/client';
 import { changeColor, colors, font } from '@/components/ui';
+import { toCandles } from '@/game/candles';
 import { axisDate } from '@/game/view';
 
 const TOP = 14;
@@ -17,6 +19,10 @@ const DATE_LABELS = 4;
 const DRAW_MS = 700;
 
 const round = (n: number) => Math.round(n * 10) / 10;
+const CANDLE_SLOT = 9; // pixels per candle at least, so a phone shows fewer candles
+const CANDLE_BODY_MOST = 14;
+
+export type ChartKind = 'line' | 'candles';
 
 export function PriceChart({
   points,
@@ -24,12 +30,14 @@ export function PriceChart({
   height = 340,
   format,
   onScrub,
+  kind = 'line',
 }: {
   points: PricePoint[];
   range: Range;
   height?: number;
   format: (price: number) => string;
   onScrub: (point: PricePoint | null) => void;
+  kind?: ChartKind;
 }) {
   const [width, setWidth] = useState(0);
   const [index, setIndex] = useState<number | null>(null);
@@ -57,19 +65,31 @@ export function PriceChart({
     return { x, y, line, area, grid };
   }, [points, plotHeight, plotWidth]);
 
+  const grouped = useMemo(
+    () => (kind === 'candles' ? toCandles(points, Math.floor(plotWidth / CANDLE_SLOT)) : null),
+    [kind, points, plotWidth],
+  );
+  const candles = grouped?.candles ?? null;
+  // What scrubbing and the dates walk along: every price, or one close per candle.
+  const series = candles ? candles.map((c) => ({ at: c.at, price: c.close })) : points;
+  const slot = candles ? plotWidth / candles.length : 0;
+  const xOf = (i: number) => (candles ? round((i + 0.5) * slot) : shape.x(i));
+
   const first = points[0]?.price ?? 0;
   const last = points.at(-1)?.price ?? 0;
   const color = changeColor(last - first);
-  const picked = index === null ? null : points[index];
+  const picked = index === null ? null : series[index];
   const dates = Array.from({ length: DATE_LABELS }, (_, i) =>
-    Math.round((i * (points.length - 1)) / (DATE_LABELS - 1)),
+    Math.round((i * (series.length - 1)) / (DATE_LABELS - 1)),
   );
 
   const pick = (offset: number) => {
     const share = Math.min(Math.max(offset / plotWidth, 0), 1);
-    const next = Math.round(share * (points.length - 1));
+    const next = candles
+      ? Math.min(Math.floor(share * candles.length), candles.length - 1)
+      : Math.round(share * (points.length - 1));
     setIndex(next);
-    onScrub(points[next] ?? null);
+    onScrub(series[next] ?? null);
   };
   const leave = () => {
     setIndex(null);
@@ -126,22 +146,54 @@ export function PriceChart({
               strokeDasharray="2 5"
               strokeWidth={1}
             />
-            <Path d={shape.area} fill="url(#fade)" />
-            <Path d={shape.line} fill="none" stroke={color} strokeLinejoin="round" strokeWidth={1.8} />
+            {candles ? (
+              candles.map((c, i) => {
+                // Green when the price rose over the candle's time, red when it fell.
+                const tone = c.close >= c.open ? colors.up : colors.down;
+                const top = shape.y(Math.max(c.open, c.close));
+                const body = Math.max(shape.y(Math.min(c.open, c.close)) - top, 1.5);
+                const wide = Math.max(Math.min(slot * 0.7, CANDLE_BODY_MOST), 2);
+                return (
+                  <Fragment key={c.at}>
+                    <Line
+                      x1={xOf(i)}
+                      x2={xOf(i)}
+                      y1={shape.y(c.high)}
+                      y2={shape.y(c.low)}
+                      stroke={tone}
+                      strokeWidth={1.2}
+                    />
+                    <Rect
+                      x={round(xOf(i) - wide / 2)}
+                      y={top}
+                      width={round(wide)}
+                      height={round(body)}
+                      rx={1}
+                      fill={tone}
+                    />
+                  </Fragment>
+                );
+              })
+            ) : (
+              <>
+                <Path d={shape.area} fill="url(#fade)" />
+                <Path d={shape.line} fill="none" stroke={color} strokeLinejoin="round" strokeWidth={1.8} />
+              </>
+            )}
             {picked && index !== null ? (
               <>
                 <Line
-                  x1={shape.x(index)}
-                  x2={shape.x(index)}
+                  x1={xOf(index)}
+                  x2={xOf(index)}
                   y1={TOP}
                   y2={TOP + plotHeight}
                   stroke={colors.muted}
                   strokeWidth={1}
                 />
-                <Circle cx={shape.x(index)} cy={shape.y(picked.price)} r={9} fill={color} opacity={0.2} />
-                <Circle cx={shape.x(index)} cy={shape.y(picked.price)} r={4} fill={color} />
+                <Circle cx={xOf(index)} cy={shape.y(picked.price)} r={9} fill={color} opacity={0.2} />
+                <Circle cx={xOf(index)} cy={shape.y(picked.price)} r={4} fill={color} />
               </>
-            ) : (
+            ) : candles ? null : (
               <>
                 <Circle cx={plotWidth} cy={shape.y(last)} r={9} fill={color} opacity={0.2} />
                 <Circle cx={plotWidth} cy={shape.y(last)} r={3.5} fill={color} />
@@ -149,6 +201,7 @@ export function PriceChart({
             )}
           </Svg>
 
+          {grouped ? <Text style={styles.period}>1 candle = {grouped.period}</Text> : null}
           {shape.grid.map((price) => (
             <Text key={price} style={[styles.price, { top: shape.y(price) - 8 }]}>
               {format(price)}
@@ -161,9 +214,9 @@ export function PriceChart({
                 styles.date,
                 i === 0 && styles.dateFirst,
                 i === dates.length - 1 && { right: RIGHT },
-                i > 0 && i < dates.length - 1 && { left: shape.x(at) - 40, width: 80 },
+                i > 0 && i < dates.length - 1 && { left: xOf(at) - 40, width: 80 },
               ]}>
-              {axisDate(points[at]?.at ?? 0, range)}
+              {axisDate(series[at]?.at ?? 0, range)}
             </Text>
           ))}
 
@@ -214,5 +267,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dateFirst: { left: 0 },
+  period: { color: colors.faint, fontFamily: font.body, fontSize: 11, left: 0, position: 'absolute', top: 0 },
   loadingLine: { backgroundColor: colors.line, height: 1, marginTop: 170, width: '100%' },
 });

@@ -36,6 +36,7 @@ import { DIVISION_LABEL, ppmToPercent } from "@/game/view";
 
 const NOTHING_YET = "–";
 const BOT_SUFFIX = / \(bot\)$/;
+const longestWord = (text: string) => Math.max(...text.split(/\s+/).map((w) => w.length));
 
 /** Your own picture, with buttons to add, adjust or remove it. Friends see it in the group chat. */
 function MyPhoto({ name, size }: { name: string; size: number }) {
@@ -245,25 +246,29 @@ export default function ProfileScreen() {
         ) : null}
       </View>
 
-      <View style={styles.head}>
+      <View style={[styles.head, !wide && styles.headPhone]}>
         {mine ? (
           <MyPhoto name={name} size={wide ? 104 : 72} />
         ) : (
           <Avatar name={name} photo={profile.photo} size={wide ? 104 : 72} />
         )}
-        <View style={styles.flex}>
+        <View style={styles.headText}>
           <Eyebrow>
             {mine ? "Your profile" : profile.bot ? "Computer player" : "Player"}{" "}
             · {DIVISION_LABEL[profile.division]} division
           </Eyebrow>
+          {/* No numberOfLines: on the web it sets overflow: clip, which shaved the edges off letters. */}
           <Text
-            numberOfLines={2}
-            style={[styles.name, !wide && styles.namePhone]}
+            style={[
+              styles.name,
+              !wide && styles.namePhone,
+              !wide && longestWord(name) > 9 && styles.namePhoneLong,
+            ]}
           >
             {name}
           </Text>
         </View>
-        <DivisionBadge division={profile.division} size={wide ? 120 : 76} />
+        <DivisionBadge division={profile.division} size={wide ? 120 : 48} />
       </View>
 
       {mine && editing ? (
@@ -377,15 +382,18 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1, gap: 6, minWidth: 0 },
-  backBox: { alignSelf: "flex-start" },
+  backBox: { alignSelf: "center", justifyContent: "center", minHeight: 40 },
   back: {
     color: colors.muted,
     fontFamily: font.body,
     fontSize: 14,
     fontWeight: "500",
   },
-  head: { alignItems: "center", flexDirection: "row", gap: 20 },
-  photoBox: { alignItems: "center", gap: 6 },
+  // Room between the photo and the name, so the name's first letter is never cut.
+  head: { alignItems: "center", flexDirection: "row", gap: 28 },
+  headPhone: { gap: 20 },
+  headText: { flex: 1, minWidth: 0, paddingLeft: 4 },
+  photoBox: { alignItems: "center", flexShrink: 0, gap: 6 },
   photoLink: {
     color: colors.brand,
     fontFamily: font.body,
@@ -408,7 +416,9 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     lineHeight: 70,
   },
-  namePhone: { fontSize: 38, lineHeight: 46 },
+  namePhone: { fontSize: 32, lineHeight: 40 },
+  // A long single word gets a smaller size on a phone, so it isn’t broken mid-word.
+  namePhoneLong: { fontSize: 24, lineHeight: 30 },
   section: {
     borderTopColor: colors.line,
     borderTopWidth: 1,
@@ -443,22 +453,26 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: "space-between",
   },
-  topActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  topActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  // Both buttons the same height, with the words in the middle of the box.
   topButton: {
+    alignItems: "center",
     borderColor: colors.line,
     borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 16,
   },
   topButtonText: {
     color: colors.ink,
     fontFamily: font.body,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
+    lineHeight: 18,
+    textAlign: "center",
   },
-  // Bigger and outlined in red, so it's easy to find.
-  signOutButton: { borderColor: colors.down, paddingHorizontal: 18, paddingVertical: 10 },
-  signOutText: { color: colors.down, fontSize: 15 },
+  signOutButton: { borderColor: colors.down },
+  signOutText: { color: colors.down },
   share: { alignSelf: "flex-start", marginTop: -4 },
 });
