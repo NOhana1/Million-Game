@@ -36,6 +36,7 @@ import { DIVISION_LABEL, ppmToPercent } from "@/game/view";
 
 const NOTHING_YET = "–";
 const BOT_SUFFIX = / \(bot\)$/;
+const longestWord = (text: string) => Math.max(...text.split(/\s+/).map((w) => w.length));
 
 /** Your own picture, with buttons to add, adjust or remove it. Friends see it in the group chat. */
 function MyPhoto({ name, size }: { name: string; size: number }) {
@@ -256,14 +257,18 @@ export default function ProfileScreen() {
             {mine ? "Your profile" : profile.bot ? "Computer player" : "Player"}{" "}
             · {DIVISION_LABEL[profile.division]} division
           </Eyebrow>
+          {/* No numberOfLines: on the web it sets overflow: clip, which shaved the edges off letters. */}
           <Text
-            numberOfLines={2}
-            style={[styles.name, !wide && styles.namePhone]}
+            style={[
+              styles.name,
+              !wide && styles.namePhone,
+              !wide && longestWord(name) > 9 && styles.namePhoneLong,
+            ]}
           >
             {name}
           </Text>
         </View>
-        <DivisionBadge division={profile.division} size={wide ? 120 : 76} />
+        <DivisionBadge division={profile.division} size={wide ? 120 : 48} />
       </View>
 
       {mine && editing ? (
@@ -411,7 +416,9 @@ const styles = StyleSheet.create({
     fontWeight: "400",
     lineHeight: 70,
   },
-  namePhone: { fontSize: 38, lineHeight: 46 },
+  namePhone: { fontSize: 32, lineHeight: 40 },
+  // A long single word gets a smaller size on a phone, so it isn’t broken mid-word.
+  namePhoneLong: { fontSize: 24, lineHeight: 30 },
   section: {
     borderTopColor: colors.line,
     borderTopWidth: 1,
