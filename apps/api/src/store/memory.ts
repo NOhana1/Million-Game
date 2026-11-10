@@ -15,6 +15,7 @@ import {
 } from './group-rules.ts';
 import { nameKey } from './player-names.ts';
 import { shardsWithout, tableWithout } from './player-removal.ts';
+import { renamedMember, renamedRow } from './player-names.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
 export type MemoryStore = Store & { setClock(next: Clock): void };
@@ -74,6 +75,24 @@ export function memoryStore(startClock?: Clock): MemoryStore {
       if (owner && owner !== uid) return false;
       owners.set(key, uid);
       return true;
+    },
+
+    async renamePlayer(uid, name, worldNow) {
+      const player = players.get(uid);
+      if (!player) return 'no-player';
+      const owners = nameOwners();
+      const key = nameKey(name);
+      const holder = owners.get(key);
+      if (holder && holder !== uid) return 'taken';
+      const oldKey = nameKey(player.name);
+      if (oldKey !== key && owners.get(oldKey) === uid) owners.delete(oldKey);
+      owners.set(key, uid);
+      player.name = name;
+      player.changedAt = Math.max(player.changedAt, worldNow);
+      const group = player.groupId ? groups.get(player.groupId) : undefined;
+      if (group) groups.set(group.id, renamedMember(group, uid, name));
+      if (table) table = renamedRow(table, uid, name);
+      return 'renamed';
     },
 
     async createPlayer(player) {

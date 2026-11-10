@@ -4,6 +4,9 @@
 import { FirebaseError, initializeApp } from 'firebase/app';
 import {
   createUserWithEmailAndPassword,
+  EmailAuthProvider,
+  reauthenticateWithCredential,
+  verifyBeforeUpdateEmail,
   getAuth,
   sendEmailVerification,
   sendPasswordResetEmail,
@@ -99,6 +102,18 @@ export async function dropUnconfirmedAccount() {
   await logOut();
 }
 
+/**
+ * Moves the account to a new email. Firebase asks for the password again first, then emails a
+ * link to the new address; the email changes only when that link is clicked, so a typo can't lock
+ * anyone out. After it changes, Firebase signs the player out everywhere, to sign in with the new one.
+ */
+export async function changeEmail(newEmail: string, password: string) {
+  const user = firebase?.currentUser;
+  if (!user?.email) throw new Error('Not signed in with an email.');
+  await reauthenticateWithCredential(user, EmailAuthProvider.credential(user.email, password));
+  await verifyBeforeUpdateEmail(user, newEmail);
+}
+
 export async function logIn(email: string, password: string) {
   if (firebase) await signInWithEmailAndPassword(firebase, email, password);
 }
@@ -124,6 +139,9 @@ const SIGN_IN_PROBLEMS: Record<string, string> = {
   'auth/invalid-email': 'That email doesn’t look right.',
   'auth/weak-password': 'Use a password of at least 8 characters.',
   'auth/invalid-credential': 'That email or password isn’t right.',
+  'auth/wrong-password': 'That password isn’t right.',
+  'auth/requires-recent-login': 'Please sign out and in again, then try once more.',
+  'auth/operation-not-allowed': 'Changing the email isn’t possible right now. Please try later.',
   'auth/too-many-requests': 'Too many attempts. Please wait a little and try again.',
   'auth/network-request-failed': 'Can’t reach the server. Please try again.',
 };

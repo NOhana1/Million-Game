@@ -1,6 +1,8 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useRef, useState } from 'react';
+import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { signedInEmail } from '@/api/session';
 import { Avatar } from '@/components/avatar';
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { formatWorldTime, marketsText } from '@/game/view';
@@ -53,19 +55,101 @@ export function Brand() {
   );
 }
 
-/** The player's first letter, which opens their profile. */
+const CLOSE_AFTER_MS = 250; // time to move the mouse from the letter onto the menu
+
+/**
+ * The player's first letter. Pointing at it with a mouse opens a small menu right beside it:
+ * who you're signed in as, your profile, and Sign out. On a phone the first tap opens the menu.
+ * Clicking the letter while the menu is open goes to your profile, as it always did.
+ */
 function ProfileButton() {
-  const { me, myPhoto } = useGame();
+  const { me, myPhoto, signOut } = useGame();
+  const [open, setOpen] = useState(false);
+  const closing = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  const box = useRef<unknown>(null); // the menu's element on the web, to tell clicks outside it
+
+  const show = () => {
+    clearTimeout(closing.current);
+    setOpen(true);
+  };
+  const hideSoon = () => {
+    clearTimeout(closing.current);
+    closing.current = setTimeout(() => setOpen(false), CLOSE_AFTER_MS);
+  };
+  // Only a mouse opens it by pointing: a finger's tap also "points", and would then open the profile.
+  const byMouse = (event: { nativeEvent: { pointerType?: string } }) => event.nativeEvent.pointerType === 'mouse';
+
+  // A click or tap anywhere else, or Escape, closes it.
+  useEffect(() => {
+    if (!open || Platform.OS !== 'web') return;
+    const away = (event: PointerEvent) => {
+      const node = box.current as HTMLElement | null;
+      if (node && !node.contains(event.target as Node)) setOpen(false);
+    };
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setOpen(false);
+    };
+    document.addEventListener('pointerdown', away);
+    document.addEventListener('keydown', escape);
+    return () => {
+      document.removeEventListener('pointerdown', away);
+      document.removeEventListener('keydown', escape);
+    };
+  }, [open]);
+  useEffect(() => () => clearTimeout(closing.current), []);
+
   if (!me) return null;
+  const email = signedInEmail();
+  const go = (path: '/profile/me') => {
+    setOpen(false);
+    router.push(path);
+  };
+
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Your profile"
-      onPress={() => router.push('/profile/me')}
-      {...hover('lift')}
-      style={styles.profile}>
-      <Avatar name={me.name} photo={myPhoto} size={32} />
-    </Pressable>
+    <View
+      ref={box as never}
+      style={styles.profileBox}
+      onPointerEnter={(event) => byMouse(event) && show()}
+      onPointerLeave={(event) => byMouse(event) && hideSoon()}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Your account"
+        aria-expanded={open}
+        onPress={() => (open ? go('/profile/me') : show())}
+        {...hover('lift')}
+        style={styles.profile}>
+        <Avatar name={me.name} photo={myPhoto} size={32} />
+      </Pressable>
+      {open ? (
+        <View style={styles.menuHolder}>
+          <View accessibilityRole="menu" style={styles.menu}>
+            <View style={styles.menuWho}>
+              <Text style={styles.menuName} numberOfLines={1}>
+                {me.name}
+              </Text>
+              {email ? (
+                <Text style={styles.menuEmail} numberOfLines={1}>
+                  {email}
+                </Text>
+              ) : null}
+            </View>
+            <Pressable accessibilityRole="menuitem" onPress={() => go('/profile/me')} {...hover('row')} style={styles.menuItem}>
+              <Text style={styles.menuText}>My profile</Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="menuitem"
+              onPress={() => {
+                setOpen(false);
+                void signOut();
+              }}
+              {...hover('row')}
+              style={styles.menuItem}>
+              <Text style={[styles.menuText, styles.menuSignOut]}>Sign out</Text>
+            </Pressable>
+          </View>
+        </View>
+      ) : null}
+    </View>
   );
 }
 
@@ -123,6 +207,33 @@ const styles = StyleSheet.create({
   statusBox: { alignItems: 'center', flexDirection: 'row', gap: 16, marginLeft: 'auto' },
   status: { alignItems: 'flex-end', gap: 2, justifyContent: 'center' },
   profile: { borderRadius: 16 },
+  profileBox: { position: 'relative', zIndex: 20 },
+  // The padding bridges the gap to the letter, so the mouse never leaves on its way down.
+  menuHolder: { paddingTop: 8, position: 'absolute', right: 0, top: '100%', zIndex: 20 },
+  menu: {
+    backgroundColor: colors.card,
+    borderColor: colors.line,
+    borderRadius: 10,
+    borderWidth: 1,
+    boxShadow: '0 10px 30px rgba(0, 0, 0, 0.35)',
+    minWidth: 220,
+    maxWidth: 280,
+    paddingVertical: 6,
+  },
+  menuWho: {
+    borderBottomColor: colors.line,
+    borderBottomWidth: 1,
+    gap: 2,
+    marginBottom: 4,
+    paddingBottom: 10,
+    paddingHorizontal: 14,
+    paddingTop: 6,
+  },
+  menuName: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
+  menuEmail: { color: colors.muted, fontFamily: font.body, fontSize: 12 },
+  menuItem: { paddingHorizontal: 14, paddingVertical: 9 },
+  menuText: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '500' },
+  menuSignOut: { color: colors.down },
   statusTime: {
     color: colors.ink,
     fontFamily: font.body,

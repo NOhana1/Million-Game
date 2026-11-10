@@ -58,6 +58,8 @@ type Game = {
   showNotice(text: string): void;
   clearNotice(): void;
   setGoal(amount: number): Promise<void>;
+  /** A new name for the player. Throws ApiProblem if it's taken or not allowed. */
+  rename(name: string): Promise<void>;
   toggleWatch(id: string): Promise<void>;
   clockMoved(): Promise<void>;
   /** Your photo, kept here so the top bar, your profile and the chat change together. */
@@ -277,6 +279,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     [refreshOwn],
   );
 
+  const rename = useCallback(
+    async (name: string) => {
+      const token = await currentToken();
+      if (!token) return;
+      await api.rename(token, name);
+      await refreshOwn();
+    },
+    [refreshOwn],
+  );
+
   // Shown at once, so the star feels instant. The next refresh puts it right if saving failed.
   const toggleWatch = useCallback(
     async (id: string) => {
@@ -326,6 +338,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       showNotice: setNotice,
       clearNotice,
       setGoal,
+      rename,
       toggleWatch,
       clockMoved,
       myPhoto,
@@ -352,6 +365,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       notice,
       clearNotice,
       setGoal,
+      rename,
       toggleWatch,
       clockMoved,
       myPhoto,

@@ -233,6 +233,21 @@ export function playerRoutes(deps: Deps) {
     return c.json({ photo: null });
   });
 
+  // A new name, checked like a new player's: not a bot's, and not someone else's. Changing only
+  // the capitals of your own name is fine.
+  routes.put('/me/name', signedIn, async (c) => {
+    const { name } = await readBody(c, NewPlayer);
+    const uid = c.get('uid');
+    const problem = await nameProblem(name, uid);
+    if (problem) throw new ApiError(409, 'NAME_TAKEN', problem);
+    const realNow = deps.now();
+    const world = worldTime(await deps.store.getClock(realNow), realNow);
+    const result = await deps.store.renamePlayer(uid, name.trim(), world);
+    if (result === 'no-player') throw new ApiError(404, 'PLAYER_NOT_FOUND', 'Create a player first.');
+    if (result === 'taken') throw new ApiError(409, 'NAME_TAKEN', `“${name.trim()}” is taken. Try another.`);
+    return c.json({ name: name.trim() });
+  });
+
   routes.put('/me/goal', signedIn, async (c) => {
     const { amount } = await readBody(c, Goal);
     if (!(await deps.store.setGoal(c.get('uid'), amount))) {

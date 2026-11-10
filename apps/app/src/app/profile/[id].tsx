@@ -13,6 +13,7 @@ import {
 
 import { api, Profile } from "@/api/client";
 import { currentToken } from "@/api/session";
+import { AccountEditor } from "@/components/account-editor";
 import { Avatar } from "@/components/avatar";
 import { Badges } from "@/components/badges";
 import { DivisionBadge } from "@/components/division-badge";
@@ -160,21 +161,27 @@ export default function ProfileScreen() {
   const wide = useWide();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [failed, setFailed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  // Changes after a rename, so the page asks past the CDN's copy for the new name.
+  const [fresh, setFresh] = useState<number | undefined>(undefined);
   const uid = id === "me" ? me?.uid : id;
 
   useEffect(() => {
     if (!uid) return;
     let current = true;
-    setProfile(null);
+    if (!fresh) setProfile(null);
     setFailed(false);
     api
-      .profile(uid)
+      .profile(uid, fresh)
       .then((result) => current && setProfile(result))
       .catch(() => current && setFailed(true));
     return () => {
       current = false;
     };
-  }, [uid]);
+  }, [uid, fresh]);
+
+  // Leaving the page closes the editor.
+  useEffect(() => setEditing(false), [uid]);
 
   const back = () =>
     router.canGoBack() ? router.back() : router.replace("/league");
@@ -201,14 +208,42 @@ export default function ProfileScreen() {
 
   return (
     <Page maxWidth={880}>
-      <Pressable
-        accessibilityRole="button"
-        onPress={back}
-        {...hover("link")}
-        style={styles.backBox}
-      >
-        <Text style={styles.back}>← Back</Text>
-      </Pressable>
+      <View style={styles.topRow}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={back}
+          {...hover("link")}
+          style={styles.backBox}
+        >
+          <Text style={styles.back}>← Back</Text>
+        </Pressable>
+        {/* Your own account's actions sit up here, not at the end of the page. */}
+        {mine ? (
+          <View style={styles.topActions}>
+            <Pressable
+              accessibilityRole="button"
+              aria-expanded={editing}
+              onPress={() => setEditing(!editing)}
+              {...hover("quiet")}
+              style={styles.topButton}
+            >
+              <Text style={styles.topButtonText}>
+                {editing ? "Close editing" : "Edit name or email"}
+              </Text>
+            </Pressable>
+            <Pressable
+              accessibilityRole="button"
+              onPress={signOut}
+              {...hover("quiet")}
+              style={styles.topButton}
+            >
+              <Text style={[styles.topButtonText, styles.signOutText]}>
+                Sign out
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+      </View>
 
       <View style={styles.head}>
         {mine ? (
@@ -230,6 +265,13 @@ export default function ProfileScreen() {
         </View>
         <DivisionBadge division={profile.division} size={wide ? 120 : 76} />
       </View>
+
+      {mine && editing ? (
+        <AccountEditor
+          onRenamed={() => setFresh(Date.now())}
+          onClose={() => setEditing(false)}
+        />
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.title}>This week</Text>
@@ -328,11 +370,6 @@ export default function ProfileScreen() {
         />
       </View>
 
-      {mine ? (
-        <View style={styles.signOut}>
-          <Button variant="quiet" label="Sign out" onPress={signOut} />
-        </View>
-      ) : null}
     </Page>
   );
 }
@@ -399,6 +436,27 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
-  signOut: { alignSelf: "flex-start" },
+  topRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "space-between",
+  },
+  topActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  topButton: {
+    borderColor: colors.line,
+    borderRadius: 8,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
+  topButtonText: {
+    color: colors.ink,
+    fontFamily: font.body,
+    fontSize: 13,
+    fontWeight: "600",
+  },
+  signOutText: { color: colors.down },
   share: { alignSelf: "flex-start", marginTop: -4 },
 });

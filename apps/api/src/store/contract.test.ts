@@ -90,6 +90,34 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.equal(await store.deletePlayer(uid, 1), 'deleted');
     });
 
+    it('renames a player: new name taken, old one freed, group shows it', async () => {
+      const [uid, other, groupId] = [newUid(), newUid(), newUid()];
+      const [before, after, taken] = [`Old ${uid}`, `New ${uid}`, `Taken ${uid}`];
+      await store.createPlayer({ ...player(uid), name: before });
+      await store.claimName(nameKey(before), uid);
+      await store.claimName(nameKey(taken), other);
+      await store.createGroup({
+        id: groupId,
+        name: 'Bulls',
+        code: groupId.slice(0, 6).toUpperCase(),
+        ownerId: uid,
+        createdAt: 1,
+        members: [{ id: uid, name: before, joinedAt: 1 }],
+      });
+
+      assert.equal(await store.renamePlayer(uid, taken, 50), 'taken');
+      assert.equal((await store.getPlayer(uid))?.name, before);
+      assert.equal(await store.renamePlayer(newUid(), after, 50), 'no-player');
+
+      assert.equal(await store.renamePlayer(uid, after, 50), 'renamed');
+      const renamed = await store.getPlayer(uid);
+      assert.equal(renamed?.name, after);
+      assert.equal(renamed?.changedAt, 50);
+      assert.equal(await store.nameOwner(nameKey(after)), uid);
+      assert.equal(await store.nameOwner(nameKey(before)), null);
+      assert.equal((await store.getGroup(groupId))?.members[0]?.name, after);
+    });
+
     it('keeps group membership and the player in step', async () => {
       const [ownerId, friendId, groupId] = [newUid(), newUid(), newUid()];
       const code = groupId.slice(0, 6).toUpperCase();

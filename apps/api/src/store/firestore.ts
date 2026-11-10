@@ -14,7 +14,7 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
-import { nameKey } from './player-names.ts';
+import { nameKey, renamedMember, renamedRow } from './player-names.ts';
 import { shardsWithout, tableWithout } from './player-removal.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
@@ -119,6 +119,31 @@ export function firestoreStore(db: Firestore): Store {
         if (stored.exists) return (stored.data() as { uid: string }).uid === uid;
         tx.create(nameDoc(key), { uid });
         return true;
+      });
+    },
+
+    async renamePlayer(uid, name, worldNow) {
+      await catchUpNames();
+      const key = nameKey(name);
+      return db.runTransaction(async (tx) => {
+        const player = (await tx.get(playerDoc(uid))).data() as Player | undefined;
+        if (!player) return 'no-player' as const;
+        const holder = (await tx.get(nameDoc(key))).data() as { uid: string } | undefined;
+        if (holder && holder.uid !== uid) return 'taken' as const;
+        const oldKey = nameKey(player.name);
+        const oldHolder =
+          oldKey === key ? undefined : ((await tx.get(nameDoc(oldKey))).data() as { uid: string } | undefined);
+        const group = player.groupId
+          ? ((await tx.get(groupDoc(player.groupId))).data() as Group | undefined)
+          : undefined;
+        const table = (await tx.get(tableDoc)).data() as LeagueTable | undefined;
+
+        tx.set(nameDoc(key), { uid });
+        if (oldHolder?.uid === uid) tx.delete(nameDoc(oldKey));
+        tx.update(playerDoc(uid), { name, changedAt: Math.max(player.changedAt, worldNow) });
+        if (group) tx.update(groupDoc(group.id), { members: renamedMember(group, uid, name).members });
+        if (table?.rows.some((row) => row.id === uid)) tx.set(tableDoc, renamedRow(table, uid, name));
+        return 'renamed' as const;
       });
     },
 
