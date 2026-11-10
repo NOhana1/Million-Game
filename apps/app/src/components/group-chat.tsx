@@ -1,13 +1,13 @@
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { api, ApiProblem, ChatMessage, GroupMember } from '@/api/client';
 import { currentToken } from '@/api/session';
 import { useGame } from '@/game/store';
 
 import { Avatar } from './avatar';
-import { Button, colors, font } from './ui';
+import { Button, colors, font, hover } from './ui';
 
 // Refreshes only while this screen is open: each refresh is a database read.
 const REFRESH_MS = 8_000;
@@ -103,6 +103,8 @@ export function GroupChat({ myId, members, height }: { myId: string; members: Gr
   };
 
   const colorOf = friendColors(members, myId);
+  // Tapping a picture or a name opens that player's page.
+  const openProfile = (uid: string) => router.push(uid === myId ? '/profile/me' : `/profile/${uid}`);
 
   return (
     <View style={styles.box}>
@@ -118,12 +120,18 @@ export function GroupChat({ myId, members, height }: { myId: string; members: Gr
             return (
               <View key={message.id} style={[styles.row, mine && styles.mineRow, first && styles.runStart]}>
                 {first ? (
-                  <Avatar
-                    name={message.name}
-                    photo={photoOf(message.uid)}
-                    size={AVATAR}
-                    color={mine ? colors.brand : color.name}
-                  />
+                  <Pressable
+                    accessibilityLabel={`Open ${message.name}'s profile`}
+                    accessibilityRole="link"
+                    onPress={() => openProfile(message.uid)}
+                    {...hover('deep')}>
+                    <Avatar
+                      name={message.name}
+                      photo={photoOf(message.uid)}
+                      size={AVATAR}
+                      color={mine ? colors.brand : color.name}
+                    />
+                  </Pressable>
                 ) : (
                   <View style={styles.avatarSpace} />
                 )}
@@ -134,9 +142,15 @@ export function GroupChat({ myId, members, height }: { myId: string; members: Gr
                     first && (mine ? styles.mineCorner : styles.theirCorner),
                   ]}>
                   {first && !mine ? (
-                    <Text style={[styles.name, { color: color.name }]} numberOfLines={1}>
-                      {message.name}
-                    </Text>
+                    <Pressable
+                      accessibilityRole="link"
+                      onPress={() => openProfile(message.uid)}
+                      style={styles.nameLink}
+                      {...hover('deep')}>
+                      <Text style={[styles.name, { color: color.name }]} numberOfLines={1}>
+                        {message.name}
+                      </Text>
+                    </Pressable>
                   ) : null}
                   <Text style={styles.text}>{message.text}</Text>
                   <Text style={styles.time}>{clock.format(message.at)}</Text>
@@ -175,6 +189,7 @@ const styles = StyleSheet.create({
   bubble: { borderRadius: 14, flexShrink: 1, gap: 2, paddingHorizontal: 12, paddingVertical: 7 },
   theirCorner: { borderTopLeftRadius: 4 },
   mineCorner: { borderTopRightRadius: 4 },
+  nameLink: { alignSelf: 'flex-start', maxWidth: '100%' },
   name: { fontFamily: font.body, fontSize: 14, fontWeight: '700' },
   text: { color: colors.ink, fontFamily: font.body, fontSize: 15, lineHeight: 21 },
   time: { alignSelf: 'flex-end', color: colors.faint, fontFamily: font.body, fontSize: 11 },
