@@ -46,6 +46,16 @@ function storeContract(name: string, makeStore: () => Store) {
     const store = makeStore();
     const newUid = () => randomUUID();
 
+    it('lets one player hold a name', async () => {
+      const key = `name ${randomUUID()}`;
+      const [first, second] = [newUid(), newUid()];
+      assert.equal(await store.nameOwner(key), null);
+      assert.equal(await store.claimName(key, first), true);
+      assert.equal(await store.claimName(key, second), false);
+      assert.equal(await store.claimName(key, first), true);
+      assert.equal(await store.nameOwner(key), first);
+    });
+
     it('keeps group membership and the player in step', async () => {
       const [ownerId, friendId, groupId] = [newUid(), newUid(), newUid()];
       const code = groupId.slice(0, 6).toUpperCase();

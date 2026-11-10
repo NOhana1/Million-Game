@@ -13,12 +13,26 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
+import { nameKey } from './player-names.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
 export type MemoryStore = Store & { setClock(next: Clock): void };
 
 export function memoryStore(startClock?: Clock): MemoryStore {
   const players = new Map<string, Player>();
+  // Built from the players on first use, like Firestore's one-time catch-up. The earliest keeps a
+  // name that two players already share.
+  let names: Map<string, string> | null = null;
+  const nameOwners = () => {
+    if (!names) {
+      names = new Map();
+      for (const player of [...players.values()].sort((a, b) => a.createdAt - b.createdAt)) {
+        const key = nameKey(player.name);
+        if (!names.has(key)) names.set(key, player.uid);
+      }
+    }
+    return names;
+  };
   const orders = new Map<string, Map<string, Order>>();
   let clock = startClock;
   let cursor = WORLD_START;
@@ -47,6 +61,18 @@ export function memoryStore(startClock?: Clock): MemoryStore {
 
     async getPlayer(uid) {
       return structuredClone(players.get(uid) ?? null);
+    },
+
+    async nameOwner(key) {
+      return nameOwners().get(key) ?? null;
+    },
+
+    async claimName(key, uid) {
+      const owners = nameOwners();
+      const owner = owners.get(key);
+      if (owner && owner !== uid) return false;
+      owners.set(key, uid);
+      return true;
     },
 
     async createPlayer(player) {

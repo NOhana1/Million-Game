@@ -4,7 +4,7 @@ const http = require('node:http');
 
 const { getDefaultConfig } = require('expo/metro-config');
 
-const API_PORT = 8787;
+const API_PORT = Number(process.env.API_PORT ?? 8787); // another port lets two copies run side by side
 const config = getDefaultConfig(__dirname);
 
 config.server.enhanceMiddleware = (metro) => (req, res, next) => {

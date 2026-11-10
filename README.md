@@ -12,7 +12,8 @@ A weekly virtual trading game. Each player gets ₪1,000,000, buys and sells 20 
 - **All writes go through the server.** The browser can read only its own player and orders. It can never write to the database.
 - **20 labelled bots** in five styles, so a new player sees a real table and not an empty one.
 - **A first-time welcome and a Rules page,** because orders wait for market times, which can look broken to a new player.
-- **A confirmed email to join.** After sign-up, Firebase emails a link, and the server creates the player only once the address is confirmed, so nobody plays under an email that isn't theirs. Players who joined before this rule keep playing.
+- **A confirmed email to join.** After sign-up, Firebase emails a link, and the server creates the player only once the address is confirmed, so nobody plays under an email that isn't theirs. Players who joined before this rule keep playing. **Use a different email** deletes an account that was never confirmed, so a mistyped address is free again. If someone else left an unconfirmed account on your email, **Forgot password?** gets it back, since only you can open that email.
+- **Unique player names.** Capitals and extra spaces don't count, so "Noam" and "noam" are the same name, while "Noam12" is another. The app checks the name before the account is made, the server takes it all or nothing so two people can't get it at once, and bots' names are kept for bots. Names taken before this rule were written down once, the first player keeping a name two already shared.
 - **Divisions, a personal goal, a market comparison and a weekly top 3,** so there's a reason to come back. See [the daily feature](#the-daily-feature-divisions).
 
 ```
@@ -177,7 +178,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 233 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 238 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
