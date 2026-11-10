@@ -9,7 +9,7 @@ import { ApiProblem } from '@/api/client';
 import { changeEmail, emailTaken, signedInEmail, signInProblem, usesAccounts } from '@/api/session';
 import { useGame } from '@/game/store';
 
-import { Button, Card, colors, Field, font } from './ui';
+import { Button, Card, colors, Field, font, PasswordField } from './ui';
 
 export function AccountEditor({ onRenamed, onClose }: { onRenamed: () => void; onClose: () => void }) {
   const { me, rename } = useGame();
@@ -111,7 +111,7 @@ export function AccountEditor({ onRenamed, onClose }: { onRenamed: () => void; o
             autoCorrect={false}
             inputMode="email"
           />
-          <Field
+          <PasswordField
             label="Your password"
             value={password}
             onChangeText={(text) => {
@@ -120,7 +120,6 @@ export function AccountEditor({ onRenamed, onClose }: { onRenamed: () => void; o
             }}
             onSubmitEditing={sendLink}
             autoComplete="current-password"
-            secureTextEntry
           />
           <Button
             label={sendingLink ? 'Sending…' : 'Send the link'}
