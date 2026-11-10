@@ -8,6 +8,7 @@ import Svg, { Circle, Defs, Line, LinearGradient, Path, Rect, Stop } from 'react
 
 import type { PricePoint, Range } from '@/api/client';
 import { changeColor, colors, font } from '@/components/ui';
+import { toCandles } from '@/game/candles';
 import { axisDate } from '@/game/view';
 
 const TOP = 14;
@@ -18,28 +19,10 @@ const DATE_LABELS = 4;
 const DRAW_MS = 700;
 
 const round = (n: number) => Math.round(n * 10) / 10;
-const CANDLE_SLOT = 11; // pixels per candle, so a phone shows fewer, wider candles
+const CANDLE_SLOT = 9; // pixels per candle at least, so a phone shows fewer candles
+const CANDLE_BODY_MOST = 14;
 
 export type ChartKind = 'line' | 'candles';
-type Candle = { at: number; open: number; high: number; low: number; close: number };
-
-/** Groups the prices, in order, into about `count` candles. Each is dated by its last price. */
-export function toCandles(points: readonly PricePoint[], count: number): Candle[] {
-  const size = Math.max(1, Math.ceil(points.length / Math.max(count, 1)));
-  const candles: Candle[] = [];
-  for (let i = 0; i < points.length; i += size) {
-    const group = points.slice(i, i + size);
-    const prices = group.map((p) => p.price);
-    candles.push({
-      at: group.at(-1)?.at ?? 0,
-      open: group[0]?.price ?? 0,
-      high: Math.max(...prices),
-      low: Math.min(...prices),
-      close: group.at(-1)?.price ?? 0,
-    });
-  }
-  return candles;
-}
 
 export function PriceChart({
   points,
@@ -82,10 +65,11 @@ export function PriceChart({
     return { x, y, line, area, grid };
   }, [points, plotHeight, plotWidth]);
 
-  const candles = useMemo(
+  const grouped = useMemo(
     () => (kind === 'candles' ? toCandles(points, Math.floor(plotWidth / CANDLE_SLOT)) : null),
     [kind, points, plotWidth],
   );
+  const candles = grouped?.candles ?? null;
   // What scrubbing and the dates walk along: every price, or one close per candle.
   const series = candles ? candles.map((c) => ({ at: c.at, price: c.close })) : points;
   const slot = candles ? plotWidth / candles.length : 0;
@@ -164,15 +148,29 @@ export function PriceChart({
             />
             {candles ? (
               candles.map((c, i) => {
-                const up = c.close >= c.open;
-                const tone = up ? colors.up : colors.down;
+                // Green when the price rose over the candle's time, red when it fell.
+                const tone = c.close >= c.open ? colors.up : colors.down;
                 const top = shape.y(Math.max(c.open, c.close));
-                const body = Math.max(shape.y(Math.min(c.open, c.close)) - top, 1);
-                const wide = Math.max(slot * 0.6, 2);
+                const body = Math.max(shape.y(Math.min(c.open, c.close)) - top, 1.5);
+                const wide = Math.max(Math.min(slot * 0.7, CANDLE_BODY_MOST), 2);
                 return (
                   <Fragment key={c.at}>
-                    <Line x1={xOf(i)} x2={xOf(i)} y1={shape.y(c.high)} y2={shape.y(c.low)} stroke={tone} strokeWidth={1} />
-                    <Rect x={round(xOf(i) - wide / 2)} y={top} width={round(wide)} height={round(body)} fill={tone} />
+                    <Line
+                      x1={xOf(i)}
+                      x2={xOf(i)}
+                      y1={shape.y(c.high)}
+                      y2={shape.y(c.low)}
+                      stroke={tone}
+                      strokeWidth={1.2}
+                    />
+                    <Rect
+                      x={round(xOf(i) - wide / 2)}
+                      y={top}
+                      width={round(wide)}
+                      height={round(body)}
+                      rx={1}
+                      fill={tone}
+                    />
                   </Fragment>
                 );
               })
@@ -203,6 +201,7 @@ export function PriceChart({
             )}
           </Svg>
 
+          {grouped ? <Text style={styles.period}>1 candle = {grouped.period}</Text> : null}
           {shape.grid.map((price) => (
             <Text key={price} style={[styles.price, { top: shape.y(price) - 8 }]}>
               {format(price)}
@@ -268,5 +267,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
   dateFirst: { left: 0 },
+  period: { color: colors.faint, fontFamily: font.body, fontSize: 11, left: 0, position: 'absolute', top: 0 },
   loadingLine: { backgroundColor: colors.line, height: 1, marginTop: 170, width: '100%' },
 });

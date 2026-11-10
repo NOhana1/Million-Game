@@ -245,13 +245,13 @@ export default function ProfileScreen() {
         ) : null}
       </View>
 
-      <View style={styles.head}>
+      <View style={[styles.head, !wide && styles.headPhone]}>
         {mine ? (
           <MyPhoto name={name} size={wide ? 104 : 72} />
         ) : (
           <Avatar name={name} photo={profile.photo} size={wide ? 104 : 72} />
         )}
-        <View style={styles.flex}>
+        <View style={styles.headText}>
           <Eyebrow>
             {mine ? "Your profile" : profile.bot ? "Computer player" : "Player"}{" "}
             · {DIVISION_LABEL[profile.division]} division
@@ -384,8 +384,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "500",
   },
-  head: { alignItems: "center", flexDirection: "row", gap: 20 },
-  photoBox: { alignItems: "center", gap: 6 },
+  // Room between the photo and the name, so the name's first letter is never cut.
+  head: { alignItems: "center", flexDirection: "row", gap: 28 },
+  headPhone: { gap: 20 },
+  headText: { flex: 1, minWidth: 0, paddingLeft: 4 },
+  photoBox: { alignItems: "center", flexShrink: 0, gap: 6 },
   photoLink: {
     color: colors.brand,
     fontFamily: font.body,
