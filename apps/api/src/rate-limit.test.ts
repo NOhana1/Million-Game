@@ -158,7 +158,7 @@ describe('rate limits', () => {
     assert.equal((await join('c', '7.7.7.7')).status, 429);
   });
 
-  it('stops guessing the clock code, even with the right code after', async () => {
+  it('stops guessing the admin code, even with the right code after', async () => {
     const { app } = setup();
     const guess = (code: string) =>
       app.request('/api/admin/clock', {

@@ -14,6 +14,7 @@ import {
   withMessage,
   withoutMember,
 } from './group-rules.ts';
+import { shardsWithout, tableWithout } from './player-removal.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
 const NOT_FOUND = 5; // gRPC status codes
@@ -266,6 +267,54 @@ export function firestoreStore(db: Firestore): Store {
 
     async getMessages(groupId) {
       return ((await chatDoc(groupId).get()).data() as Chat | undefined)?.messages ?? [];
+    },
+
+    async deletePlayer(uid, realNow) {
+      // Reading the settlement document makes a settlement that starts meanwhile retry this one.
+      const result = await db.runTransaction(async (tx) => {
+        const settlement = (await tx.get(settlementDoc)).data() as Settlement | undefined;
+        if (settlement?.leaseOwner && (settlement.leaseUntil ?? 0) > realNow) return 'busy' as const;
+        const player = (await tx.get(playerDoc(uid))).data() as Player | undefined;
+        const group = player?.groupId
+          ? ((await tx.get(groupDoc(player.groupId))).data() as Group | undefined)
+          : undefined;
+        const shards = (await tx.get(shardDocs)).docs.map((doc) => doc.data() as Shard);
+        const table = ((await tx.get(tableDoc)).data() as LeagueTable | undefined) ?? null;
+
+        if (group) {
+          const next = withoutMember(group, uid);
+          if (next) {
+            tx.set(groupDoc(group.id), next);
+          } else {
+            tx.delete(groupDoc(group.id));
+            tx.delete(chatDoc(group.id));
+          }
+        }
+        for (const shard of shardsWithout(shards, uid)) tx.set(shardDocs.doc(shard.id), shard);
+        const nextTable = tableWithout(table, uid);
+        if (nextTable) tx.set(tableDoc, nextTable);
+        tx.delete(photoDoc(uid));
+        tx.delete(originalDoc(uid));
+        tx.delete(playerDoc(uid));
+        return 'deleted' as const;
+      });
+      // Orders can be more than one transaction holds. With the player gone, nothing adds more.
+      if (result === 'deleted') await db.recursiveDelete(orderDocs(uid));
+      return result;
+    },
+
+    editLeague(realNow, edit) {
+      return db.runTransaction(async (tx) => {
+        const settlement = (await tx.get(settlementDoc)).data() as Settlement | undefined;
+        if (settlement?.leaseOwner && (settlement.leaseUntil ?? 0) > realNow) return 'busy' as const;
+        const shards = (await tx.get(shardDocs)).docs.map((doc) => doc.data() as Shard);
+        const table = ((await tx.get(tableDoc)).data() as LeagueTable | undefined) ?? null;
+        const change = edit(shards, table);
+        if (!change) return 'unchanged' as const;
+        for (const shard of change.shards) tx.set(shardDocs.doc(shard.id), shard);
+        if (change.table) tx.set(tableDoc, change.table);
+        return 'done' as const;
+      });
     },
 
     async getCursor() {

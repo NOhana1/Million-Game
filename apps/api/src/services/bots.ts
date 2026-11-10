@@ -1,11 +1,12 @@
 // Computer players, so a new league isn't empty. They trade through the engine's normal rules.
 // They live only in league shards, with no player or order documents, so they cost no writes.
 
-import { createHash } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
 
 import {
   type Account,
   type Agorot,
+  DIVISIONS,
   maxOrderAmount,
   type Order,
   placeOrder,
@@ -76,6 +77,38 @@ export function createBots(now: number): Member[] {
       week: startWeek(now, START_CASH, false),
     })),
   );
+}
+
+const pick = <T>(items: readonly T[], random: () => number): T =>
+  items[Math.floor(random() * items.length)] as T;
+
+/**
+ * One more bot, added by the owner: a random style, a random division, and its own picks, which
+ * it buys straight away. The orders fill at the next market open or close, like anyone's, and it
+ * shows on the table from then on. Badges come from finished weeks, so it earns them like anyone.
+ */
+export function newBot(
+  existing: readonly Member[],
+  worldNow: number,
+  quotes: QuoteSource,
+  random: () => number = Math.random,
+): Member {
+  const style = pick(STYLES, random);
+  const used = new Set(existing.map((member) => member.name));
+  let number = 1;
+  while (used.has(`${style.name} ${number} (bot)`)) number += 1;
+  const bot: Member = {
+    id: `bot-${randomUUID()}`,
+    name: `${style.name} ${number} (bot)`,
+    bot: true,
+    cash: START_CASH,
+    holdings: {},
+    orders: [],
+    week: startWeek(worldNow, START_CASH, false),
+    division: pick(DIVISIONS, random),
+  };
+  const account = botActs(bot, worldNow, quotes, false);
+  return { ...bot, cash: account.cash, orders: account.orders };
 }
 
 function placed(

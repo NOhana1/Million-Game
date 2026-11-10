@@ -112,6 +112,9 @@ Each row is `{ rank, id, name, bot, value, returnPpm, maxFallPpm, returnRank, st
 | `POST /tick` | `Bearer <TICK_SECRET>` | Fills due orders. Called by the cron, never by the app. Returns `{ status, cursor, filled, failed, slots }`, where `slots` lists each market open and close it finished, oldest first |
 | `POST /admin/clock` | `Bearer <CLOCK_SECRET>` | Moves the clock, then fills what became due. Returns `{ worldTime, clock, settlement }` |
 | `POST /admin/players` | `Bearer <CLOCK_SECRET>` | Read-only. Real players and bots, kept apart, names only: `{ players, bots }`. Reads every player once |
+| `POST /admin/bots` | `Bearer <CLOCK_SECRET>` | Adds one bot: random style, random division, its own picks bought at once (they fill at the next market open or close, when it joins the table). Starts the league if it hasn't started. `409 BUSY` while the league updates. Returns `201 { bot: { id, name } }` |
+| `DELETE /admin/bots/:id` | `Bearer <CLOCK_SECRET>` | Removes a bot from the league and the table. Past weeks keep its results. `404 NO_BOT` if it isn't a bot; `409 BUSY` while the league updates. Returns `{ deleted: true }` |
+| `DELETE /admin/players/:id` | `Bearer <CLOCK_SECRET>` | Deletes a real player: game data, group spot, photo, orders, league place, then their sign-in, so the email can sign up again. Past weeks keep their results. `409 BUSY` while the league updates; `400 BOT` for a bot. Safe to repeat. Returns `{ deleted: true }` |
 
 Bodies for `POST /admin/clock`:
 

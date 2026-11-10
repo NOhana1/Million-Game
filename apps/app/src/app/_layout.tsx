@@ -69,7 +69,7 @@ function Game() {
     if (playersOnly) router.replace('/');
   }, [playersOnly]);
   // The clock page has no link anywhere: the owner and the reviewer open /admin directly. It
-  // opens without an account, because the clock code is what protects it.
+  // opens without an account, because the admin code is what protects it.
   const adminSignedOut = pathname === '/admin' && status === 'signedOut' && !guest;
   useEffect(() => {
     if (adminSignedOut) lookAround();

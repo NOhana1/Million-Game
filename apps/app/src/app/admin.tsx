@@ -20,7 +20,7 @@ const fillText = ({ settlement: { filled, status } }: ClockResult) => {
   return status === 'finished' || status === 'idle' ? orders : `${orders}, more on the way`;
 };
 
-// The clock is shared by every player, so moving it needs the secret clock code. Until the server
+// The clock is shared by every player, so moving it needs the secret admin code. Until the server
 // accepts the code, the page shows only the code box, so nobody sees what the code can do. The
 // code stays in memory on this screen and is never saved. The server still checks every action.
 export default function AdminScreen() {
@@ -116,14 +116,14 @@ export default function AdminScreen() {
       {unlocked ? null : (
         <Card style={styles.card}>
           <Text style={styles.label}>For the game’s owner</Text>
-          <Text style={styles.hint}>Enter the clock code to continue.</Text>
+          <Text style={styles.hint}>Enter the admin code to continue.</Text>
           <Field
-            label="Clock code"
+            label="Admin code"
             autoCapitalize="none"
             autoCorrect={false}
             onChangeText={setCode}
             onSubmitEditing={unlock}
-            placeholder="Clock code"
+            placeholder="Admin code"
             secureTextEntry
             value={code}
           />

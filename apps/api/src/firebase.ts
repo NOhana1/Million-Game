@@ -36,6 +36,14 @@ export function firebaseApp(version: string, env: NodeJS.ProcessEnv) {
     verifyToken,
     // Read fresh from Firebase, so a player who just clicked the link can join straight away.
     emailConfirmed: async (uid) => (await auth.getUser(uid)).emailVerified,
+    deleteAccount: async (uid) => {
+      try {
+        await auth.deleteUser(uid);
+      } catch (error) {
+        // Already gone, from an earlier try: that's the result we wanted.
+        if ((error as { code?: unknown }).code !== 'auth/user-not-found') throw error;
+      }
+    },
     now: Date.now,
     tickSecret: config.TICK_SECRET,
     clockSecret: config.CLOCK_SECRET,

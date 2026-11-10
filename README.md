@@ -54,7 +54,7 @@ Why not real prices? A real feed would tie the game to market hours and to a pai
 The clock runs by itself at 7× speed, so one game week passes in about one real day.
 
 1. Open **https://million-game-three.vercel.app/admin**. There's no link to it in the game, so players don't see it. It opens without an account.
-2. Enter the clock code and press **Unlock**. **I'll send it to you by email.** It's never in the repo. Until the server accepts the code, the page shows only the code box.
+2. Enter the admin code and press **Unlock**. **I'll send it to you by email.** It's never in the repo. Until the server accepts the code, the page shows only the code box.
 3. Press **Jump to...** to go to the next market open or close. You can also stop and start time, or set the speed (real time, 7×, 30× or 60×).
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
@@ -182,7 +182,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
 
-**Emergency brake:** the admin page can pause trading for everyone with the clock code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
+**Emergency brake:** the admin page can pause trading for everyone with the admin code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
 
 **Watchdog:** about every 15 minutes, GitHub checks that the game is up and that orders fill on time, and emails an alert if not. See [watchdog](#watchdog).
 
@@ -226,7 +226,7 @@ Every request to the server falls into one category, and each category allows a 
 | Costly read | Your order list (up to 50 database reads) and portfolio history (reads every order you have) | 20 | 150 |
 | Write | Orders, watchlist, goal, photo, groups, chat messages | 30 | 300 |
 | Sign-up | Creating a player | 5 | 10 |
-| Secret | The clock code and the alarm | none | 10 |
+| Secret | The admin code and the alarm | none | 10 |
 
 - **Shared connections are fine.** An office address allows about 15 busy players at once. A test runs five colleagues chatting and browsing from one address for five minutes.
 - **Over the limit:** the server answers `429` with a `Retry-After` header and a message saying how many seconds to wait. Reads and writes are counted apart, so browsing never blocks an order.
@@ -234,7 +234,7 @@ Every request to the server falls into one category, and each category allows a 
 - **Normal play never gets near them.** Tests play a busy session, a busy minute on the portfolio screen (every chart range, five orders, the refreshes after fills), and five colleagues on one address. None is limited. A test plays ten busy minutes with the real limits (every poll, every security page opened twice a minute, and orders) and is never limited.
 - **Search costs nothing.** It filters the list the app already has, in the browser, so it sends no requests and needs no category.
 - **The client can't skip it.** It runs on the server before every route. The player count uses the verified sign-in token, so made-up tokens don't help. The address comes from headers Vercel sets itself.
-- **The clock code can't be guessed.** Ten wrong tries a minute, then even the right code waits. Right codes never count, so the alarm is never slowed.
+- **The admin code can't be guessed.** Ten wrong tries a minute, then even the right code waits. Right codes never count, so the alarm is never slowed.
 - **Sign-in itself isn't ours to limit.** Email and password go straight from the browser to Firebase Auth, which has its own protection against repeated tries.
 - **Honest limit:** counts live in the server's memory. Vercel can run a few copies at once and each counts on its own, so the real ceiling is a few times higher, and a restart clears the counts. That's enough to stop floods and needs no extra service. A shared counter (for example Redis) would be the next step.
 
@@ -307,7 +307,7 @@ Every check passing again closes the issue by itself.
 
 ## Running it locally
 
-Needs Node 22 or newer. With no `.env`, the API runs in memory, orders fill every 5 seconds, and the clock code at `/admin` is `local`.
+Needs Node 22 or newer. With no `.env`, the API runs in memory, orders fill every 5 seconds, and the admin code at `/admin` is `local`.
 
 ```bash
 npm ci

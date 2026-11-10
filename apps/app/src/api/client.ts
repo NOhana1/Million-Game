@@ -208,4 +208,9 @@ export const api = {
   moveClock: (code: string, change: ClockChange) =>
     call<ClockResult>('POST', '/admin/clock', { token: code, body: change }),
   roster: (code: string) => call<Roster>('POST', '/admin/players', { token: code }),
+  addBot: (code: string) => call<{ bot: RosterRow }>('POST', '/admin/bots', { token: code }),
+  deleteBot: (code: string, id: string) =>
+    call<{ deleted: true }>('DELETE', `/admin/bots/${encodeURIComponent(id)}`, { token: code }),
+  deletePlayer: (code: string, id: string) =>
+    call<{ deleted: true }>('DELETE', `/admin/players/${encodeURIComponent(id)}`, { token: code }),
 };
