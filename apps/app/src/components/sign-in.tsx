@@ -31,7 +31,7 @@ const PASSWORD_RULES = [
 ];
 
 export function SignIn() {
-  const { status, signUp, signIn, chooseName, lookAround, checkEmail, switchEmail, joinProblem, joining } =
+  const { status, signUp, signIn, chooseName, lookAround, checkEmail, switchEmail, joinProblem, joining, chosenName } =
     useGame();
   const wide = useWide();
   const [mode, setMode] = useState<Mode>('create');
@@ -52,6 +52,10 @@ export function SignIn() {
   }, []);
 
   const onlyName = status === 'needsName';
+  // If the name has to be asked again, it starts filled in with the one chosen at sign-up.
+  useEffect(() => {
+    if (onlyName && chosenName) setName((typed) => typed || chosenName);
+  }, [onlyName, chosenName]);
   const showAccount = usesAccounts && !onlyName;
   const showName = onlyName || mode === 'create';
 

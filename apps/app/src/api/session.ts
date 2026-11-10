@@ -53,14 +53,44 @@ export async function currentToken(): Promise<string | null> {
 export async function createAccount(email: string, password: string, name: string) {
   if (!firebase) return storage()?.setItem(KEY, newId());
   const { user } = await createUserWithEmailAndPassword(firebase, email, password);
-  // The name is kept on the account, so after the email link it's still there, also after a
-  // refresh or on another device, and nobody is asked for a name twice.
+  // The name is kept twice until the player exists: in this browser, so a refresh always finds
+  // it, and on the account, so another device does too. Nobody is asked for a name twice.
+  rememberName(user.uid, name);
   await updateProfile(user, { displayName: name });
   await sendEmailVerification(user);
 }
 
-/** The player name chosen at sign-up, kept on the account until the player is created. */
-export const signUpName = () => firebase?.currentUser?.displayName?.trim() || null;
+const NAME_KEY = 'portfolio-league-signup-name';
+
+function rememberName(uid: string, name: string) {
+  try {
+    storage()?.setItem(NAME_KEY, JSON.stringify({ uid, name }));
+  } catch {
+    // Only a convenience: the account keeps the name too.
+  }
+}
+
+/** The player name chosen at sign-up, until the player is created: this browser's copy first. */
+export function signUpName(): string | null {
+  const user = firebase?.currentUser;
+  if (!user) return null;
+  try {
+    const saved = JSON.parse(storage()?.getItem(NAME_KEY) ?? 'null') as { uid?: string; name?: string } | null;
+    if (saved?.uid === user.uid && saved.name?.trim()) return saved.name.trim();
+  } catch {
+    // Unreadable: fall back to the account's copy.
+  }
+  return user.displayName?.trim() || null;
+}
+
+/** Once the player exists, the browser's copy isn't needed any more. */
+export function forgetSignUpName() {
+  try {
+    storage()?.removeItem(NAME_KEY);
+  } catch {
+    // Nothing to do.
+  }
+}
 
 /** Whether the signed-in account's email is confirmed. Asks Firebase again, since the link is
  *  clicked in another tab or app. Without real accounts there's nothing to confirm. */

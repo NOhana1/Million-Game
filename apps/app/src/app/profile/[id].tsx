@@ -235,7 +235,7 @@ export default function ProfileScreen() {
               accessibilityRole="button"
               onPress={signOut}
               {...hover("quiet")}
-              style={styles.topButton}
+              style={[styles.topButton, styles.signOutButton]}
             >
               <Text style={[styles.topButtonText, styles.signOutText]}>
                 Sign out
@@ -457,6 +457,8 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: "600",
   },
-  signOutText: { color: colors.down },
+  // Bigger and outlined in red, so it's easy to find.
+  signOutButton: { borderColor: colors.down, paddingHorizontal: 18, paddingVertical: 10 },
+  signOutText: { color: colors.down, fontSize: 15 },
   share: { alignSelf: "flex-start", marginTop: -4 },
 });

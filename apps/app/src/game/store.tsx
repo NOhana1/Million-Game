@@ -17,6 +17,7 @@ import {
   createAccount,
   currentToken,
   signUpName,
+  forgetSignUpName,
   dropUnconfirmedAccount,
   emailConfirmed,
   logIn,
@@ -49,6 +50,8 @@ type Game = {
   chooseName(name: string): Promise<void>;
   /** Joining with the name chosen at sign-up, right after the email was confirmed. */
   joining: boolean;
+  /** The name chosen at sign-up, to fill in the name box if it has to be asked again. */
+  chosenName: string | null;
   /** Asks again whether the email is confirmed, and joins with the name given at sign-up if so. */
   checkEmail(): Promise<boolean>;
   /** Leaves the "check your email" step. An unconfirmed account is deleted, freeing its email. */
@@ -204,6 +207,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return setStatus('needsEmail');
       }
       nameToJoin.current = null;
+      forgetSignUpName();
       setJoinProblem(null);
       await refreshOwn();
     },
@@ -248,7 +252,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     triedNames.current.add(name);
     setJoining(true);
     chooseName(name)
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        // Say why instead of an empty box. A taken name already set its own message.
+        if (!(error instanceof ApiProblem && error.code === 'NAME_TAKEN')) {
+          setJoinProblem('Couldn’t finish joining. Check your name and press Join the league.');
+        }
+      })
       .finally(() => setJoining(false));
   }, [status, chooseName]);
 
@@ -343,6 +352,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signIn,
       chooseName,
       joining,
+      chosenName: status === 'needsName' ? savedName() : null,
       checkEmail,
       switchEmail,
       joinProblem,
