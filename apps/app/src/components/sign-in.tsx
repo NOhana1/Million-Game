@@ -56,6 +56,12 @@ export function SignIn() {
   const nameReady = !showName || trimmed.length >= 2;
   const ready = accountReady && nameReady && !sending;
 
+  // A successful step keeps the button locked while the screen moves on. Coming back to this
+  // form, for example with "use a different email" after sign-up, must unlock it again.
+  useEffect(() => {
+    setSending(false);
+  }, [status]);
+
   const changeMode = (value: Mode) => {
     setMode(value);
     setProblem(null);
