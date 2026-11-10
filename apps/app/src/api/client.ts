@@ -166,6 +166,11 @@ export const api = {
   me: (token: string) => call<Me>('GET', '/me', { token }),
   orders: (token: string) =>
     call<{ orders: Order[] }>('GET', '/me/orders?limit=50', { token }).then((r) => r.orders),
+  /** Frees an email whose earlier sign-up was abandoned: never confirmed, never joined, not recent. */
+  releaseEmail: (email: string) =>
+    call<{ freed: boolean; reason: 'none' | 'in-use' | 'recent' | null }>('POST', '/accounts/release', {
+      body: { email },
+    }),
   /** Whether a player name is free. Asked before an account is made, so it needs no sign-in. */
   nameCheck: (name: string) =>
     call<{ available: boolean; problem: string | null }>('GET', `/players/name?name=${encodeURIComponent(name)}`),
@@ -211,4 +216,9 @@ export const api = {
   moveClock: (code: string, change: ClockChange) =>
     call<ClockResult>('POST', '/admin/clock', { token: code, body: change }),
   roster: (code: string) => call<Roster>('POST', '/admin/players', { token: code }),
+  addBot: (code: string) => call<{ bot: RosterRow }>('POST', '/admin/bots', { token: code }),
+  deleteBot: (code: string, id: string) =>
+    call<{ deleted: true }>('DELETE', `/admin/bots/${encodeURIComponent(id)}`, { token: code }),
+  deletePlayer: (code: string, id: string) =>
+    call<{ deleted: true }>('DELETE', `/admin/players/${encodeURIComponent(id)}`, { token: code }),
 };

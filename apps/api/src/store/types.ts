@@ -89,6 +89,11 @@ export type LeagueTable = {
 /** Everything one market open or close changes, saved together with the cursor. */
 export type SlotSave = { shards: Shard[]; table: LeagueTable | null; finishedWeek?: LeagueTable };
 
+export type LeagueEdit = (
+  shards: Shard[],
+  table: LeagueTable | null,
+) => { shards: Shard[]; table: LeagueTable | null } | null;
+
 export type Decision = { player: Player; order: Order };
 
 export type PlaceOrder = {
@@ -158,6 +163,19 @@ export type Store = {
   findGroupByCode(code: string): Promise<Group | null>;
   addMessage(uid: string, message: Omit<ChatMessage, 'uid' | 'name'>): Promise<GroupChange>;
   getMessages(groupId: string): Promise<ChatMessage[]>;
+
+  /**
+   * Removes a player and everything of theirs: their group spot, photo, orders and league place.
+   * Past weeks keep their results. 'busy' while settlement runs, since it would write the old
+   * league back; try again in a moment. Deleting someone already gone is fine, so it can be retried.
+   */
+  deletePlayer(uid: string, realNow: number): Promise<'deleted' | 'busy'>;
+  /**
+   * Changes the league by hand, all or nothing, as the owner adding or removing a bot. `edit`
+   * gets the stored shards and table and returns only what changed, or null to change nothing.
+   * 'busy' while settlement runs, for the same reason as above.
+   */
+  editLeague(realNow: number, edit: LeagueEdit): Promise<'done' | 'unchanged' | 'busy'>;
 
   /** The world time settlement has finished up to. */
   getCursor(): Promise<number>;

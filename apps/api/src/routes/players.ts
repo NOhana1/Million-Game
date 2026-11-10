@@ -28,6 +28,9 @@ const NewPlayer = z.object({
 
 const MAX_GOAL = 100_000_000_000; // ₪1,000,000,000 in agorot
 
+const ReleaseEmail = z.object({ email: z.string().trim().toLowerCase().email().max(254) });
+const ABANDONED_AFTER_MS = 15 * 60 * 1000; // time to find the email and click its link
+
 const Goal = z.object({ amount: z.number().int().positive().max(MAX_GOAL) });
 
 const MOST_WATCHED = 20;
@@ -114,6 +117,22 @@ export function playerRoutes(deps: Deps) {
     const owner = await deps.store.nameOwner(nameKey(name));
     return owner && owner !== uid ? `“${name.trim()}” is taken. Try another, like ${name.trim()}2.` : null;
   };
+
+  // Someone who started signing up and never clicked the email link leaves an account behind,
+  // which blocks that email for good. When a sign-up hits one, the app asks here: an account that
+  // never confirmed its email, never joined, and is old enough that nobody is still waiting for
+  // the link is deleted, so the email can sign up. Anything else is left exactly as it is.
+  routes.post('/accounts/release', async (c) => {
+    const { email } = await readBody(c, ReleaseEmail);
+    const account = await deps.findAccount?.(email);
+    if (!account) return c.json({ freed: false, reason: 'none' });
+    if (account.confirmed || (await deps.store.getPlayer(account.uid))) {
+      return c.json({ freed: false, reason: 'in-use' });
+    }
+    if (deps.now() - account.createdAt < ABANDONED_AFTER_MS) return c.json({ freed: false, reason: 'recent' });
+    await deps.deleteAccount?.(account.uid);
+    return c.json({ freed: true, reason: null });
+  });
 
   routes.get('/players/name', async (c) => {
     const parsed = NewPlayer.safeParse({ name: c.req.query('name') ?? '' });

@@ -34,7 +34,7 @@ export const LIMITS: Limits = {
   write: { perAddress: 300, perPlayer: 30 },
   // Creating a player.
   signup: { perAddress: 10, perPlayer: 5 },
-  // Wrong clock codes and alarm secrets, so nobody can guess them by trying many. Only wrong
+  // Wrong admin codes and alarm secrets, so nobody can guess them by trying many. Only wrong
   // ones count: the real alarm can knock as often as it needs.
   secret: { perAddress: 10, perPlayer: 10 },
 };
@@ -50,7 +50,7 @@ export function categoryOf(method: string, path: string): Category | null {
   const reading = method === 'GET' || method === 'HEAD' || method === 'OPTIONS';
   if (reading && COSTLY.some((end) => path.endsWith(end))) return 'costly';
   if (reading) return 'read';
-  if (method === 'POST' && path.endsWith('/players')) return 'signup';
+  if (method === 'POST' && (path.endsWith('/players') || path.endsWith('/accounts/release'))) return 'signup';
   return 'write';
 }
 
@@ -117,7 +117,7 @@ export function rateLimit(deps: { now: () => number; verifyToken: TokenVerifier 
     const byAddress = take(addressKey, limit.perAddress);
     if (byAddress) throw new RateLimited(byAddress);
 
-    // The clock code and alarm secret use the same header, but they aren't player tokens.
+    // The admin code and alarm secret use the same header, but they aren't player tokens.
     // A right one gives its place back, so only wrong ones count and the alarm is never slowed.
     if (category === 'secret') {
       await next();

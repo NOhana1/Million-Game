@@ -12,7 +12,15 @@ import {
 import { AppState } from 'react-native';
 
 import { api, ApiProblem, MarketData, Me, NewOrder, WorldData } from '@/api/client';
-import { createAccount, currentToken, dropUnconfirmedAccount, emailConfirmed, logIn, logOut } from '@/api/session';
+import {
+  accountGone,
+  createAccount,
+  currentToken,
+  dropUnconfirmedAccount,
+  emailConfirmed,
+  logIn,
+  logOut,
+} from '@/api/session';
 import { visitDue } from '@/game/streak';
 
 // Shared data is cached by the CDN, so it can refresh often. A player's own data reads the
@@ -134,8 +142,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       const code = error instanceof ApiProblem ? error.code : null;
-      if (code === 'PLAYER_NOT_FOUND') return setStatus((await emailConfirmed()) ? 'needsName' : 'needsEmail');
-      if (code !== 'UNAUTHENTICATED') return setOffline(true);
+      if (code === 'PLAYER_NOT_FOUND') {
+        setMe(null);
+        try {
+          return setStatus((await emailConfirmed()) ? 'needsName' : 'needsEmail');
+        } catch (stillThere) {
+          // The owner deleted this player and their sign-in: go back to the sign-up page below.
+          if (!accountGone(stillThere)) return setOffline(true);
+        }
+      } else if (code !== 'UNAUTHENTICATED' && !accountGone(error)) {
+        return setOffline(true);
+      }
       await logOut();
       setMe(null);
       setStatus('signedOut');

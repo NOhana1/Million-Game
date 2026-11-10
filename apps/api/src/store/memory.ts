@@ -14,6 +14,7 @@ import {
   withoutMember,
 } from './group-rules.ts';
 import { nameKey } from './player-names.ts';
+import { shardsWithout, tableWithout } from './player-removal.ts';
 import type { ChatMessage, Group, LeagueTable, Player, SavedPhoto, Shard, Store } from './types.ts';
 
 export type MemoryStore = Store & { setClock(next: Clock): void };
@@ -223,6 +224,45 @@ export function memoryStore(startClock?: Clock): MemoryStore {
 
     async getMessages(groupId) {
       return structuredClone(chats.get(groupId) ?? []);
+    },
+
+    async deletePlayer(uid, realNow) {
+      if (lease && lease.until > realNow) return 'busy';
+      const groupId = players.get(uid)?.groupId;
+      const group = groupId ? groups.get(groupId) : undefined;
+      if (group) {
+        const next = withoutMember(group, uid);
+        if (next) {
+          groups.set(group.id, next);
+        } else {
+          groups.delete(group.id);
+          chats.delete(group.id);
+        }
+      }
+      for (const changed of shardsWithout(shards, uid)) {
+        shards = shards.map((shard) => (shard.id === changed.id ? changed : shard));
+      }
+      table = tableWithout(table, uid) ?? table;
+      // Free their name. If the names aren't built yet, they'll be built later without this player.
+      const player = players.get(uid);
+      if (player && names?.get(nameKey(player.name)) === uid) names.delete(nameKey(player.name));
+      players.delete(uid);
+      orders.delete(uid);
+      photos.delete(uid);
+      return 'deleted';
+    },
+
+    async editLeague(realNow, edit) {
+      if (lease && lease.until > realNow) return 'busy';
+      const change = edit(structuredClone(shards), structuredClone(table));
+      if (!change) return 'unchanged';
+      for (const next of change.shards) {
+        const at = shards.findIndex((shard) => shard.id === next.id);
+        if (at >= 0) shards[at] = structuredClone(next);
+        else shards.push(structuredClone(next));
+      }
+      if (change.table) table = structuredClone(change.table);
+      return 'done';
     },
 
     async getCursor() {

@@ -70,6 +70,17 @@ export async function resendConfirmation() {
 
 export const signedInEmail = () => firebase?.currentUser?.email ?? null;
 
+/** Sign-up found an account already on this email. */
+export const emailTaken = (error: unknown) =>
+  error instanceof FirebaseError && error.code === 'auth/email-already-in-use';
+
+/** The sign-in account no longer exists, for example because the owner deleted this player. */
+export const accountGone = (error: unknown) =>
+  error instanceof FirebaseError &&
+  ['auth/user-not-found', 'auth/user-token-expired', 'auth/user-disabled', 'auth/invalid-user-token'].includes(
+    error.code,
+  );
+
 /**
  * For "use a different email": an account whose email was never confirmed is deleted, so a
  * mistyped address is free again for its real owner. A confirmed account is only signed out.

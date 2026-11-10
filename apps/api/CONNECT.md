@@ -11,7 +11,7 @@ Do this once for staging and once for production. Never paste them into a chat o
 | `FIREBASE_SERVICE_ACCOUNT` | Firebase console, Project settings, Service accounts, **Generate new private key**. Use the whole file, on one line |
 | `WORLD_SEED` | Run `openssl rand -hex 32`. Use a different one per project |
 | `TICK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. The cron sends it to `/api/tick` |
-| `CLOCK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. It can only move the clock |
+| `CLOCK_SECRET` | Run `openssl rand -hex 32`. Use a different one per project. This is the **admin code** for `/admin`: it moves the clock, and adds or deletes bots and players |
 
 ## 2. Put them in Vercel
 

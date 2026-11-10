@@ -10,9 +10,10 @@ A weekly virtual trading game. Each player gets ₪1,000,000, buys and sells 20 
 - **Your stack:** Expo for web, TypeScript and Firebase, hosted on Vercel. It all runs on free plans, with no credit card.
 - **A rules engine with no outside dependencies** (`packages/engine`). The rules are the product, and money must never be wrong, so they sit in one tested place. All money is whole numbers, and every calculation rounds down, so rounding can't create money.
 - **All writes go through the server.** The browser can read only its own player and orders. It can never write to the database.
-- **20 labelled bots** in five styles, so a new player sees a real table and not an empty one.
+- **20 labelled bots** in five styles, so a new player sees a real table and not an empty one. The owner can add or remove bots from the admin page.
+- **A hidden admin page** at `/admin`, behind one admin code: move the clock, pause trading, see real players apart from bots, delete a player, add or delete a bot. See [the admin page](#how-to-advance-the-clock-the-admin-page).
 - **A first-time welcome and a Rules page,** because orders wait for market times, which can look broken to a new player.
-- **A confirmed email to join.** After sign-up, Firebase emails a link, and the server creates the player only once the address is confirmed, so nobody plays under an email that isn't theirs. Players who joined before this rule keep playing. **Use a different email** deletes an account that was never confirmed, so a mistyped address is free again. If someone else left an unconfirmed account on your email, **Forgot password?** gets it back, since only you can open that email.
+- **A confirmed email to join.** After sign-up, Firebase emails a link, and the server creates the player only once the address is confirmed, so nobody plays under an email that isn't theirs. Players who joined before this rule keep playing. **Use a different email** deletes an account that was never confirmed, so a mistyped address is free again. A sign-up that was simply abandoned (never confirmed, never joined, over 15 minutes old) no longer blocks its email: when someone signs up with it again, the server deletes the leftover and the sign-up goes through. A confirmed email or a real player is never touched, and the 15 minutes protect someone still waiting for their link.
 - **Unique player names.** Capitals and extra spaces don't count, so "Noam" and "noam" are the same name, while "Noam12" is another. The app checks the name before the account is made, the server takes it all or nothing so two people can't get it at once, and bots' names are kept for bots. Names taken before this rule were written down once, the first player keeping a name two already shared.
 - **Divisions, a personal goal, a market comparison and a weekly top 3,** so there's a reason to come back. See [the daily feature](#the-daily-feature-divisions).
 
@@ -50,17 +51,24 @@ The world is **generated, not real data**.
 
 Why not real prices? A real feed would tie the game to market hours and to a paid or rate-limited service. It would also let anyone look up what's coming when the clock is behind real time. A generated world can be moved forward freely and costs nothing.
 
-## How to advance the clock
+## How to advance the clock (the admin page)
 
 The clock runs by itself at 7× speed, so one game week passes in about one real day.
 
 1. Open **https://million-game-three.vercel.app/admin**. There's no link to it in the game, so players don't see it. It opens without an account.
-2. Enter the clock code and press **Unlock**. **I'll send it to you by email.** It's never in the repo. Until the server accepts the code, the page shows only the code box.
+2. Enter the admin code and press **Unlock**. **I'll send it to you by email.** It's never in the repo. Until the server accepts the code, the page shows only the code box.
 3. Press **Jump to...** to go to the next market open or close. You can also stop and start time, or set the speed (real time, 7×, 30× or 60×).
 
 Moving the clock also fills every order that became due, oldest first. A jump over several days settles each market open and close in order.
 
-The same page has the emergency brake and the **Players** list, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. The list shows names only, no emails, and it can't change players or orders. The server checks the code on every action, and the screen keeps it in memory only. Anyone who types the address sees the code box, but nothing else without the code.
+The same page has:
+
+- **The emergency brake**, which pauses new orders for everyone (see below).
+- **The Players list**, with a switch between real players and bots. The game makes the bots, so everyone else is a real player. Names only, no emails.
+- **Delete a player.** It removes their portfolio, orders, photo, group spot (the group passes to the next member), place on the table and name, then their sign-in, so the same email and name can sign up again as a new player. Past weeks keep their results. It asks first, it's all or nothing, it waits while the league is updating, and it's safe to repeat.
+- **Add or delete a bot.** A new bot gets a random style, division and picks, buys at once, and joins the table at the next market open or close.
+
+The server checks the code on every action, and the screen keeps it in memory only. Anyone who types the address sees the code box, but nothing else without the code. **Because the code can delete players, share it only with people trusted to do that.**
 
 ## The daily feature: Divisions
 
@@ -125,6 +133,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Minimum order and fees | ₪100 minimum, except selling everything. No fees | The brief sets neither, and a small remainder can always be cleared |
 | Pending orders | Up to 50 per player | Protects the server. The brief sets no limit |
 | Sale larger than the holding | Capped at the units held, so it can return less | The price may fall after sending, and shorting must stay impossible |
+| Player names | Unique, ignoring capitals and extra spaces. Bots' names are kept for bots. A deleted player's name is free again | Two "Noam"s on one table would confuse everyone, and a player must not pass for a bot |
 | Sale with nothing left | Recorded as filled with 0 units | Orders can't be cancelled, so it needs a final state |
 | "Sell everything" | Sells every unit held at fill. One per security can be pending | Selling by amount can leave a small remainder |
 | When the 20% limit applies | When sent, and again at fill, using execution prices | The fill is the real moment of purchase, but players should hear early |
@@ -164,7 +173,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 - **Real S&P 500 and Nasdaq numbers.** The game's prices are invented, so a real index would mean nothing next to them. The comparison uses the game's own index funds.
 - **Native apps.** The brief asks for a browser link, so only web has been tested. Some code assumes the browser.
 - **Hebrew and right-to-left layout.** The app is in English. The required work came first.
-- **Firebase custom claims for the clock.** One secret that can only move the clock and read the players list is simpler and does the same job here.
+- **Firebase custom claims for the admin page.** One admin code, checked by the server on every action, is simpler for one owner. With more admins, I'd give each their own account with an admin role, so access can be taken back one person at a time, and keep moving the clock apart from deleting players.
 - **Cloud Functions.** The whole backend runs as a single Vercel function, so it's one host and one deploy.
 
 ## Tomorrow this goes to customers
@@ -178,12 +187,12 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 238 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 253 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
 
-**Emergency brake:** the admin page can pause trading for everyone with the clock code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
+**Emergency brake:** the admin page can pause trading for everyone with the admin code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
 
 **Watchdog:** about every 15 minutes, GitHub checks that the game is up and that orders fill on time, and emails an alert if not. See [watchdog](#watchdog).
 
@@ -226,8 +235,8 @@ Every request to the server falls into one category, and each category allows a 
 | Read | Prices, charts, security pages, the table, profiles, your player, the chat. Mostly served by the CDN, 0 to 2 database reads each | 120 | 1,500 |
 | Costly read | Your order list (up to 50 database reads) and portfolio history (reads every order you have) | 20 | 150 |
 | Write | Orders, watchlist, goal, photo, groups, chat messages | 30 | 300 |
-| Sign-up | Creating a player | 5 | 10 |
-| Secret | The clock code and the alarm | none | 10 |
+| Sign-up | Creating a player, and freeing an abandoned sign-up's email | 5 | 10 |
+| Secret | The admin code and the alarm | none | 10 |
 
 - **Shared connections are fine.** An office address allows about 15 busy players at once. A test runs five colleagues chatting and browsing from one address for five minutes.
 - **Over the limit:** the server answers `429` with a `Retry-After` header and a message saying how many seconds to wait. Reads and writes are counted apart, so browsing never blocks an order.
@@ -235,7 +244,7 @@ Every request to the server falls into one category, and each category allows a 
 - **Normal play never gets near them.** Tests play a busy session, a busy minute on the portfolio screen (every chart range, five orders, the refreshes after fills), and five colleagues on one address. None is limited. A test plays ten busy minutes with the real limits (every poll, every security page opened twice a minute, and orders) and is never limited.
 - **Search costs nothing.** It filters the list the app already has, in the browser, so it sends no requests and needs no category.
 - **The client can't skip it.** It runs on the server before every route. The player count uses the verified sign-in token, so made-up tokens don't help. The address comes from headers Vercel sets itself.
-- **The clock code can't be guessed.** Ten wrong tries a minute, then even the right code waits. Right codes never count, so the alarm is never slowed.
+- **The admin code can't be guessed.** Ten wrong tries a minute, then even the right code waits. Right codes never count, so the alarm is never slowed.
 - **Sign-in itself isn't ours to limit.** Email and password go straight from the browser to Firebase Auth, which has its own protection against repeated tries.
 - **Honest limit:** counts live in the server's memory. Vercel can run a few copies at once and each counts on its own, so the real ceiling is a few times higher, and a restart clears the counts. That's enough to stop floods and needs no extra service. A shared counter (for example Redis) would be the next step.
 
@@ -308,7 +317,7 @@ Every check passing again closes the issue by itself.
 
 ## Running it locally
 
-Needs Node 22 or newer. With no `.env`, the API runs in memory, orders fill every 5 seconds, and the clock code at `/admin` is `local`.
+Needs Node 22 or newer. With no `.env`, the API runs in memory, orders fill every 5 seconds, and the admin code at `/admin` is `local`.
 
 ```bash
 npm ci

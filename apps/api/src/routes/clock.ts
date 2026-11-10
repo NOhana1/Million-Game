@@ -1,6 +1,5 @@
-// Moving the shared clock. Its own secret can do nothing else, apart from reading the players
-// list (routes/roster.ts, no emails), so it can be shared with a reviewer, or a GitHub button,
-// without exposing anything that can touch players or orders.
+// Moving the shared clock. Its own secret can also read the players list and delete a player
+// (routes/roster.ts, no emails), so share it only with people trusted to remove players.
 
 import { nextMarketEvent } from '@portfolio-league/engine';
 import { Hono } from 'hono';

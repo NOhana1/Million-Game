@@ -7,6 +7,7 @@ import { ApiError } from './errors.ts';
 import type { PriceFeed } from './market/feed.ts';
 import { type Limits, LIMITS, RateLimited, rateLimit } from './rate-limit.ts';
 import { clockRoutes } from './routes/clock.ts';
+import { botAdminRoutes } from './routes/bots-admin.ts';
 import { rosterRoutes } from './routes/roster.ts';
 import { statusRoutes } from './routes/status.ts';
 import { groupRoutes } from './routes/groups.ts';
@@ -27,6 +28,10 @@ export type Deps = {
   verifyToken: TokenVerifier;
   /** Whether the account's email is confirmed. Without it, as locally and in tests, every email counts as confirmed. */
   emailConfirmed?: (uid: string) => Promise<boolean>;
+  /** Deletes the sign-in account, which frees its email for a new sign-up. Missing locally and in tests. */
+  deleteAccount?: (uid: string) => Promise<void>;
+  /** The sign-in account for an email, if there is one. Missing locally and in tests. */
+  findAccount?: (email: string) => Promise<{ uid: string; confirmed: boolean; createdAt: number } | null>;
   now: () => number; // real time
   tickSecret: string;
   clockSecret: string;
@@ -70,6 +75,7 @@ export function createApp(deps: Deps) {
   app.route('/', tickRoutes(deps));
   app.route('/', clockRoutes(deps));
   app.route('/', rosterRoutes(deps));
+  app.route('/', botAdminRoutes(deps));
   app.route('/', statusRoutes(deps));
 
   return app;
