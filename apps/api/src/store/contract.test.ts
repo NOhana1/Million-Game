@@ -73,8 +73,12 @@ function storeContract(name: string, makeStore: () => Store) {
         members: [{ id: uid, name, joinedAt: 1 }],
       });
       await store.joinGroup(friend, code, 2);
+      const orderId = randomUUID();
+      await store.placeOrder({ uid, orderId, realNow: 0, decide: buy(orderId) });
+      assert.equal((await store.listOrders(uid, { limit: 10 })).length, 1);
 
       assert.equal(await store.deletePlayer(uid, 1), 'deleted');
+      assert.deepEqual(await store.listOrders(uid, { limit: 10 }), []);
       assert.equal(await store.getPlayer(uid), null);
       assert.equal(await store.nameOwner(nameKey(name)), null);
       assert.ok(await store.getPlayer(friend));
@@ -311,6 +315,11 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.ok(await store.getPlayer(uid));
       await store.endSettlement(owner);
       assert.equal(await store.editLeague(5_000_000_000_000_001, () => null), 'unchanged');
+      // A saved edit, as when the owner adds a bot to a shard, and then removes it again.
+      const id = `contract-edit-${uid}`;
+      const added = await store.editLeague(5_000_000_000_000_001, () => ({ shards: [{ id, members: {} }], table: null }));
+      assert.equal(added, 'done');
+      assert.ok((await store.getShards()).some((shard) => shard.id === id));
       assert.equal(await store.deletePlayer(uid, 5_000_000_000_000_001), 'deleted');
     });
 
