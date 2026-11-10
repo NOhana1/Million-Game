@@ -15,6 +15,7 @@ import {
   Hero,
   hover,
   ils,
+  money,
   Page,
   percent,
   SectionTitle,
@@ -23,6 +24,7 @@ import {
 } from '@/components/ui';
 import { useGame } from '@/game/store';
 import {
+  displayPrice,
   findRow,
   formatWorldTime,
   orderAmount,
@@ -110,6 +112,14 @@ export default function PortfolioScreen() {
                       {position ? `${toUnits(position.units).toFixed(1)} units · ` : ''}
                       {((slice.value / total) * 100).toFixed(1)}%
                     </Text>
+                    {position?.averagePrice && row ? (
+                      <Text style={styles.meta}>
+                        Avg. buy price{' '}
+                        {money(displayPrice(position.averagePrice), row.market === 'US' ? '$' : '₪')}
+                        {' · now '}
+                        {money(displayPrice(row.price), row.market === 'US' ? '$' : '₪')}
+                      </Text>
+                    ) : null}
                   </View>
                   <Text style={styles.number}>{ils(slice.value)}</Text>
                 </>
