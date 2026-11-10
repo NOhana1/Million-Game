@@ -61,7 +61,7 @@ function syncPlayer(shards: Shard[], player: Player, slot: number, quotes: Quote
   const existing = shards.find((shard) => shard.members[player.uid]);
   const member = existing?.members[player.uid];
   if (member) {
-    Object.assign(member, position);
+    Object.assign(member, position, { name: player.name }); // a rename shows from here on
     return;
   }
 

@@ -123,6 +123,12 @@ export type Store = {
   nameOwner(key: string): Promise<string | null>;
   /** Takes a name for a player, all or nothing. False means someone else already holds it. */
   claimName(key: string, uid: string): Promise<boolean>;
+  /**
+   * Gives a player a new name, all or nothing: the new name is taken, the old one freed, and their
+   * group and the league table show it at once. Their place in the league catches up at the next
+   * market open or close. 'taken' means someone else holds it.
+   */
+  renamePlayer(uid: string, name: string, worldNow: number): Promise<'renamed' | 'taken' | 'no-player'>;
   /** Creates the player unless one exists, and returns whichever is stored. */
   createPlayer(player: Player): Promise<{ player: Player; created: boolean }>;
   /** Changes only the goal, so it can't overwrite a fill. False means there's no such player. */

@@ -207,6 +207,8 @@ export const api = {
   removePhoto: (token: string) => call<unknown>('DELETE', '/me/photo', { token }),
   sendMessage: (token: string, text: string) =>
     call<unknown>('POST', '/group/chat', { token, body: { text } }),
+  rename: (token: string, name: string) =>
+    call<{ name: string }>('PUT', '/me/name', { token, body: { name } }),
   setGoal: (token: string, amount: number) =>
     call<unknown>('PUT', '/me/goal', { token, body: { amount } }),
   placeOrder: (token: string, order: NewOrder) =>

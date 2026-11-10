@@ -45,6 +45,7 @@ What the app can rely on. All paths start with `/api`, on the same address as th
 | `GET /group/photos` | Yes | No | `{ "photos": { "<id>": "data:…" } }` for the members who have one. The chat fetches it once when it opens |
 | `GET /group/chat` | Yes | No | The group's latest 50 messages, oldest first. Only for its members |
 | `POST /group/chat` | Yes | No | Sends a message. Body `{ "text": "hello" }`, up to 300 characters, at most one every 1.5 seconds |
+| `PUT /me/name` | Yes | No | Renames the player. Body `{ "name": "Noa" }`, 2–24 characters, checked like a new player's name. The old name is freed; the group and table show the new one at once, the league after the next market open or close. Returns `{ "name" }`. 409 `NAME_TAKEN` if someone holds it or it's a bot's; 404 `PLAYER_NOT_FOUND` |
 | `PUT /me/goal` | Yes | No | Sets the player's long-term goal. Body `{ "amount": 200000000 }` in agorot, up to ₪1,000,000,000. Returns `{ "goal": 200000000 }`. 404 `PLAYER_NOT_FOUND` means call `POST /players` first |
 
 ## Orders

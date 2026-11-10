@@ -17,6 +17,7 @@ import {
   createAccount,
   currentToken,
   signUpName,
+  forgetSignUpName,
   dropUnconfirmedAccount,
   emailConfirmed,
   logIn,
@@ -49,6 +50,8 @@ type Game = {
   chooseName(name: string): Promise<void>;
   /** Joining with the name chosen at sign-up, right after the email was confirmed. */
   joining: boolean;
+  /** The name chosen at sign-up, to fill in the name box if it has to be asked again. */
+  chosenName: string | null;
   /** Asks again whether the email is confirmed, and joins with the name given at sign-up if so. */
   checkEmail(): Promise<boolean>;
   /** Leaves the "check your email" step. An unconfirmed account is deleted, freeing its email. */
@@ -61,6 +64,8 @@ type Game = {
   showNotice(text: string): void;
   clearNotice(): void;
   setGoal(amount: number): Promise<void>;
+  /** A new name for the player. Throws ApiProblem if it's taken or not allowed. */
+  rename(name: string): Promise<void>;
   toggleWatch(id: string): Promise<void>;
   clockMoved(): Promise<void>;
   /** Your photo, kept here so the top bar, your profile and the chat change together. */
@@ -202,6 +207,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         return setStatus('needsEmail');
       }
       nameToJoin.current = null;
+      forgetSignUpName();
       setJoinProblem(null);
       await refreshOwn();
     },
@@ -246,7 +252,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     triedNames.current.add(name);
     setJoining(true);
     chooseName(name)
-      .catch(() => undefined)
+      .catch((error: unknown) => {
+        // Say why instead of an empty box. A taken name already set its own message.
+        if (!(error instanceof ApiProblem && error.code === 'NAME_TAKEN')) {
+          setJoinProblem('Couldn’t finish joining. Check your name and press Join the league.');
+        }
+      })
       .finally(() => setJoining(false));
   }, [status, chooseName]);
 
@@ -285,6 +296,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       const token = await currentToken();
       if (!token) return;
       await api.setGoal(token, amount);
+      await refreshOwn();
+    },
+    [refreshOwn],
+  );
+
+  const rename = useCallback(
+    async (name: string) => {
+      const token = await currentToken();
+      if (!token) return;
+      await api.rename(token, name);
       await refreshOwn();
     },
     [refreshOwn],
@@ -331,6 +352,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       signIn,
       chooseName,
       joining,
+      chosenName: status === 'needsName' ? savedName() : null,
       checkEmail,
       switchEmail,
       joinProblem,
@@ -340,6 +362,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       showNotice: setNotice,
       clearNotice,
       setGoal,
+      rename,
       toggleWatch,
       clockMoved,
       myPhoto,
@@ -367,6 +390,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       notice,
       clearNotice,
       setGoal,
+      rename,
       toggleWatch,
       clockMoved,
       myPhoto,

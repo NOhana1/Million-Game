@@ -102,6 +102,7 @@ The Daily Recap stays too, as the first thing on the Market screen: your last da
 
 - **Profiles** show a player's division, this week's place and score, and what they've achieved: weeks played, wins, top 3 finishes, best place and best score. These are counted from the finished weeks, so nothing extra is stored.
 - **Groups** work like a clan: one group per player, up to 20 members, joined with an invite code, with a ranking of the members and a chat.
+- **Your account.** The letter at the top right opens a small menu (name, email, My profile, Sign out). On your own profile you can change your name, which follows the same unique-name rule and shows in your group and on the table at once, or your email, which changes only after you click a link sent to the new address, so a typo can't lock you out.
 - **Results only.** Profiles and groups never show what someone holds, so nobody can copy a rival's portfolio.
 - **The chat stays cheap.** A group's latest 50 messages sit in one document, so reading the chat costs one read. It refreshes every 8 seconds, and only while the screen is open.
 - **Photos are small.** The player drags and zooms their picture in a round frame, and the app cuts a 160×160 JPEG of a few kilobytes from it. That goes in its own document, so it costs no paid storage and the reads that happen all the time don't carry it. A larger copy and the framing sit in another document that only its owner opens, to adjust it later. The chat fetches photos once when it opens, not on every refresh.
@@ -187,7 +188,7 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 253 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 211 engine tests and 258 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
 | Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
