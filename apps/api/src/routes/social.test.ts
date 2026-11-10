@@ -1,3 +1,4 @@
+import { START_CASH } from '@portfolio-league/engine';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { describe, it } from 'node:test';
@@ -139,6 +140,33 @@ describe('portfolio history', () => {
     assert.ok(points.length > 5);
     assert.equal(points.at(-1).price, me.value);
     assert.ok(points.every((p: { price: number }) => p.price > 900_000_00));
+  });
+
+  it('starts at the first order, never before, whatever the range', async () => {
+    const store = memoryStore(pausedAt(TEST_WORLD));
+    const deps = { store, feed: worldFeed('test'), now: () => 0 };
+    const app = testApp(deps);
+    await app.request('/api/players', { method: 'POST', headers: headers('noa'), body: '{"name":"Noa"}' });
+    await app.request('/api/orders', {
+      method: 'POST',
+      headers: headers('noa'),
+      body: JSON.stringify({ id: randomUUID(), securityId: 'TAIX', side: 'buy', amount: 15_000_000 }),
+    });
+    store.setClock(pausedAt(TEST_WORLD + 3 * DAY_MS));
+    await settle({
+      ...deps,
+      version: 'test',
+      environment: 'test',
+      verifyToken: async (token) => token,
+      tickSecret: 'a',
+      clockSecret: 'b',
+    });
+    const all = await json(await app.request('/api/me/history?range=ALL', { headers: headers('noa') }));
+    const long = await json(await app.request('/api/me/history?range=3M', { headers: headers('noa') }));
+    assert.ok(typeof all.startedAt === 'number');
+    assert.equal(all.points[0].at, all.startedAt);
+    assert.equal(all.points[0].price, START_CASH, 'only cash before the first fill');
+    assert.equal(long.points[0].at, all.startedAt, 'a 3-month range on a 3-day history starts at the same place');
   });
 
   it('needs a sign in, and refuses an unknown range', async () => {

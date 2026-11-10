@@ -7,7 +7,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import { api, PricePoint, Range, RANGES, RangeHistory } from '@/api/client';
 import { OrderTicket } from '@/components/order-ticket';
-import { ChartLoading, PriceChart } from '@/components/price-chart';
+import { ChartFooter } from '@/components/chart-footer';
+import { ChartLoading, type ChartKind, PriceChart } from '@/components/price-chart';
 import { RANGE_LABEL, RangeButtons } from '@/components/range-buttons';
 import {
   Button,
@@ -52,6 +53,7 @@ export default function SecurityScreen() {
   const { market, me, orders, world, join } = useGame();
   const wide = useWide();
   const [range, setRange] = useState<Range>('1M');
+  const [kind, setKind] = useState<ChartKind>('line');
   const [loaded, setLoaded] = useState<Partial<Record<Range, RangeHistory>>>({});
   const [failed, setFailed] = useState(false);
   const [attempt, setAttempt] = useState(0);
@@ -120,6 +122,7 @@ export default function SecurityScreen() {
           height={wide ? 380 : 280}
           format={format}
           onScrub={setScrub}
+          kind={kind}
         />
       ) : (
         <ChartLoading height={wide ? 380 : 280} />
@@ -130,6 +133,13 @@ export default function SecurityScreen() {
         onChange={(next) => {
           setScrub(null);
           setRange(next);
+        }}
+      />
+      <ChartFooter
+        kind={kind}
+        onKind={(next) => {
+          setScrub(null);
+          setKind(next);
         }}
       />
     </View>

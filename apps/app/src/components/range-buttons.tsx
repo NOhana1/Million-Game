@@ -19,25 +19,32 @@ export function RangeButtons({
   ranges,
   value,
   onChange,
+  enabled = () => true,
 }: {
   ranges: readonly Range[];
   value: Range;
   onChange: (range: Range) => void;
+  /** A range that would show nothing new, such as 3M for a player who joined last week, is off. */
+  enabled?: (range: Range) => boolean;
 }) {
   return (
     <View style={styles.ranges}>
       {ranges.map((range) => {
         const active = range === value;
+        const on = enabled(range);
         return (
           <Pressable
             key={range}
             accessibilityRole="button"
             accessibilityLabel={`Show ${RANGE_LABEL[range]}`}
             aria-selected={active}
+            disabled={!on}
             onPress={() => onChange(range)}
             {...hover('segment')}
             style={[styles.range, active && styles.rangeActive]}>
-            <Text style={[styles.rangeText, active && styles.rangeTextActive]}>{range}</Text>
+            <Text style={[styles.rangeText, active && styles.rangeTextActive, !on && styles.rangeTextOff]}>
+              {range}
+            </Text>
           </Pressable>
         );
       })}
@@ -57,4 +64,5 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   rangeTextActive: { color: colors.onBrand },
+  rangeTextOff: { opacity: 0.35 },
 });

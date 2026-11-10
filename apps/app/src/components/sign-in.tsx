@@ -16,7 +16,7 @@ import { useGame } from '@/game/store';
 import { Brand } from './world-bar';
 import { DivisionTag } from './division-badge';
 import { Spark } from './spark';
-import { Button, Card, colors, Field, font, hover, PasswordField, Segments, useWide } from './ui';
+import { Button, Card, colors, Field, font, hover, PasswordField, useWide } from './ui';
 
 type Mode = 'create' | 'signIn' | 'reset';
 
@@ -31,10 +31,23 @@ const PASSWORD_RULES = [
 ];
 
 export function SignIn() {
-  const { status, signUp, signIn, chooseName, lookAround, checkEmail, switchEmail, joinProblem, joining, chosenName } =
-    useGame();
+  const {
+    status,
+    signUp,
+    signIn,
+    chooseName,
+    lookAround,
+    checkEmail,
+    switchEmail,
+    joinProblem,
+    joining,
+    chosenName,
+    joinChosen,
+  } = useGame();
   const wide = useWide();
-  const [mode, setMode] = useState<Mode>('create');
+  // Most visits are by players coming back, so the first page is sign in. A visitor who pressed
+  // "Join free" while looking around gets the sign-up form straight away.
+  const [mode, setMode] = useState<Mode>(joinChosen || !usesAccounts ? 'create' : 'signIn');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [repeat, setRepeat] = useState('');
@@ -157,18 +170,9 @@ export function SignIn() {
           <Card style={[styles.card, wide && styles.half]}>
             {showAccount ? (
               <>
-                {mode === 'reset' ? (
-                  <Text style={styles.title}>Reset your password</Text>
-                ) : (
-                  <Segments
-                    value={mode}
-                    onChange={changeMode}
-                    options={[
-                      { value: 'create', label: 'Create account' },
-                      { value: 'signIn', label: 'Sign in' },
-                    ]}
-                  />
-                )}
+                <Text style={styles.title}>
+                  {mode === 'reset' ? 'Reset your password' : mode === 'create' ? 'Create your account' : 'Sign in'}
+                </Text>
                 <Field
                   label="Email"
                   autoCapitalize="none"
@@ -242,6 +246,18 @@ export function SignIn() {
                 style={styles.link}>
                 <Text style={styles.linkText}>
                   {mode === 'reset' ? 'Back to sign in' : 'Forgot password?'}
+                </Text>
+              </Pressable>
+            ) : null}
+            {showAccount ? (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => changeMode(mode === 'create' ? 'signIn' : 'create')}
+                {...hover('link')}
+                style={styles.switchMode}>
+                <Text style={styles.linkText}>
+                  {mode === 'create' ? 'Already have an account? ' : 'New here? '}
+                  <Text style={styles.switchModeAction}>{mode === 'create' ? 'Sign in' : 'Create an account'}</Text>
                 </Text>
               </Pressable>
             ) : null}
@@ -362,5 +378,7 @@ const styles = StyleSheet.create({
   },
   lookAroundText: { color: colors.brand, fontFamily: font.body, fontSize: 15, fontWeight: '600' },
   lookAroundHint: { color: colors.muted, fontFamily: font.body, fontSize: 12, textAlign: 'center' },
+  switchMode: { alignItems: 'center', borderTopColor: colors.line, borderTopWidth: 1, paddingTop: 14 },
+  switchModeAction: { color: colors.brand, fontWeight: '600' },
   linkText: { color: colors.muted, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
 });

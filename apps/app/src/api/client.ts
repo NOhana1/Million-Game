@@ -180,7 +180,11 @@ export const api = {
   profile: (id: string, fresh?: number) =>
     call<Profile>('GET', `/players/${id}/profile${fresh ? `?fresh=${fresh}` : ''}`),
   myHistory: (token: string, range: Range) =>
-    call<{ points: PricePoint[] }>('GET', `/me/history?range=${range}`, { token }),
+    call<{ points: PricePoint[]; worldTime: number; startedAt: number | null }>(
+      'GET',
+      `/me/history?range=${range}`,
+      { token },
+    ),
   visit: (token: string) =>
     call<{ streak: Streak }>('POST', '/me/visit', { token }).then((r) => r.streak),
   setWatchlist: (token: string, ids: string[]) =>

@@ -377,7 +377,7 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1, gap: 6, minWidth: 0 },
-  backBox: { alignSelf: "flex-start" },
+  backBox: { alignSelf: "center", justifyContent: "center", minHeight: 40 },
   back: {
     color: colors.muted,
     fontFamily: font.body,
@@ -443,22 +443,26 @@ const styles = StyleSheet.create({
     gap: 10,
     justifyContent: "space-between",
   },
-  topActions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  topActions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  // Both buttons the same height, with the words in the middle of the box.
   topButton: {
+    alignItems: "center",
     borderColor: colors.line,
     borderRadius: 8,
     borderWidth: 1,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
+    justifyContent: "center",
+    minHeight: 40,
+    paddingHorizontal: 16,
   },
   topButtonText: {
     color: colors.ink,
     fontFamily: font.body,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "600",
+    lineHeight: 18,
+    textAlign: "center",
   },
-  // Bigger and outlined in red, so it's easy to find.
-  signOutButton: { borderColor: colors.down, paddingHorizontal: 18, paddingVertical: 10 },
-  signOutText: { color: colors.down, fontSize: 15 },
+  signOutButton: { borderColor: colors.down },
+  signOutText: { color: colors.down },
   share: { alignSelf: "flex-start", marginTop: -4 },
 });

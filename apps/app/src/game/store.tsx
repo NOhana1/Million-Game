@@ -74,6 +74,8 @@ type Game = {
   /** A visitor looking around before signing up. Everything public works; trading asks them to join. */
   guest: boolean;
   lookAround(): void;
+  /** The visitor pressed "Join free", so the sign-up form comes first. */
+  joinChosen: boolean;
   join(): void;
 };
 
@@ -90,7 +92,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [myPhoto, setMyPhoto] = useState<string | null>(null);
   const [guest, setGuest] = useState(false);
   const lookAround = useCallback(() => setGuest(true), []);
-  const join = useCallback(() => setGuest(false), []);
+  // "Join free" from looking around opens the sign-up form; otherwise the first page is sign in.
+  const [joinChosen, setJoinChosen] = useState(false);
+  const join = useCallback(() => {
+    setJoinChosen(true);
+    setGuest(false);
+  }, []);
 
   const skipCacheUntil = useRef(0);
   const ordersSeen = useRef({ for: '', at: 0 }); // what the order list was last fetched for
@@ -369,6 +376,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setMyPhoto,
       guest: guest && status === 'signedOut',
       lookAround,
+      joinChosen,
       join,
     }),
     [
@@ -396,6 +404,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       myPhoto,
       guest,
       lookAround,
+      joinChosen,
       join,
     ],
   );
