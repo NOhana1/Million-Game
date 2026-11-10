@@ -10,6 +10,7 @@ import { newAccount, type Order } from '@portfolio-league/engine';
 import { ApiError } from '../errors.ts';
 import { withPending } from '../player.ts';
 import { memoryStore } from './memory.ts';
+import { nameKey } from './player-names.ts';
 import type { Decision, Player, Store } from './types.ts';
 
 const player = (uid: string): Player => {
@@ -54,6 +55,35 @@ function storeContract(name: string, makeStore: () => Store) {
       assert.equal(await store.claimName(key, second), false);
       assert.equal(await store.claimName(key, first), true);
       assert.equal(await store.nameOwner(key), first);
+    });
+
+    it('deletes a player with their group spot and name, and only that player', async () => {
+      const [uid, friend, groupId] = [newUid(), newUid(), newUid()];
+      const name = `Gone ${uid}`;
+      assert.equal(await store.claimName(nameKey(name), uid), true);
+      await store.createPlayer({ ...player(uid), name });
+      await store.createPlayer(player(friend));
+      const code = groupId.slice(0, 6).toUpperCase();
+      await store.createGroup({
+        id: groupId,
+        name: 'Bulls',
+        code,
+        ownerId: uid,
+        createdAt: 1,
+        members: [{ id: uid, name, joinedAt: 1 }],
+      });
+      await store.joinGroup(friend, code, 2);
+
+      assert.equal(await store.deletePlayer(uid, 1), 'deleted');
+      assert.equal(await store.getPlayer(uid), null);
+      assert.equal(await store.nameOwner(nameKey(name)), null);
+      assert.ok(await store.getPlayer(friend));
+      const group = await store.getGroup(groupId);
+      assert.deepEqual(group?.members.map((m) => m.id), [friend]);
+      assert.equal(group?.ownerId, friend);
+      // Free for a newcomer, and deleting again is harmless.
+      assert.equal(await store.claimName(nameKey(name), newUid()), true);
+      assert.equal(await store.deletePlayer(uid, 1), 'deleted');
     });
 
     it('keeps group membership and the player in step', async () => {
@@ -268,6 +298,20 @@ function storeContract(name: string, makeStore: () => Store) {
       await store.endSettlement(a);
       assert.notEqual(await store.startSettlement(lease(b)), null);
       await store.endSettlement(b);
+    });
+
+    it('won’t delete a player or edit the league while settlement runs', async () => {
+      const store = makeStore();
+      const owner = randomUUID();
+      const uid = randomUUID();
+      await store.createPlayer({ ...player(uid), name: `Busy ${uid}` });
+      await store.startSettlement(lease(owner, 5_000_000_000_000_000));
+      assert.equal(await store.deletePlayer(uid, 5_000_000_000_000_001), 'busy');
+      assert.equal(await store.editLeague(5_000_000_000_000_001, () => ({ shards: [], table: null })), 'busy');
+      assert.ok(await store.getPlayer(uid));
+      await store.endSettlement(owner);
+      assert.equal(await store.editLeague(5_000_000_000_000_001, () => null), 'unchanged');
+      assert.equal(await store.deletePlayer(uid, 5_000_000_000_000_001), 'deleted');
     });
 
     it('frees a lease that expired, and the old run can no longer save', async () => {

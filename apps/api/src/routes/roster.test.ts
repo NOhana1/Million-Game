@@ -142,6 +142,20 @@ describe('DELETE /admin/players/:id', () => {
     assert.equal((await join('dan', 'Noa')).status, 201);
   });
 
+  it('lets the same person sign up again with the same name after being deleted', async () => {
+    const { app, remove, join } = setup();
+    const free = async (name: string) =>
+      ((await (await app.request(`/api/players/name?name=${name}`)).json()) as { available: boolean }).available;
+    assert.equal((await join('noa', 'Noam')).status, 201);
+    assert.equal(await free('noam'), false);
+    assert.equal((await join('dan', 'NOAM')).status, 409, 'nobody else gets the name');
+    assert.equal((await remove('noa')).status, 200);
+    assert.equal(await free('noam'), true);
+    // On the live game a new sign-up gets a new account id; here it's a new token.
+    assert.equal((await join('noa-again', 'Noam')).status, 201);
+    assert.equal((await join('dan', 'Noam')).status, 409, 'taken again by the new player');
+  });
+
   it('can be repeated, and won’t delete a bot', async () => {
     const { store, remove, join, close } = setup();
     await join('noa', 'Noa');
