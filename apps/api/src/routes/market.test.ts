@@ -97,6 +97,28 @@ describe('charts', () => {
   });
 });
 
+describe('the dollar chart', () => {
+  const world = WORLD_START + 40 * 24 * 60 * 60 * 1000;
+  const app = () => testApp({ store: memoryStore(pausedAt(world)) });
+
+  it('moves, ends at today’s rate and never shows the future or before the game', async () => {
+    const history = await json(await app().request('/api/market/USDILS/history?range=1M'));
+    const market = await json(await app().request('/api/market'));
+    assert.equal(history.securityId, 'USDILS');
+    assert.deepEqual(history.points.at(-1), { at: world, price: market.usdIls });
+    const prices = history.points.map((p: { price: number }) => p.price);
+    assert.ok(new Set(prices).size > 10, 'the rate goes up and down');
+    assert.ok(history.points.every((p: { at: number }) => p.at >= WORLD_START && p.at <= world));
+  });
+
+  it('refuses ranges longer than the game, and is cached', async () => {
+    assert.equal((await app().request('/api/market/USDILS/history?range=5Y')).status, 400);
+    const ok = await app().request('/api/market/USDILS/history?range=ALL');
+    assert.equal(ok.status, 200);
+    assert.match(ok.headers.get('Cache-Control') ?? '', /s-maxage=\d+/);
+  });
+});
+
 describe('the future stays secret', () => {
   it('never asks the feed for a time later than world time', async () => {
     const real = worldFeed('test');

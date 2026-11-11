@@ -157,3 +157,39 @@ export function priceHistory(feed: PriceFeed, listing: Listing, world: number) {
   points.push({ at: world, price: feed.priceAt(listing.id, world) });
   return { worldTime: world, securityId: listing.id, points };
 }
+
+/** The dollar's ranges: it only exists since the game began, so the long ones would all match. */
+export const DOLLAR_RANGES = ['1D', '1W', '1M', '3M', '6M', 'ALL'] as const satisfies readonly Range[];
+export const DOLLAR_ID = 'USDILS';
+
+const anyMarketOpen = (at: number) => isMarketOpen('TASE', at) || isMarketOpen('US', at);
+
+/**
+ * The game's dollar rate for one chart button, as shekels per dollar with 4 decimals, like a
+ * price. It only moves while a market trades, so the chart samples only then. Never past `world`.
+ */
+export function dollarHistory(feed: PriceFeed, world: number, range: Range) {
+  const { days, stepMs } = RANGES[range];
+  let from = Math.max(world - days * DAY_MS, WORLD_START);
+  const sample = (start: number) => {
+    const points: PricePoint[] = [];
+    const offset = stepMs === DAY_MS ? SAMPLE_HOUR_UTC.US * HOUR_MS : 0;
+    const first = Math.ceil((start - offset) / stepMs) * stepMs + offset;
+    for (let at = first; at < world; at += stepMs) {
+      if (anyMarketOpen(at)) points.push({ at, price: feed.usdIlsAt(at) });
+    }
+    return points;
+  };
+  let points = sample(from);
+  for (let extra = 0; range === '1D' && points.length < FEW_POINTS && extra < MAX_EXTRA_DAYS; extra += 1) {
+    from = Math.max(from - DAY_MS, WORLD_START);
+    points = sample(from);
+  }
+  return {
+    worldTime: world,
+    securityId: DOLLAR_ID,
+    range,
+    gameStartedAt: WORLD_START,
+    points: [...thinned(points), { at: world, price: feed.usdIlsAt(world) }],
+  };
+}
