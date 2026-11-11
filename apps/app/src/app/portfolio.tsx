@@ -5,6 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { MarketRow } from '@/api/client';
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
+import { HoldingsTable } from '@/components/holdings-table';
 import { SLICE_COLORS } from '@/components/palette';
 import { OrderTicket } from '@/components/order-ticket';
 import { PortfolioChart } from '@/components/portfolio-chart';
@@ -26,7 +27,6 @@ import {
 } from '@/components/ui';
 import { useGame } from '@/game/store';
 import {
-  displayPrice,
   findRow,
   formatWorldTime,
   orderAmount,
@@ -163,14 +163,6 @@ export default function PortfolioScreen() {
                         : ''}
                       {((slice.value / total) * 100).toFixed(1)}% of portfolio
                     </Text>
-                    {position?.averagePrice && row ? (
-                      <Text style={styles.meta}>
-                        Avg. buy price{' '}
-                        {money(displayPrice(position.averagePrice), row.market === 'US' ? '$' : '₪')}
-                        {' · now '}
-                        {money(displayPrice(row.price), row.market === 'US' ? '$' : '₪')}
-                      </Text>
-                    ) : null}
                   </View>
                   <View style={styles.values}>
                     <Text style={styles.number}>{ils(slice.value)}</Text>
@@ -287,6 +279,13 @@ export default function PortfolioScreen() {
         </Hero>
 
         <PortfolioChart />
+
+        {holdings.length > 0 ? (
+          <View style={styles.column}>
+            <SectionTitle>How each stock is doing</SectionTitle>
+            <HoldingsTable market={market} positions={holdings} />
+          </View>
+        ) : null}
 
         <View style={wide ? styles.columns : styles.column}>
           {holdingsCard}
