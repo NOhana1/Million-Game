@@ -66,10 +66,17 @@ function OrderRow({ order }: { order: Order }) {
   );
 }
 
+type PieView = 'stocks' | 'currency';
+const PIE_VIEWS: { value: PieView; label: string }[] = [
+  { value: 'stocks', label: 'By stock' },
+  { value: 'currency', label: '₪ / $' },
+];
+
 export default function PortfolioScreen() {
   const { me, market, orders } = useGame();
   const wide = useWide();
   const [active, setActive] = useState<string | null>(null);
+  const [view, setView] = useState<PieView>('stocks');
 
   if (!me || !market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
 
@@ -91,16 +98,52 @@ export default function PortfolioScreen() {
   }));
   if (cash > 0) slices.push({ id: 'cash', label: 'Cash', value: cash, color: colors.cash });
 
+  // The same money, split by currency: Tel Aviv stocks in shekels, US stocks in dollars, and cash,
+  // which is always shekels.
+  const inMarket = (m: 'TASE' | 'US') => holdings.filter((p) => findRow(market, p.securityId)?.market === m);
+  const marketSlice = (m: 'TASE' | 'US', label: string, color: string): Slice[] => {
+    const value = toShekels(inMarket(m).reduce((sum, p) => sum + p.value, 0));
+    return value > 0 ? [{ id: m, label, value, color }] : [];
+  };
+  const currencySlices: Slice[] = [
+    ...marketSlice('TASE', 'Tel Aviv stocks (₪)', SLICE_COLORS[0]),
+    ...marketSlice('US', 'US stocks ($)', SLICE_COLORS[2]),
+    ...(cash > 0 ? [{ id: 'cash', label: 'Cash (₪)', value: cash, color: colors.cash }] : []),
+  ];
+  const shown = view === 'stocks' ? slices : currencySlices;
+  const dollars = (shekels: number) => money(shekels / displayFx(market.usdIls), '$');
+
   const holdingsCard = (
     <View style={side}>
-      <SectionTitle>Holdings</SectionTitle>
+      <View style={styles.titleRow}>
+        <SectionTitle>Holdings</SectionTitle>
+        {holdings.length > 0 ? (
+          <View style={styles.tabs} accessibilityRole="tablist">
+            {PIE_VIEWS.map(({ value, label }) => (
+              <Pressable
+                key={value}
+                accessibilityRole="tab"
+                accessibilityState={{ selected: view === value }}
+                onPress={() => {
+                  setView(value);
+                  setActive(null);
+                }}
+                {...hover('lift')}
+                style={[styles.tab, view === value && styles.tabOn]}
+              >
+                <Text style={[styles.tabText, view === value && styles.tabTextOn]}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+      </View>
       <Card style={styles.list}>
         {holdings.length === 0 ? (
           <Text style={styles.empty}>No holdings yet. Buy something from the Market tab.</Text>
         ) : (
           <>
-            <HoldingsPie slices={slices} active={active} onActive={setActive} />
-            {slices.map((slice) => {
+            <HoldingsPie slices={shown} active={active} onActive={setActive} />
+            {shown.map((slice) => {
               const position = holdings.find((p) => p.securityId === slice.id);
               const row = findRow(market, slice.id);
               const look = [styles.row, styles.key, active === slice.id && styles.keyActive];
@@ -112,6 +155,9 @@ export default function PortfolioScreen() {
                     <Text style={styles.name}>{slice.label}</Text>
                     <Text style={styles.meta}>
                       {position ? `${sharesText(toUnits(position.units))} shares · ` : ''}
+                      {view === 'currency' && slice.id !== 'cash'
+                        ? `${inMarket(slice.id as 'TASE' | 'US').length} holdings · `
+                        : ''}
                       {((slice.value / total) * 100).toFixed(1)}% of portfolio
                     </Text>
                     {position?.averagePrice && row ? (
@@ -125,8 +171,8 @@ export default function PortfolioScreen() {
                   </View>
                   <View style={styles.values}>
                     <Text style={styles.number}>{ils(slice.value)}</Text>
-                    {row?.market === 'US' ? (
-                      <Text style={styles.meta}>{money(slice.value / displayFx(market.usdIls), '$')}</Text>
+                    {row?.market === 'US' || slice.id === 'US' ? (
+                      <Text style={styles.meta}>{dollars(slice.value)}</Text>
                     ) : null}
                   </View>
                 </>
@@ -227,6 +273,24 @@ export default function PortfolioScreen() {
 }
 
 const styles = StyleSheet.create({
+  titleRow: {
+    alignItems: 'center',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    justifyContent: 'space-between',
+  },
+  tabs: {
+    borderColor: colors.line,
+    borderRadius: 3,
+    borderWidth: 1,
+    flexDirection: 'row',
+    overflow: 'hidden',
+  },
+  tab: { justifyContent: 'center', minHeight: 36, paddingHorizontal: 14 },
+  tabOn: { backgroundColor: colors.brand },
+  tabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
+  tabTextOn: { color: colors.page },
   values: { alignItems: 'flex-end' },
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
