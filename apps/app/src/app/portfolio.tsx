@@ -5,7 +5,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { MarketRow } from '@/api/client';
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
-import { HoldingsTable } from '@/components/holdings-table';
+import { HoldingsTable, stocksToday } from '@/components/holdings-table';
 import { SLICE_COLORS } from '@/components/palette';
 import { OrderTicket } from '@/components/order-ticket';
 import { PortfolioChart } from '@/components/portfolio-chart';
@@ -92,6 +92,7 @@ export default function PortfolioScreen() {
   const side = [styles.column, wide && styles.flex];
 
   const holdings = [...me.positions].sort((a, b) => b.value - a.value);
+  const today = stocksToday(market, holdings);
   const slices: Slice[] = holdings.map(({ securityId, value }, index) => ({
     id: securityId,
     label: findRow(market, securityId)?.name ?? securityId,
@@ -261,6 +262,12 @@ export default function PortfolioScreen() {
           <Text style={[styles.change, { color: changeColorOnDeep(change) }]}>
             {percent(change)} since you started
           </Text>
+          {holdings.length > 0 ? (
+            <Text style={[styles.change, { color: changeColorOnDeep(today.percent) }]}>
+              {percent(today.percent)} ({today.ils < 0 ? '−' : '+'}
+              {ils(Math.abs(today.ils))}) today on your stocks
+            </Text>
+          ) : null}
 
           <View style={styles.split}>
             <View style={styles.stat}>
