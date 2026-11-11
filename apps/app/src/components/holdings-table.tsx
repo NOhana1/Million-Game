@@ -23,9 +23,18 @@ type Line = {
   today: number; // % of that
   profit: number | null; // ₪ value now minus ₪ paid
   gain: number | null; // % of that
+  split: { stock: number; dollar: number } | null; // a US stock's gain, split into price and dollar
 };
 
 const pct = (change: number, base: number) => (base > 0 ? (change / base) * 100 : 0);
+
+/** Splits a shekel growth factor into the stock's own move and the dollar's: (1+a)(1+b) = 1+total. */
+const splitOf = (stock: number, total: number) => ({
+  stock: (stock - 1) * 100,
+  dollar: (total / stock - 1) * 100,
+});
+
+const signedPct = (n: number) => `${n >= 0.005 ? '+' : n <= -0.005 ? '−' : ''}${Math.abs(n).toFixed(1)}%`;
 
 const lineOf = (market: MarketData, position: Position): Line | null => {
   const row = findRow(market, position.securityId);
@@ -49,6 +58,8 @@ const lineOf = (market: MarketData, position: Position): Line | null => {
     today: pct(value - dayAgo, dayAgo),
     profit: paid === null ? null : value - paid,
     gain: paid === null ? null : pct(value - paid, paid),
+    split:
+      us && paid && position.averagePrice ? splitOf(row.price / position.averagePrice, value / paid) : null,
   };
 };
 
@@ -118,12 +129,7 @@ export function HoldingsTable({
 
   return (
     <Card style={styles.card}>
-      <Text style={styles.help}>
-        <Text style={styles.helpStrong}>You paid</Text> is your average price per share.{' '}
-        <Text style={styles.helpStrong}>Today</Text> is the change since yesterday.{' '}
-        <Text style={styles.helpStrong}>Since you bought</Text> is your profit or loss on what you paid. All
-        changes are in shekels, so US stocks include the dollar&apos;s move.
-      </Text>
+      <Text style={styles.help}>All profits in ₪. US stocks include the dollar.</Text>
 
       <View style={[styles.row, styles.head]}>
         <Text style={[styles.headText, styles.stock]}>Stock</Text>
@@ -161,6 +167,11 @@ export function HoldingsTable({
                 <Text style={styles.small}>
                   {sharesText(l.shares)} shares{wide ? '' : ` · ${ils(l.value)}`}
                 </Text>
+                {l.split ? (
+                  <Text style={styles.small}>
+                    stock {signedPct(l.split.stock)} · dollar {signedPct(l.split.dollar)}
+                  </Text>
+                ) : null}
               </View>
             </View>
             {wide ? (
@@ -215,9 +226,7 @@ export function HoldingsTable({
             </Text>
           </View>
           <Text style={styles.small}>
-            This is the same number as at the top. Its percent is out of the ₪
-            {START_SHEKELS.toLocaleString('en-US')} you started with, so it&apos;s smaller than the percent on
-            your stocks.
+            Same as the top. The % is out of your ₪{START_SHEKELS.toLocaleString('en-US')} start.
           </Text>
         </View>
       ) : null}
@@ -229,7 +238,6 @@ const styles = StyleSheet.create({
   card: { paddingHorizontal: 16, paddingVertical: 6 },
   flex: { flex: 1, minWidth: 0 },
   help: { color: colors.muted, fontFamily: font.body, fontSize: 13, lineHeight: 19, paddingVertical: 8 },
-  helpStrong: { color: colors.ink, fontWeight: '600' },
   row: {
     alignItems: 'center',
     borderBottomColor: colors.line,

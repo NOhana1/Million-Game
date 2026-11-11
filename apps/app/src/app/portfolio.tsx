@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 import type { MarketRow } from '@/api/client';
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
 import { HoldingsTable, stocksToday } from '@/components/holdings-table';
+import { TaxPanel } from '@/components/tax-panel';
 import { SLICE_COLORS } from '@/components/palette';
 import { OrderTicket } from '@/components/order-ticket';
 import { PortfolioChart } from '@/components/portfolio-chart';
@@ -293,6 +294,8 @@ export default function PortfolioScreen() {
             <HoldingsTable market={market} positions={holdings} total={total} />
           </View>
         ) : null}
+
+        <TaxPanel market={market} sales={me.sales ?? []} />
 
         <View style={wide ? styles.columns : styles.column}>
           {holdingsCard}

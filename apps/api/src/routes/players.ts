@@ -1,6 +1,8 @@
 import {
   averageBuyPrices,
   paidForHoldings,
+  salesOf,
+  START_CASH,
   holdingValue,
   newAccount,
   portfolioValue,
@@ -181,8 +183,9 @@ export function playerRoutes(deps: Deps) {
     const world = worldTime(await deps.store.getClock(deps.now()), deps.now());
     const quotes = quotesAt(deps.feed, world);
     const account = toAccount(player);
-    // Read only while holding something; the order list is remembered until the player changes.
-    const history = Object.keys(player.holdings).length ? await ordersOf(player) : [];
+    // Read only once something was traded; the order list is remembered until the player changes.
+    const traded = Object.keys(player.holdings).length > 0 || player.cash !== START_CASH;
+    const history = traded ? await ordersOf(player) : [];
     const average = averageBuyPrices(history);
     const paid = paidForHoldings(history);
     return c.json({
@@ -197,6 +200,7 @@ export function playerRoutes(deps: Deps) {
         averagePrice: average[securityId] ?? null,
         paid: paid[securityId] ?? null,
       })),
+      sales: salesOf(history),
     });
   });
 

@@ -91,3 +91,8 @@ export function weekEndFor(ms: number): number {
 
 /** The previous Friday US close. Eight days back always lands in the week before. */
 export const weekStartFor = (ms: number) => weekEndFor(weekEndFor(ms) - 8 * DAY_MS);
+
+const yearFormat = new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONES.TASE, year: 'numeric' });
+
+/** The calendar year in Israel at this moment. */
+export const israelYear = (ms: number) => Number(yearFormat.format(ms));

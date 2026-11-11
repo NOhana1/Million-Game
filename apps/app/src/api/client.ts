@@ -1,6 +1,6 @@
 // The only file that talks to the server. Shapes follow apps/api/CONTRACT.md.
 
-import type { Division, Market, Order, Side, WorldSecurity } from '@portfolio-league/engine';
+import type { Division, Market, Order, Sale, Side, WorldSecurity } from '@portfolio-league/engine';
 
 import type { PhotoCrop } from '@/game/photo';
 
@@ -49,6 +49,8 @@ export type Me = {
   reserved: number;
   value: number;
   positions: Position[];
+  /** Every filled sale, with the shekels paid for what was sold. */
+  sales?: Sale[];
   goal?: number;
   watchlist?: string[];
   streak?: Streak;

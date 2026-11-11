@@ -6,6 +6,8 @@ import {
   type Account,
   averageBuyPrices,
   paidForHoldings,
+  salesOf,
+  taxYears,
   fillOrder,
   FX_SCALE,
   holdingValue,
@@ -626,5 +628,51 @@ describe('averageBuyPrices', () => {
   it('matches a real fill', () => {
     const account = holdingOf(10_000_000);
     assert.deepEqual(averageBuyPrices(account.orders), { TASE1: TEN.price });
+  });
+});
+
+describe('salesOf and taxYears (shown only, never taken)', () => {
+  const fill = (id: string, side: Side, units: number, value: number, at: number): engine.Order => ({
+    id,
+    securityId: 'TASE1',
+    side,
+    amount: 0,
+    placedAt: at,
+    execution: { at } as engine.Order['execution'],
+    status: 'filled',
+    fill: { units, price: 1, fx: FX_SCALE, value, refund: 0, at },
+  });
+  const Y2025 = Date.UTC(2025, 5, 1);
+  const Y2026 = Date.UTC(2026, 5, 1);
+  const year = (at: number) => new Date(at).getUTCFullYear();
+
+  it("costs each sale at the average paid, and taxes 25% of a year's net gain", () => {
+    const orders = [
+      fill('a', 'buy', 2_000_000, 100_000, Y2025), // ₪1,000 for 2 units
+      fill('b', 'sell', 1_000_000, 70_000, Y2025 + 1), // cost ₪500, profit ₪200
+      fill('c', 'sell', 1_000_000, 40_000, Y2025 + 2), // cost ₪500, loss ₪100
+      fill('d', 'buy', 1_000_000, 100_000, Y2026),
+      fill('e', 'sell', 1_000_000, 80_000, Y2026 + 1), // loss ₪200
+    ];
+    const sales = salesOf(orders);
+    assert.deepEqual(
+      sales.map((s) => [s.orderId, s.proceeds, s.cost]),
+      [
+        ['b', 70_000, 50_000],
+        ['c', 40_000, 50_000],
+        ['e', 80_000, 100_000],
+      ],
+    );
+    assert.deepEqual(taxYears(sales, year), [
+      { year: 2026, sales: 1, gains: 0, losses: 20_000, net: -20_000, tax: 0 },
+      { year: 2025, sales: 2, gains: 20_000, losses: 10_000, net: 10_000, tax: 2_500 },
+    ]);
+  });
+
+  it('leaves out a sale with no buy on record', () => {
+    const sales = salesOf([fill('a', 'sell', 1_000_000, 50_000, Y2025)]);
+    assert.equal(sales.length, 1);
+    assert.equal(sales[0]?.cost, null);
+    assert.deepEqual(taxYears(sales, year), []);
   });
 });

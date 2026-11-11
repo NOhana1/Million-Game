@@ -241,17 +241,25 @@ export function settleDueOrders(
 type Held = { units: Units; cost: number; paid: Agorot }; // cost: units × price; paid: shekels spent
 
 /**
+ * A filled sale. `cost` is the shekels paid for the units sold, on the average of the buys before
+ * it, at the dollar rate of each buy. It is null when no buy of those units is on record.
+ */
+export type Sale = { orderId: string; securityId: string; at: number; proceeds: Agorot; cost: Agorot | null };
+
+/**
  * Walks the filled orders in time order and keeps, for each security still held, its units, its cost
  * in its own currency and the shekels actually paid for it (dollar rate included). Selling keeps the
  * average: what's left keeps its share of the cost. Selling everything starts again with the next buy.
+ * It also lists every sale with the shekels paid for what was sold.
  */
-function heldBuys(orders: Order[]): Map<string, Held> {
+function walkFills(orders: Order[]): { held: Map<string, Held>; sales: Sale[] } {
   const held = new Map<string, Held>();
+  const sales: Sale[] = [];
   const filled = orders
     .filter((o) => o.status === 'filled' && o.fill && o.fill.units > 0)
     .sort((a, b) => a.fill!.at - b.fill!.at || a.placedAt - b.placedAt);
-  for (const { securityId, side, fill } of filled) {
-    const { units, price, value } = fill!;
+  for (const { id, securityId, side, fill } of filled) {
+    const { units, price, value, at } = fill!;
     const now = held.get(securityId) ?? { units: 0, cost: 0, paid: 0 };
     if (side === 'buy') {
       held.set(securityId, {
@@ -259,18 +267,64 @@ function heldBuys(orders: Order[]): Map<string, Held> {
         cost: now.cost + units * price,
         paid: now.paid + value,
       });
-    } else {
-      const left = Math.max(0, now.units - units);
-      if (left === 0) held.delete(securityId);
-      else
-        held.set(securityId, {
-          units: left,
-          cost: (now.cost * left) / now.units,
-          paid: (now.paid * left) / now.units,
-        });
+      continue;
     }
+    const sold = Math.min(units, now.units);
+    sales.push({
+      orderId: id,
+      securityId,
+      at,
+      proceeds: value,
+      cost: now.units > 0 && sold === units ? Math.round((now.paid * sold) / now.units) : null,
+    });
+    const left = Math.max(0, now.units - units);
+    if (left === 0) held.delete(securityId);
+    else
+      held.set(securityId, {
+        units: left,
+        cost: (now.cost * left) / now.units,
+        paid: (now.paid * left) / now.units,
+      });
   }
-  return held;
+  return { held, sales };
+}
+
+const heldBuys = (orders: Order[]) => walkFills(orders).held;
+
+/** Every filled sale, oldest first, with the shekels paid for what was sold. */
+export const salesOf = (orders: Order[]): Sale[] => walkFills(orders).sales;
+
+/**
+ * Capital gains tax, for display only: the game never takes it from cash. Israel taxes real gains
+ * at 25%, and a year's losses offset that year's gains.
+ */
+export const CAPITAL_GAINS_TAX_PERCENT = 25;
+
+export type TaxYear = {
+  year: number;
+  sales: number;
+  gains: Agorot; // total profit on sales that made money
+  losses: Agorot; // total loss on sales that lost money, as a positive number
+  net: Agorot; // gains − losses
+  tax: Agorot; // 25% of net, or 0 when the year lost money
+};
+
+/** Sales grouped by year, newest year first. Sales with an unknown cost are left out. */
+export function taxYears(sales: Sale[], yearOf: (at: number) => number): TaxYear[] {
+  const years = new Map<number, TaxYear>();
+  for (const sale of sales) {
+    if (sale.cost === null) continue;
+    const year = yearOf(sale.at);
+    const entry = years.get(year) ?? { year, sales: 0, gains: 0, losses: 0, net: 0, tax: 0 };
+    const profit = sale.proceeds - sale.cost;
+    entry.sales += 1;
+    if (profit > 0) entry.gains += profit;
+    else entry.losses -= profit;
+    entry.net = entry.gains - entry.losses;
+    entry.tax = Math.max(0, Math.round((entry.net * CAPITAL_GAINS_TAX_PERCENT) / 100));
+    years.set(year, entry);
+  }
+  return [...years.values()].sort((a, b) => b.year - a.year);
 }
 
 /**
