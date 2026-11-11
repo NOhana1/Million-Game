@@ -177,7 +177,9 @@ export function OrderTicket({
             </Text>
           </View>
 
-          {tried && problem ? <Text style={styles.error}>{problem}</Text> : null}
+          {/* Once sent, the refreshed account already counts this order, so checking it again would
+              wrongly say it breaks the limit just before the ticket closes. */}
+          {tried && problem && !sending ? <Text style={styles.error}>{problem}</Text> : null}
           {serverProblem ? <Text style={styles.error}>{serverProblem}</Text> : null}
           {paused ? <Text style={styles.error}>{problemText('TRADING_PAUSED')}</Text> : null}
           {filling && !paused ? (

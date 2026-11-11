@@ -266,7 +266,21 @@ export default function MarketScreen() {
           <View style={styles.filter}>
             <Text style={styles.sectionTitle}>All securities</Text>
             <View style={styles.filterRight}>
-              <Text style={styles.meta}>$1 = ₪{displayFx(market.usdIls).toFixed(3)}</Text>
+              <Pressable
+                accessibilityRole="link"
+                accessibilityLabel="Open the dollar chart"
+                onPress={() => router.push('/dollar')}
+                {...hover('link')}>
+                <Text style={[styles.meta, styles.dollar]}>
+                  $1 = ₪{displayFx(market.usdIls).toFixed(3)}
+                  {market.usdIlsDayAgo ? (
+                    <Text style={{ color: changeColor(market.usdIls / market.usdIlsDayAgo - 1) }}>
+                      {' '}
+                      {market.usdIls >= market.usdIlsDayAgo ? '▲' : '▼'}
+                    </Text>
+                  ) : null}
+                </Text>
+              </Pressable>
               <Segments
                 value={filter}
                 onChange={setFilter}
@@ -434,6 +448,7 @@ const styles = StyleSheet.create({
   names: { flex: 1, minWidth: 0 },
   name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
   meta: { color: colors.muted, fontFamily: font.body, fontSize: 13, marginTop: 2 },
+  dollar: { color: colors.ink, fontWeight: '500', textDecorationLine: 'underline' },
   prices: { alignItems: 'flex-end' },
   pricesWide: { alignItems: 'center', flexDirection: 'row', gap: 32 },
   price: {

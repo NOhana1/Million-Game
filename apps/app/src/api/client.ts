@@ -14,6 +14,8 @@ export type MarketData = {
 
 export const RANGES = ['1D', '1W', '1M', '3M', '6M', '1Y', '5Y', 'ALL'] as const;
 export type Range = (typeof RANGES)[number];
+/** The dollar only exists since the game began, so it has no ranges longer than the game. */
+export const DOLLAR_RANGES = ['1D', '1W', '1M', '3M', '6M', 'ALL'] as const satisfies readonly Range[];
 export type PricePoint = { at: number; price: number };
 export type RangeHistory = { range: Range; gameStartedAt: number; points: PricePoint[] };
 
@@ -160,6 +162,7 @@ export const api = {
   // A changing `fresh` value skips the CDN's copy. Only used right after moving the clock.
   world: (fresh?: number) => call<WorldData>('GET', `/world${fresh ? `?fresh=${fresh}` : ''}`),
   market: (fresh?: number) => call<MarketData>('GET', `/market${fresh ? `?fresh=${fresh}` : ''}`),
+  dollarHistory: (range: Range) => call<RangeHistory>('GET', `/market/USDILS/history?range=${range}`),
   history: (id: string, range: Range) =>
     call<RangeHistory>('GET', `/market/${id}/history?range=${range}`),
   sparks: () => call<Record<string, number[]>>('GET', '/market/sparks'),

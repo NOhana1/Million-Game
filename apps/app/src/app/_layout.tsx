@@ -118,6 +118,7 @@ function Game() {
           {/* No button or link: opened by its address, /admin. */}
           <TabTrigger name="admin" href="/admin" style={styles.hidden} />
           <TabTrigger name="security" href="/security/TAIX" style={styles.hidden} />
+          <TabTrigger name="dollar" href="/dollar" style={styles.hidden} />
           <TabTrigger name="profile" href="/profile/me" style={styles.hidden} />
           {wide ? <MenuStatus /> : null}
         </TabList>

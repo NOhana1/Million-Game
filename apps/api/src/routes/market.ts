@@ -4,6 +4,9 @@ import type { Deps } from '../app.ts';
 import { worldTime } from '../clock.ts';
 import { ApiError } from '../errors.ts';
 import {
+  DOLLAR_ID,
+  DOLLAR_RANGES,
+  dollarHistory,
   findListing,
   isRange,
   marketSnapshot,
@@ -39,6 +42,16 @@ export function marketRoutes(deps: Deps) {
   routes.get('/market/sparks', async (c) => {
     c.header('Cache-Control', cachedFor(120));
     return c.json(marketSparks(deps.feed, await now()));
+  });
+
+  // Before the securities route, so "USDILS" isn't read as a security.
+  routes.get(`/market/${DOLLAR_ID}/history`, async (c) => {
+    const range = c.req.query('range') ?? '1M';
+    if (!(DOLLAR_RANGES as readonly string[]).includes(range) || !isRange(range)) {
+      throw new ApiError(400, 'UNKNOWN_RANGE', 'No such range.');
+    }
+    c.header('Cache-Control', cachedFor(60));
+    return c.json(dollarHistory(deps.feed, await now(), range));
   });
 
   routes.get('/market/:id/history', async (c) => {
