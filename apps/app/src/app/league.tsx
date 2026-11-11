@@ -1,4 +1,4 @@
-import { type Division, divisionMoves, DIVISIONS, MOVE_PERCENT } from '@portfolio-league/engine';
+import { type Division, divisionMoves, divisionRace, DIVISIONS, type Race } from '@portfolio-league/engine';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
@@ -9,6 +9,7 @@ import { TopThree } from '@/components/league-cards';
 import {
   Card,
   changeColor,
+  changeColorOnDeep,
   colors,
   Eyebrow,
   font,
@@ -50,19 +51,69 @@ function movesOf(table: LeagueTable, finished: boolean) {
   };
 }
 
-/** Says in plain words what this week's place means for the player's division. */
-function standingText(table: LeagueTable, mine: LeagueRow, move: Move) {
-  const group = table.rows.filter((row) => row.division === mine.division);
-  const place = group.findIndex((row) => row.id === mine.id) + 1;
-  const label = DIVISION_LABEL[mine.division];
-  const next = DIVISIONS[DIVISIONS.indexOf(mine.division) + 1];
-  const lower = DIVISIONS[DIVISIONS.indexOf(mine.division) - 1];
-  const start = `You’re #${place} of ${group.length} in ${label}.`;
-  if (move === 'up') return `${start} If the week ended now, you’d move up to ${DIVISION_LABEL[next]}.`;
-  if (move === 'down') return `${start} If the week ended now, you’d drop to ${DIVISION_LABEL[lower]}.`;
-  if (!next) return `${start} This is the top division. Stay out of the bottom ${MOVE_PERCENT}%.`;
-  const places = Math.ceil((group.length * MOVE_PERCENT) / 100);
-  return `${start} Finish in the top ${places} to move up to ${DIVISION_LABEL[next]}.`;
+/** The one big message: where you'd be next week if it ended now. */
+function outcomeText(race: Race) {
+  if (race.outcome === 'up') return `You’re on track for promotion to ${DIVISION_LABEL[race.next]}`;
+  if (race.outcome === 'down') return `You’re currently dropping to ${DIVISION_LABEL[race.next]}`;
+  const top = race.division === DIVISIONS[DIVISIONS.length - 1];
+  return `You’re ${top ? '' : 'currently '}staying in ${DIVISION_LABEL[race.division]}`;
+}
+
+const pointsText = (points: number) =>
+  points < 1 ? 'Less than 1 point' : `${Math.round(points)} ${Math.round(points) === 1 ? 'point' : 'points'}`;
+
+/** How far you are from the one place that would change the message. */
+function gapText(race: Race) {
+  const { rival } = race;
+  if (!rival) return null;
+  const them = `#${rival.place}`;
+  if (rival.points === 0) return `Tied on points with ${them}`;
+  const points = pointsText(rival.points);
+  if (race.outcome === 'up') return `${points} ahead of ${them}`;
+  if (race.outcome === 'down') return `${points} behind ${them} to stay in ${DIVISION_LABEL[race.division]}`;
+  if (rival.ahead) return `${points} ahead of ${them}, who would drop`;
+  const higher = DIVISIONS[DIVISIONS.indexOf(race.division) + 1];
+  return `${points} behind ${them} for ${DIVISION_LABEL[higher]}`;
+}
+
+/** Last week's result, as it was saved when the week ended. */
+function resultText(row: LeagueRow) {
+  const next = row.nextDivision ?? row.division;
+  const step = DIVISIONS.indexOf(next) - DIVISIONS.indexOf(row.division);
+  if (step > 0) return `You moved up to ${DIVISION_LABEL[next]}`;
+  if (step < 0) return `You dropped to ${DIVISION_LABEL[next]}`;
+  return `You stayed in ${DIVISION_LABEL[next]}`;
+}
+
+const OUTCOME_SIGN = { up: 1, stay: 0, down: -1 };
+
+/** Answers one question at a glance: am I on track to move up? Places count inside your division. */
+function RaceCard({ table, mine, finished }: { table: LeagueTable; mine: LeagueRow; finished: boolean }) {
+  const wide = useWide();
+  const race = divisionRace(table.rows, mine.id);
+  if (!race) return null;
+  const sign = finished
+    ? DIVISIONS.indexOf(mine.nextDivision ?? mine.division) - DIVISIONS.indexOf(mine.division)
+    : OUTCOME_SIGN[race.outcome];
+  const color = sign ? changeColorOnDeep(sign) : colors.ink;
+  const gap = finished ? null : gapText(race);
+  return (
+    <View style={styles.heroText}>
+      <Eyebrow>{finished ? 'Last week' : 'This week'}</Eyebrow>
+      <Text style={styles.heroStrong}>
+        {DIVISION_LABEL[race.division]} division · #{race.place} of {race.size}
+      </Text>
+      {/* Keyed by the outcome, so the gold glow plays again when you reach a promoting place. */}
+      <Text
+        key={finished ? 'finished' : race.outcome}
+        {...(!finished && race.outcome === 'up' ? { dataSet: { glow: 'true' } } : {})}
+        style={[styles.outcome, !wide && styles.outcomePhone, { color }]}>
+        {finished ? resultText(mine) : outcomeText(race)}
+      </Text>
+      {gap ? <Text style={styles.heroStrong}>{gap}</Text> : null}
+      {!finished && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
+    </View>
+  );
 }
 
 /** The four stages, lowest first. Pressing one shows who is in it. */
@@ -209,24 +260,22 @@ export default function LeagueScreen() {
   return (
     <Page maxWidth={880}>
       <Hero style={styles.hero}>
-        <View style={styles.heroText}>
-          <Eyebrow>{week === 'last' ? 'Last week' : 'This week'}</Eyebrow>
-          <Text style={[styles.heroTitle, !wide && styles.heroTitlePhone]}>
-            {mine ? `${DIVISION_LABEL[mine.division]} division` : 'You’re not on the table yet'}
-          </Text>
-          {mine ? (
-            <Text style={styles.heroStrong}>
-              #{mine.rank} of {table.total} overall
+        {mine ? (
+          <RaceCard table={table} mine={mine} finished={finished} />
+        ) : (
+          <View style={styles.heroText}>
+            <Eyebrow>{week === 'last' ? 'Last week' : 'This week'}</Eyebrow>
+            <Text style={[styles.heroTitle, !wide && styles.heroTitlePhone]}>
+              You’re not on the table yet
             </Text>
-          ) : (
             <Text style={styles.heroLabel}>
               {guest
                 ? 'Join free and buy a security to get on the table. It updates at each market open and close.'
                 : 'Hold a security this week to join. The table updates at each market open and close.'}
             </Text>
-          )}
-          {week === 'this' && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
-        </View>
+            {week === 'this' && table.weekEndsAt ? <Countdown weekEndsAt={table.weekEndsAt} /> : null}
+          </View>
+        )}
         {mine ? <DivisionBadge division={mine.division} size={wide ? 120 : 64} /> : null}
       </Hero>
 
@@ -246,13 +295,8 @@ export default function LeagueScreen() {
           )}
         </View>
         <Ladder table={table} mine={mine} shown={shown} onShow={setPicked} />
-        {mine && week === 'this' ? (
-          <Text style={styles.standing}>{standingText(table, mine, moveOf(mine))}</Text>
-        ) : null}
         <Text style={styles.meta}>
-          Your score is 85% return rank and 15% stability rank. When the week ends, the top 25% of
-          each division move up and the bottom 25% move down. A new week starts everyone’s score
-          again, but your division stays.
+          When the week ends, the top quarter of each division moves up and the bottom quarter moves down.
         </Text>
       </Card>
 
@@ -339,7 +383,8 @@ const styles = StyleSheet.create({
   stepActive: { backgroundColor: colors.raised, borderColor: colors.brand },
   stepName: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   stepCount: { color: colors.muted, fontFamily: font.body, fontSize: 12, textAlign: 'center' },
-  standing: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500', lineHeight: 22 },
+  outcome: { fontFamily: font.display, fontSize: 36, fontWeight: '400', lineHeight: 44, marginVertical: 4 },
+  outcomePhone: { fontSize: 26, lineHeight: 32 },
   rows: { borderTopColor: colors.line, borderTopWidth: 1 },
   head: {
     borderBottomColor: colors.line,

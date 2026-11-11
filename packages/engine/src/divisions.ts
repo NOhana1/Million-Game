@@ -26,3 +26,61 @@ export function divisionMoves(table: readonly Placed[]): Map<string, Division> {
   });
   return moves;
 }
+
+export type RaceRow = Placed & { score: number };
+
+/**
+ * Where one player would land if the week ended now, and the one place that would change it.
+ * `rival` is that place inside the division; `points` is the score between them, never negative.
+ * Ahead means the player is safe by that many points; behind means they need that many.
+ */
+export type Race = {
+  division: Division;
+  place: number;
+  size: number;
+  outcome: 'up' | 'stay' | 'down';
+  next: Division; // where they'd be next week
+  rival: { place: number; points: number; ahead: boolean } | null;
+};
+
+/** The player's race in their own division, from the weekly table (best first). */
+export function divisionRace(table: readonly RaceRow[], id: string): Race | null {
+  const me = table.find((row) => row.id === id);
+  if (!me) return null;
+  const group = table.filter((row) => row.division === me.division);
+  const index = group.indexOf(me);
+  const next = divisionMoves(table).get(id) ?? me.division;
+  const step = DIVISIONS.indexOf(next) - DIVISIONS.indexOf(me.division);
+  const outcome = step > 0 ? 'up' : step < 0 ? 'down' : 'stay';
+
+  // The same counts divisionMoves uses, so the card can't disagree with the week's end.
+  const level = DIVISIONS.indexOf(me.division);
+  const up = DIVISIONS[level + 1] ? Math.ceil((group.length * MOVE_PERCENT) / 100) : 0;
+  const down = DIVISIONS[level - 1] ? Math.floor((group.length * MOVE_PERCENT) / 100) : 0;
+  const firstDropping = group.length - down; // index of the first place that drops
+
+  // The place that would change the outcome: the first one below you if you're moving up,
+  // the last promoting place if you're staying, the last safe place if you're dropping.
+  // At the top division you can only drop, so it's the first place that drops.
+  let target: number | null;
+  if (outcome === 'up') target = index + 1 < group.length ? up : null;
+  else if (outcome === 'down') target = firstDropping - 1;
+  else if (up > 0) target = up - 1;
+  else target = down > 0 ? firstDropping : null;
+  const rival = target === null ? undefined : group[target];
+
+  return {
+    division: me.division,
+    place: index + 1,
+    size: group.length,
+    outcome,
+    next,
+    rival: rival
+      ? {
+          place: group.indexOf(rival) + 1,
+          points: Math.abs(me.score - rival.score),
+          ahead: index < group.indexOf(rival),
+        }
+      : null,
+  };
+}

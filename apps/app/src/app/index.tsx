@@ -1,4 +1,4 @@
-import type { Market } from '@portfolio-league/engine';
+import { divisionRace, type Market } from '@portfolio-league/engine';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -32,7 +32,15 @@ import {
 } from '@/components/ui';
 import { useGame } from '@/game/store';
 import { useLeague } from '@/game/use-league';
-import { dayChange, displayFx, displayPrice, MARKET_LABEL, marketsText, toShekels } from '@/game/view';
+import {
+  dayChange,
+  displayFx,
+  displayPrice,
+  DIVISION_LABEL,
+  MARKET_LABEL,
+  marketsText,
+  toShekels,
+} from '@/game/view';
 
 type Filter = 'all' | 'watching' | Market;
 type Sort = 'name' | 'gainers' | 'losers';
@@ -49,6 +57,9 @@ const namePart = { dataSet: { hoverPart: 'name' } } as object;
 const openPage = (id: string) => router.push(`/security/${id}`);
 
 function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }) {
+  // Your place inside your own division, the same one the League page shows.
+  const race = table && row ? divisionRace(table.rows, row.id) : null;
+  const place = race ? `#${race.place} of ${race.size} in ${DIVISION_LABEL[race.division]}` : null;
   const { me, world } = useGame();
   const wide = useWide();
   if (!me || !world) return null;
@@ -67,7 +78,7 @@ function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }
           </View>
           <View style={styles.heroPhoneSide}>
             {row ? <DivisionTag onDark division={row.division} /> : null}
-            {row && table ? <Text style={styles.heroSmall}>#{row.rank} of {table.total}</Text> : null}
+            {place ? <Text style={styles.heroSmall}>{place}</Text> : null}
             <Text style={styles.heroSmall}>{marketsText(world)}</Text>
           </View>
         </View>
@@ -84,7 +95,7 @@ function CashHero({ table, row }: { table: LeagueTable | null; row?: LeagueRow }
       {waiting}
       <View style={styles.pills}>
         {row ? <DivisionTag onDark division={row.division} /> : null}
-        {row && table ? <Pill bright label={`#${row.rank} of ${table.total} this week`} /> : null}
+        {place ? <Pill bright label={place} /> : null}
         <Pill label={marketsText(world)} />
       </View>
       <GoalBar />
