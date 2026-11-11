@@ -92,7 +92,13 @@ const AXIS_DATES: Record<Range, Intl.DateTimeFormat> = {
 };
 
 const SCRUB_DATE = dateFormat({ weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
-const SCRUB_TIME = dateFormat({ day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+const SCRUB_TIME = dateFormat({
+  day: 'numeric',
+  month: 'short',
+  hour: '2-digit',
+  minute: '2-digit',
+  hourCycle: 'h23',
+});
 
 export const axisDate = (ms: number, range: Range) => AXIS_DATES[range].format(ms);
 /** The moment under the pointer. Long ranges hold one price a day, so they show no time. */
@@ -105,8 +111,21 @@ export const displayPrice = (price: number) => price / PRICE_SCALE;
 export const displayFx = (fx: number) => fx / FX_SCALE;
 export const orderAmount = (order: Order) => toShekels(order.fill?.value ?? order.amount);
 export const orderRefund = (order: Order) => toShekels(order.fill?.refund ?? 0);
-export const findRow = (market: MarketData, id: string) =>
-  market.securities.find((row) => row.id === id);
+export const findRow = (market: MarketData, id: string) => market.securities.find((row) => row.id === id);
+
+/** A security's own currency: dollars in the US, shekels in Tel Aviv. */
+export const currencyOf = (row: Pick<MarketRow, 'market'>) => (row.market === 'US' ? '$' : '₪');
+
+/** Shekels for one dollar of this security's currency, at today's rate (1 in Tel Aviv). */
+export const shekelRate = (row: Pick<MarketRow, 'market'>, market: MarketData) =>
+  row.market === 'US' ? displayFx(market.usdIls) : 1;
+
+/** What one share costs in shekels right now. The real price is only set when an order fills. */
+export const shekelsPerShare = (row: MarketRow, market: MarketData) =>
+  displayPrice(row.price) * shekelRate(row, market);
+
+/** A share count without trailing zeros: 10, 0.75, 12.3457. */
+export const sharesText = (shares: number) => shares.toLocaleString('en-US', { maximumFractionDigits: 4 });
 
 const account = (me: Me): Account => ({
   cash: me.cash,
@@ -209,8 +228,7 @@ const PROBLEM_TEXT: Record<string, string> = {
   TRADING_PAUSED: 'Trading is paused for a short while. Your orders and money are safe.',
 };
 
-export const problemText = (code: string) =>
-  PROBLEM_TEXT[code] ?? 'Something went wrong. Please try again.';
+export const problemText = (code: string) => PROBLEM_TEXT[code] ?? 'Something went wrong. Please try again.';
 
 export function orderProblem(
   me: Me,

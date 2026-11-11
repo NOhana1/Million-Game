@@ -31,7 +31,9 @@ import {
   orderRefund,
   START_SHEKELS,
   toShekels,
+  sharesText,
   toUnits,
+  displayFx,
 } from '@/game/view';
 
 const refundText = (order: Order) => {
@@ -47,9 +49,9 @@ function OrderRow({ order }: { order: Order }) {
     ? world && order.execution.at <= world.worldTime
       ? 'Going through now…'
       : order.execution.kind === 'close'
-      ? 'Waiting for the close'
-      : 'Waiting for the next open'
-    : `Filled ${formatWorldTime(order.fill?.at ?? 0)} · ${toUnits(order.fill?.units ?? 0).toFixed(3)} units${refundText(order)}`;
+        ? 'Waiting for the close'
+        : 'Waiting for the next open'
+    : `Filled ${formatWorldTime(order.fill?.at ?? 0)} · ${sharesText(toUnits(order.fill?.units ?? 0))} shares${refundText(order)}`;
   return (
     <View style={styles.row}>
       {row ? <Tile id={row.id} name={row.name} sector={row.sector} size={36} /> : null}
@@ -109,8 +111,8 @@ export default function PortfolioScreen() {
                   <View style={styles.flex}>
                     <Text style={styles.name}>{slice.label}</Text>
                     <Text style={styles.meta}>
-                      {position ? `${toUnits(position.units).toFixed(1)} units · ` : ''}
-                      {((slice.value / total) * 100).toFixed(1)}%
+                      {position ? `${sharesText(toUnits(position.units))} shares · ` : ''}
+                      {((slice.value / total) * 100).toFixed(1)}% of portfolio
                     </Text>
                     {position?.averagePrice && row ? (
                       <Text style={styles.meta}>
@@ -121,7 +123,12 @@ export default function PortfolioScreen() {
                       </Text>
                     ) : null}
                   </View>
-                  <Text style={styles.number}>{ils(slice.value)}</Text>
+                  <View style={styles.values}>
+                    <Text style={styles.number}>{ils(slice.value)}</Text>
+                    {row?.market === 'US' ? (
+                      <Text style={styles.meta}>{money(slice.value / displayFx(market.usdIls), '$')}</Text>
+                    ) : null}
+                  </View>
                 </>
               );
               return slice.onPress ? (
@@ -135,7 +142,8 @@ export default function PortfolioScreen() {
                   onFocus={() => setActive(slice.id)}
                   onBlur={() => setActive(null)}
                   {...hover('row')}
-                  style={look}>
+                  style={look}
+                >
                   {body}
                 </Pressable>
               ) : (
@@ -144,7 +152,8 @@ export default function PortfolioScreen() {
                   onPointerEnter={() => setActive(slice.id)}
                   onPointerLeave={() => setActive(null)}
                   {...hover('line')}
-                  style={look}>
+                  style={look}
+                >
                   {body}
                 </View>
               );
@@ -218,6 +227,7 @@ export default function PortfolioScreen() {
 }
 
 const styles = StyleSheet.create({
+  values: { alignItems: 'flex-end' },
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
   hero: { gap: 2 },
