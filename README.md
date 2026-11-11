@@ -88,6 +88,8 @@ Divisions fix both, because of how the game clock runs. At normal speed, one gam
 
 The Daily Recap stays too, as the first thing on the Market screen: your last day, your best and worst holdings, and your fills.
 
+**The race card.** The top of the League page answers one question: am I on track to move up? It shows your place inside your own division (never the overall rank), one message (on track for promotion, staying, or dropping), the points between you and the one place that would change that, and the time left in the week. The engine's `divisionRace` works it out with the same counts as the week-end moves, so the card can't promise something that won't happen. It uses the table the app already loads, so it adds no reads.
+
 **Honest limits.** I found no number that shows how much leagues help on their own, so this is a judgement, not a proven result. Because return carries 85% of the score, Divisions also reward big bets, as the table already does. And a web link has no push notifications, so nothing reminds a player to come back.
 
 **How I'd know it works.** Nothing is measured yet. The plan:

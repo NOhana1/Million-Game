@@ -25,6 +25,9 @@ input:-webkit-autofill { -webkit-text-fill-color: ${colors.ink}; box-shadow: 0 0
 @keyframes rise { from { opacity: .6; } }
 [data-rise] { animation: rise .15s ease-out both; }
 
+@keyframes glow { 35% { text-shadow: 0 0 18px rgba(217, 181, 106, .85), 0 0 2px rgba(217, 181, 106, .6); } }
+[data-glow] { animation: glow 1.8s ease-out 1; }
+
 @keyframes tape { to { transform: translateX(-50%); } }
 [data-tape] { animation: tape 70s linear infinite; }
 [data-news] { animation: tape 130s linear infinite; }
@@ -54,6 +57,6 @@ input:-webkit-autofill { -webkit-text-fill-color: ${colors.ink}; box-shadow: 0 0
 @media (prefers-reduced-motion: reduce) {
   [data-hover], [data-hover] *, input { transition: none; }
   [data-hover]:hover { transform: none !important; }
-  [data-rise], [data-tape], [data-news], [data-breathe] { animation: none; }
+  [data-rise], [data-tape], [data-news], [data-breathe], [data-glow] { animation: none; }
 }
 `;
