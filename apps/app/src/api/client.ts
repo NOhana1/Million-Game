@@ -27,8 +27,17 @@ export type WorldData = {
   markets: Record<Market, { open: boolean; nextChange: number }>;
 };
 
-/** averagePrice: what was paid per unit on average, in the security's own currency (null if unknown). */
-export type Position = { securityId: string; units: number; value: number; averagePrice?: number | null };
+/**
+ * averagePrice: what was paid per unit on average, in the security's own currency.
+ * paid: the agorot paid for these units, at the dollar rate of each buy. Both are null if unknown.
+ */
+export type Position = {
+  securityId: string;
+  units: number;
+  value: number;
+  averagePrice?: number | null;
+  paid?: number | null;
+};
 
 export type Me = {
   uid: string;
@@ -163,8 +172,7 @@ export const api = {
   world: (fresh?: number) => call<WorldData>('GET', `/world${fresh ? `?fresh=${fresh}` : ''}`),
   market: (fresh?: number) => call<MarketData>('GET', `/market${fresh ? `?fresh=${fresh}` : ''}`),
   dollarHistory: (range: Range) => call<RangeHistory>('GET', `/market/USDILS/history?range=${range}`),
-  history: (id: string, range: Range) =>
-    call<RangeHistory>('GET', `/market/${id}/history?range=${range}`),
+  history: (id: string, range: Range) => call<RangeHistory>('GET', `/market/${id}/history?range=${range}`),
   sparks: () => call<Record<string, number[]>>('GET', '/market/sparks'),
   news: () => call<News>('GET', '/news'),
   me: (token: string) => call<Me>('GET', '/me', { token }),
@@ -177,9 +185,11 @@ export const api = {
     }),
   /** Whether a player name is free. Asked before an account is made, so it needs no sign-in. */
   nameCheck: (name: string) =>
-    call<{ available: boolean; problem: string | null }>('GET', `/players/name?name=${encodeURIComponent(name)}`),
-  createPlayer: (token: string, name: string) =>
-    call<unknown>('POST', '/players', { token, body: { name } }),
+    call<{ available: boolean; problem: string | null }>(
+      'GET',
+      `/players/name?name=${encodeURIComponent(name)}`,
+    ),
+  createPlayer: (token: string, name: string) => call<unknown>('POST', '/players', { token, body: { name } }),
   // `fresh` skips the CDN's copy, for your own profile right after it changed.
   profile: (id: string, fresh?: number) =>
     call<Profile>('GET', `/players/${id}/profile${fresh ? `?fresh=${fresh}` : ''}`),
@@ -189,20 +199,16 @@ export const api = {
       `/me/history?range=${range}`,
       { token },
     ),
-  visit: (token: string) =>
-    call<{ streak: Streak }>('POST', '/me/visit', { token }).then((r) => r.streak),
+  visit: (token: string) => call<{ streak: Streak }>('POST', '/me/visit', { token }).then((r) => r.streak),
   setWatchlist: (token: string, ids: string[]) =>
     call<unknown>('PUT', '/me/watchlist', { token, body: { ids } }),
   group: (token: string) => call<{ group: MyGroup | null }>('GET', '/group', { token }),
-  createGroup: (token: string, name: string) =>
-    call<unknown>('POST', '/groups', { token, body: { name } }),
+  createGroup: (token: string, name: string) => call<unknown>('POST', '/groups', { token, body: { name } }),
   joinGroup: (token: string, code: string) =>
     call<unknown>('POST', '/groups/join', { token, body: { code } }),
-  newGroupCode: (token: string) =>
-    call<{ code: string }>('POST', '/group/code', { token, body: {} }),
+  newGroupCode: (token: string) => call<{ code: string }>('POST', '/group/code', { token, body: {} }),
   leaveGroup: (token: string) => call<unknown>('POST', '/group/leave', { token, body: {} }),
-  removeMember: (token: string, id: string) =>
-    call<unknown>('DELETE', `/group/members/${id}`, { token }),
+  removeMember: (token: string, id: string) => call<unknown>('DELETE', `/group/members/${id}`, { token }),
   chat: (token: string) => call<{ messages: ChatMessage[] }>('GET', '/group/chat', { token }),
   groupPhotos: (token: string) =>
     call<{ photos: Record<string, string> }>('GET', '/group/photos', { token }).then((r) => r.photos),
@@ -217,10 +223,8 @@ export const api = {
     call<unknown>('POST', '/group/chat', { token, body: { text } }),
   rename: (token: string, name: string) =>
     call<{ name: string }>('PUT', '/me/name', { token, body: { name } }),
-  setGoal: (token: string, amount: number) =>
-    call<unknown>('PUT', '/me/goal', { token, body: { amount } }),
-  placeOrder: (token: string, order: NewOrder) =>
-    call<Order>('POST', '/orders', { token, body: order }),
+  setGoal: (token: string, amount: number) => call<unknown>('PUT', '/me/goal', { token, body: { amount } }),
+  placeOrder: (token: string, order: NewOrder) => call<Order>('POST', '/orders', { token, body: order }),
   league: () => call<LeagueTable>('GET', '/league'),
   finishedWeek: (endsAt: number) => call<LeagueTable>('GET', `/league/weeks/${endsAt}`),
   moveClock: (code: string, change: ClockChange) =>

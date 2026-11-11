@@ -199,13 +199,11 @@ describe('portfolio value', () => {
     const feed = worldFeed('test');
     const app = testApp({ store, feed });
     const me = await json(await app.request('/api/me', { headers: { Authorization: 'Bearer noa' } }));
-    const expected = Math.floor(
-      (feed.priceAt('USIX', TEST_WORLD) * feed.usdIlsAt(TEST_WORLD)) / 1_000_000,
-    );
+    const expected = Math.floor((feed.priceAt('USIX', TEST_WORLD) * feed.usdIlsAt(TEST_WORLD)) / 1_000_000);
     assert.equal(me.value, expected);
     // Holdings with no order history have no known average.
     assert.deepEqual(me.positions, [
-      { securityId: 'USIX', units: 1_000_000, value: expected, averagePrice: null },
+      { securityId: 'USIX', units: 1_000_000, value: expected, averagePrice: null, paid: null },
     ]);
   });
 });

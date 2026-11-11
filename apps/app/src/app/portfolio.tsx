@@ -290,7 +290,7 @@ export default function PortfolioScreen() {
         {holdings.length > 0 ? (
           <View style={styles.column}>
             <SectionTitle>How each stock is doing</SectionTitle>
-            <HoldingsTable market={market} positions={holdings} />
+            <HoldingsTable market={market} positions={holdings} total={total} />
           </View>
         ) : null}
 

@@ -5,6 +5,7 @@ import * as engine from './index.ts';
 import {
   type Account,
   averageBuyPrices,
+  paidForHoldings,
   fillOrder,
   FX_SCALE,
   holdingValue,
@@ -160,7 +161,10 @@ describe('fillOrder', () => {
   it('changes nothing for an order that is already filled', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
     const filled = fillOrder(account, order.id, tenEach);
-    assert.equal(fillOrder(filled, order.id, () => ({ price: 1, fx: 1 })), filled);
+    assert.equal(
+      fillOrder(filled, order.id, () => ({ price: 1, fx: 1 })),
+      filled,
+    );
   });
 
   it('throws for an unknown order', () => {
@@ -336,8 +340,14 @@ describe('rule 5: US securities', () => {
 
   it('values holdings at the current rate', () => {
     const account: Account = { cash: 0, holdings: { US1: 1_000_000 }, orders: [] };
-    assert.equal(portfolioValue(account, () => ({ price: 100_000, fx: 34_200 })), 3_420);
-    assert.equal(portfolioValue(account, () => ({ price: 100_000, fx: 30_000 })), 3_000);
+    assert.equal(
+      portfolioValue(account, () => ({ price: 100_000, fx: 34_200 })),
+      3_420,
+    );
+    assert.equal(
+      portfolioValue(account, () => ({ price: 100_000, fx: 30_000 })),
+      3_000,
+    );
   });
 });
 
@@ -564,6 +574,32 @@ describe('averageBuyPrices', () => {
     execution: { at } as engine.Order['execution'],
     status: 'filled',
     fill: { units, price, fx: FX_SCALE, value: 0, refund: 0, at },
+  });
+  const paidFill = (id: string, side: Side, units: number, value: number, at: number): engine.Order => {
+    const order = filled(id, side, units, 1, at);
+    return { ...order, fill: { ...order.fill!, value } };
+  };
+
+  it('counts the shekels paid for what is still held, on the same average', () => {
+    const orders = [
+      paidFill('a', 'buy', 1_000_000, 10_000, 1),
+      paidFill('b', 'buy', 3_000_000, 50_000, 2),
+      paidFill('c', 'sell', 2_000_000, 99_999, 3), // what a sale brings in doesn't change the cost
+    ];
+    assert.deepEqual(paidForHoldings(orders), { TASE1: 30_000 });
+    assert.deepEqual(paidForHoldings([...orders, paidFill('d', 'sell', 2_000_000, 1, 4)]), {});
+  });
+
+  it('pays for a US holding at the dollar rate of the buy, so a dollar move shows as profit', () => {
+    const atBuy: QuoteSource = () => ({ price: 100_000, fx: 4 * FX_SCALE });
+    const later: QuoteSource = () => ({ price: 100_000, fx: 4.4 * FX_SCALE }); // same price, dollar +10%
+    const { account, order } = place(newAccount(), request('buy', 40_000_00, us), atBuy);
+    const bought = fillOrder(account, order.id, atBuy);
+    const paid = paidForHoldings(bought.orders).US1;
+    assert.equal(paid, 40_000_00);
+    assert.equal(holdingValue(bought, 'US1', later) - paid, 4_000_00);
+    // Profit on what is held, plus profit on what was sold, is the whole change since the start.
+    assert.equal(portfolioValue(bought, later) - START_CASH, holdingValue(bought, 'US1', later) - paid);
   });
 
   it('weighs each buy by its units, and selling keeps the average', () => {

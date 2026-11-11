@@ -3,12 +3,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import type { MarketData, Position } from '@/api/client';
 import { Card, changeColor, colors, font, hover, ils, money, percent, Tile, useWide } from '@/components/ui';
-import { displayPrice, findRow, sharesText, toShekels, toUnits } from '@/game/view';
+import { displayPrice, findRow, sharesText, START_SHEKELS, toShekels, toUnits } from '@/game/view';
 
 /**
  * One line per stock: what you paid on average, what it costs now, how it moved today, and how much
- * you made or lost since you bought. Percent changes are in the stock's own currency, so a US
- * stock's numbers don't move with the dollar. The shekel amounts apply that change to today's value.
+ * you made or lost since you bought. Every change is in shekels, so a US stock includes the dollar's
+ * move, the same way the portfolio value does. That is what makes the footer add up to the total.
  */
 type Line = {
   id: string;
@@ -16,83 +16,113 @@ type Line = {
   sector: string;
   currency: '₪' | '$';
   shares: number;
-  average: number | null;
-  now: number;
-  value: number;
-  today: number;
-  todayIls: number;
-  gain: number | null;
-  profit: number | null;
+  average: number | null; // per share, in the stock's own currency
+  now: number; // per share, in the stock's own currency
+  value: number; // ₪ now
+  todayIls: number; // ₪ change since a day ago, price and dollar
+  today: number; // % of that
+  profit: number | null; // ₪ value now minus ₪ paid
+  gain: number | null; // % of that
 };
 
-/** The shekels a value of `value` gained while its price went from `from` to `to`. */
-const moved = (value: number, from: number, to: number) =>
-  from > 0 && to > 0 ? value - (value * from) / to : 0;
+const pct = (change: number, base: number) => (base > 0 ? (change / base) * 100 : 0);
 
 const lineOf = (market: MarketData, position: Position): Line | null => {
   const row = findRow(market, position.securityId);
   if (!row) return null;
-  const now = displayPrice(row.price);
-  const dayAgo = displayPrice(row.priceDayAgo);
-  const average = position.averagePrice ? displayPrice(position.averagePrice) : null;
+  const us = row.market === 'US';
   const value = toShekels(position.value);
+  // What the same shares were worth a day ago, at that day's price and dollar rate.
+  const fxMove = us ? (market.usdIlsDayAgo ?? market.usdIls) / market.usdIls : 1;
+  const dayAgo = row.price > 0 ? value * (row.priceDayAgo / row.price) * fxMove : value;
+  const paid = position.paid ? toShekels(position.paid) : null;
   return {
     id: row.id,
     name: row.name,
     sector: row.sector,
-    currency: row.market === 'US' ? '$' : '₪',
+    currency: us ? '$' : '₪',
     shares: toUnits(position.units),
-    average,
-    now,
+    average: position.averagePrice ? displayPrice(position.averagePrice) : null,
+    now: displayPrice(row.price),
     value,
-    today: dayAgo > 0 ? (now / dayAgo - 1) * 100 : 0,
-    todayIls: moved(value, dayAgo, now),
-    gain: average ? (now / average - 1) * 100 : null,
-    profit: average ? moved(value, average, now) : null,
+    todayIls: value - dayAgo,
+    today: pct(value - dayAgo, dayAgo),
+    profit: paid === null ? null : value - paid,
+    gain: paid === null ? null : pct(value - paid, paid),
   };
 };
 
+const linesOf = (market: MarketData, positions: Position[]) =>
+  positions
+    .map((p) => lineOf(market, p))
+    .filter((l): l is Line => l !== null)
+    .sort((a, b) => b.value - a.value);
+
 /** How much all your stocks together moved today, in shekels and percent. */
 export function stocksToday(market: MarketData, positions: Position[]) {
-  const lines = positions.map((p) => lineOf(market, p)).filter((l): l is Line => l !== null);
-  const ils = lines.reduce((sum, l) => sum + l.todayIls, 0);
+  const lines = linesOf(market, positions);
+  const change = lines.reduce((sum, l) => sum + l.todayIls, 0);
   const value = lines.reduce((sum, l) => sum + l.value, 0);
-  return { ils, percent: value - ils > 0 ? (ils / (value - ils)) * 100 : 0 };
+  return { ils: change, percent: pct(change, value - change) };
 }
 
-const signedIls = (n: number) => `${n > 0 ? '+' : n < 0 ? '−' : ''}${ils(Math.abs(n))}`;
+const signedIls = (n: number) => {
+  const shown = Math.round(n);
+  return `${shown > 0 ? '+' : shown < 0 ? '−' : ''}${ils(Math.abs(shown))}`;
+};
 
-function Change({ pct, amount }: { pct: number; amount: number }) {
-  const color = changeColor(pct);
+function Change({ value, amount }: { value: number; amount: number }) {
+  const color = changeColor(value);
   return (
     <View style={styles.cell}>
-      <Text style={[styles.gain, { color }]}>{percent(pct)}</Text>
+      <Text style={[styles.gain, { color }]}>{percent(value)}</Text>
       <Text style={[styles.small, styles.right, { color }]}>{signedIls(amount)}</Text>
     </View>
   );
 }
 
-export function HoldingsTable({ market, positions }: { market: MarketData; positions: Position[] }) {
+function SumLine({ label, amount, strong }: { label: string; amount: number; strong?: boolean }) {
+  return (
+    <View style={styles.sumLine}>
+      <Text style={[strong ? styles.name : styles.sumLabel]}>{label}</Text>
+      <Text style={[styles.number, strong && styles.bold, { color: changeColor(amount) }]}>
+        {signedIls(amount)}
+      </Text>
+    </View>
+  );
+}
+
+/** `total` is the whole portfolio in shekels: cash, waiting orders and stocks. */
+export function HoldingsTable({
+  market,
+  positions,
+  total,
+}: {
+  market: MarketData;
+  positions: Position[];
+  total: number;
+}) {
   const wide = useWide();
-  const lines = positions
-    .map((p) => lineOf(market, p))
-    .filter((l): l is Line => l !== null)
-    .sort((a, b) => b.value - a.value);
+  const lines = linesOf(market, positions);
   if (lines.length === 0) return null;
 
   const today = stocksToday(market, positions);
-  // "Since you bought" covers only the stocks we know the buy price of.
   const known = lines.filter((l) => l.profit !== null);
-  const profit = known.reduce((sum, l) => sum + (l.profit ?? 0), 0);
-  const cost = known.reduce((sum, l) => sum + l.value - (l.profit ?? 0), 0);
-  const totalGain = cost > 0 ? (profit / cost) * 100 : 0;
+  const held = known.reduce((sum, l) => sum + (l.profit ?? 0), 0);
+  const paid = known.reduce((sum, l) => sum + l.value - (l.profit ?? 0), 0);
+  // Every shekel of change since the start is either on a stock you hold or on one you sold, so the
+  // rest is what your sales made or lost. Only exact when every holding's cost is known.
+  const sinceStart = total - START_SHEKELS;
+  const allKnown = known.length === lines.length;
+  const sold = sinceStart - held;
 
   return (
     <Card style={styles.card}>
       <Text style={styles.help}>
         <Text style={styles.helpStrong}>You paid</Text> is your average price per share.{' '}
-        <Text style={styles.helpStrong}>Today</Text> is the move since yesterday.{' '}
-        <Text style={styles.helpStrong}>Since you bought</Text> is your profit or loss.
+        <Text style={styles.helpStrong}>Today</Text> is the change since yesterday.{' '}
+        <Text style={styles.helpStrong}>Since you bought</Text> is your profit or loss on what you paid. All
+        changes are in shekels, so US stocks include the dollar&apos;s move.
       </Text>
 
       <View style={[styles.row, styles.head]}>
@@ -111,7 +141,7 @@ export function HoldingsTable({ market, positions }: { market: MarketData; posit
       </View>
 
       {lines.map((l) => {
-        const paid = l.average ? money(l.average, l.currency) : '—';
+        const avg = l.average ? money(l.average, l.currency) : '—';
         const now = money(l.now, l.currency);
         return (
           <Pressable
@@ -135,7 +165,7 @@ export function HoldingsTable({ market, positions }: { market: MarketData; posit
             </View>
             {wide ? (
               <>
-                <Text style={[styles.number, styles.cell]}>{paid}</Text>
+                <Text style={[styles.number, styles.cell]}>{avg}</Text>
                 <Text style={[styles.number, styles.cell]}>{now}</Text>
                 <Text style={[styles.number, styles.cell]}>{ils(l.value)}</Text>
               </>
@@ -143,21 +173,21 @@ export function HoldingsTable({ market, positions }: { market: MarketData; posit
               // On a phone, both prices share one column: now on top, what you paid under it.
               <View style={styles.cell}>
                 <Text style={[styles.number, styles.right]}>{now}</Text>
-                <Text style={[styles.small, styles.right]}>paid {paid}</Text>
+                <Text style={[styles.small, styles.right]}>paid {avg}</Text>
               </View>
             )}
-            <Change pct={l.today} amount={l.todayIls} />
+            <Change value={l.today} amount={l.todayIls} />
             {l.gain === null ? (
               <Text style={[styles.small, styles.cell]}>—</Text>
             ) : (
-              <Change pct={l.gain} amount={l.profit ?? 0} />
+              <Change value={l.gain} amount={l.profit ?? 0} />
             )}
           </Pressable>
         );
       })}
 
-      <View style={[styles.row, styles.total]}>
-        <Text style={[styles.name, styles.stock]}>All stocks</Text>
+      <View style={[styles.row, styles.totalRow]}>
+        <Text style={[styles.name, styles.stock]}>Stocks you hold</Text>
         {wide ? (
           <>
             <View style={styles.cell} />
@@ -169,9 +199,28 @@ export function HoldingsTable({ market, positions }: { market: MarketData; posit
         ) : (
           <View style={styles.cell} />
         )}
-        <Change pct={today.percent} amount={today.ils} />
-        {known.length > 0 ? <Change pct={totalGain} amount={profit} /> : <View style={styles.cell} />}
+        <Change value={today.percent} amount={today.ils} />
+        {known.length > 0 ? <Change value={pct(held, paid)} amount={held} /> : <View style={styles.cell} />}
       </View>
+
+      {allKnown ? (
+        <View style={styles.sum}>
+          <SumLine label="Profit on stocks you hold" amount={held} />
+          <SumLine label="Profit on stocks you sold" amount={sold} />
+          <View style={styles.sumRule} />
+          <View style={styles.sumLine}>
+            <Text style={styles.name}>Since you started</Text>
+            <Text style={[styles.number, styles.bold, { color: changeColor(sinceStart) }]}>
+              {signedIls(sinceStart)} ({percent(pct(sinceStart, START_SHEKELS))})
+            </Text>
+          </View>
+          <Text style={styles.small}>
+            This is the same number as at the top. Its percent is out of the ₪
+            {START_SHEKELS.toLocaleString('en-US')} you started with, so it&apos;s smaller than the percent on
+            your stocks.
+          </Text>
+        </View>
+      ) : null}
     </Card>
   );
 }
@@ -198,12 +247,16 @@ const styles = StyleSheet.create({
     letterSpacing: 0.4,
     textTransform: 'uppercase',
   },
-  total: { borderBottomWidth: 0 },
+  totalRow: { borderBottomWidth: 2 },
   stock: { flex: 1.5, minWidth: 0 },
   stockCell: { alignItems: 'center', flexDirection: 'row', gap: 10 },
   cell: { alignItems: 'flex-end', flex: 1, textAlign: 'right' },
   right: { textAlign: 'right' },
   bold: { fontWeight: '600' },
+  sum: { gap: 6, paddingBottom: 10, paddingTop: 12 },
+  sumLine: { alignItems: 'center', flexDirection: 'row', justifyContent: 'space-between' },
+  sumLabel: { color: colors.muted, fontFamily: font.body, fontSize: 14 },
+  sumRule: { backgroundColor: colors.line, height: 1, marginVertical: 2 },
   name: { color: colors.ink, fontFamily: font.body, fontSize: 15, fontWeight: '500' },
   small: { color: colors.muted, fontFamily: font.body, fontSize: 12, marginTop: 2 },
   number: { color: colors.ink, fontFamily: font.body, fontSize: 14, fontVariant: ['tabular-nums'] },
