@@ -1,4 +1,4 @@
-// The game's logo: a crowned shield with three rising candles. The same drawing is in
+// The game's logo: a shield with three rising candles. The same drawing is in
 // public/icons/icon.svg, which the app icon, favicon and home-screen icons are made from.
 
 import Svg, { Line, Path, Rect } from 'react-native-svg';
@@ -15,14 +15,7 @@ const CANDLES = [
 export function LogoMark({ height = 24 }: { height?: number }) {
   const shield = height < 40 ? 9 : 7;
   return (
-    <Svg width={(height * 108) / 140} height={height} viewBox="36 22 108 140" accessibilityElementsHidden>
-      <Path
-        d="M68 56.4 L68 34 L79 44 L90 26 L101 44 L112 34 L112 56.4 L90 50 Z"
-        fill={colors.brand}
-        stroke={colors.brand}
-        strokeWidth={2}
-        strokeLinejoin="round"
-      />
+    <Svg width={(height * 108) / 118} height={height} viewBox="36 44 108 118" accessibilityElementsHidden>
       <Path
         d="M90 50 L138 64 L138 104 Q138 138 90 156 Q42 138 42 104 L42 64 Z"
         fill="none"
