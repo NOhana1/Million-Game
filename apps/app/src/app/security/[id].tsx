@@ -35,7 +35,9 @@ import {
   orderAmount,
   scrubDate,
   toShekels,
+  sharesText,
   toUnits,
+  displayFx,
 } from '@/game/view';
 
 const FUND = 'Fund';
@@ -198,7 +200,10 @@ export default function SecurityScreen() {
             <View style={styles.facts}>
               <Fact label="Type" value={fund ? 'Index fund' : 'Company'} />
               <Fact label="Sector" value={fund ? 'Broad market' : row.sector} />
-              <Fact label="Trades in" value={`${MARKET_LABEL[row.market]}, ${currency === '$' ? 'dollars' : 'shekels'}`} />
+              <Fact
+                label="Trades in"
+                value={`${MARKET_LABEL[row.market]}, ${currency === '$' ? 'dollars' : 'shekels'}`}
+              />
               <Fact label="Right now" value={open ? 'Market open' : 'Market closed'} />
               <Fact label="Today" value={percent(dayChange(row))} />
               <Fact label="Typical daily move" value={`${(dailyVol * 100).toFixed(1)}%`} />
@@ -219,8 +224,15 @@ export default function SecurityScreen() {
             <View style={styles.facts}>
               {position ? (
                 <>
-                  <Fact label="Value" value={ils(toShekels(position.value))} />
-                  <Fact label="Units" value={toUnits(position.units).toFixed(2)} />
+                  <Fact label="Shares" value={sharesText(toUnits(position.units))} />
+                  <Fact
+                    label="Value"
+                    value={`${ils(toShekels(position.value))}${
+                      row.market === 'US' && market
+                        ? ` · ${money(toShekels(position.value) / displayFx(market.usdIls), '$')}`
+                        : ''
+                    }`}
+                  />
                   <Fact
                     label="Share of portfolio"
                     value={`${((position.value / me.value) * 100).toFixed(1)}%`}
@@ -228,19 +240,13 @@ export default function SecurityScreen() {
                 </>
               ) : null}
               {waiting.map((order) => (
-                <Fact
-                  key={order.id}
-                  label={`Waiting ${order.side}`}
-                  value={ils(orderAmount(order))}
-                />
+                <Fact key={order.id} label={`Waiting ${order.side}`} value={ils(orderAmount(order))} />
               ))}
             </View>
           </View>
         ) : null}
       </Page>
-      {ticket ? (
-        <OrderTicket security={row} startSide={ticket} onClose={() => setTicket(null)} />
-      ) : null}
+      {ticket ? <OrderTicket security={row} startSide={ticket} onClose={() => setTicket(null)} /> : null}
     </>
   );
 }

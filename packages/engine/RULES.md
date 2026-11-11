@@ -65,6 +65,7 @@ Run the tests with `npm test` from the repo root.
 | # | Assumption | Why |
 |---|---|---|
 | A17 | There is no dollar balance: US sales convert straight to shekels at the rate at execution | Rule 5 only describes buying, and one currency keeps the portfolio simple |
+| A17a | Players may type dollars or a number of shares. The app turns that into a shekel amount at today's price and rate, rounded down to the agora, and sends that. Typing every share you hold sends "sell everything" | Rules 2 and 5 keep orders in shekels, while shares and dollars are easier to think in. The price is unknown until the fill, so the share count is an estimate |
 | A17b | When the dollar market is shut at the weekend, the last known rate applies until Monday | No market is open then. The price world must follow this, as the engine only receives the rate |
 
 ### Scoring
