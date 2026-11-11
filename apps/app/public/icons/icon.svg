@@ -1,11 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
-  <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#EBCB87"/>
-      <stop offset="1" stop-color="#C9A15A"/>
-    </linearGradient>
-  </defs>
+  <!-- Portfolio League: a shield with three rising candles. Kept inside the maskable safe zone. -->
   <rect width="512" height="512" fill="#25282B"/>
-  <path d="M256 128 L384 256 L256 384 L128 256 Z" fill="url(#g)"/>
-  <path d="M256 128 L384 256 L256 256 Z" fill="#F4E0B0" opacity="0.35"/>
+  <g transform="translate(256 256) scale(3.05) translate(-90 -103)">
+    <path d="M90 50 L138 64 L138 104 Q138 138 90 156 Q42 138 42 104 L42 64 Z" fill="none" stroke="#D9B56A" stroke-width="7" stroke-linejoin="round"/>
+    <line x1="69" y1="96" x2="69" y2="130" stroke="#F2917F" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="64" y="102" width="10" height="20" rx="2" fill="#F2917F"/>
+    <line x1="90" y1="82" x2="90" y2="124" stroke="#62D3A2" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="85" y="89" width="10" height="28" rx="2" fill="#62D3A2"/>
+    <line x1="111" y1="70" x2="111" y2="114" stroke="#62D3A2" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="106" y="76" width="10" height="32" rx="2" fill="#62D3A2"/>
+  </g>
 </svg>
