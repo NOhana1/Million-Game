@@ -171,6 +171,12 @@ export default function PortfolioScreen() {
                         {money(displayPrice(row.price), row.market === 'US' ? '$' : '₪')}
                       </Text>
                     ) : null}
+                  </View>
+                  <View style={styles.values}>
+                    <Text style={styles.number}>{ils(slice.value)}</Text>
+                    {row?.market === 'US' || slice.id === 'US' ? (
+                      <Text style={styles.meta}>{dollars(slice.value)}</Text>
+                    ) : null}
                     {row && position ? (
                       <View style={styles.trade}>
                         {(['buy', 'sell'] as const).map((tradeSide) => (
@@ -192,12 +198,6 @@ export default function PortfolioScreen() {
                           </Pressable>
                         ))}
                       </View>
-                    ) : null}
-                  </View>
-                  <View style={styles.values}>
-                    <Text style={styles.number}>{ils(slice.value)}</Text>
-                    {row?.market === 'US' || slice.id === 'US' ? (
-                      <Text style={styles.meta}>{dollars(slice.value)}</Text>
                     ) : null}
                   </View>
                 </>
@@ -320,19 +320,18 @@ const styles = StyleSheet.create({
   tabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   tabTextOn: { color: colors.page },
   values: { alignItems: 'flex-end' },
-  trade: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  trade: { flexDirection: 'row', gap: 4, marginTop: 4 },
   tradeButton: {
     alignItems: 'center',
     borderColor: colors.line,
     borderRadius: 3,
     borderWidth: 1,
     justifyContent: 'center',
-    minHeight: 32,
-    minWidth: 64,
-    paddingHorizontal: 12,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
   },
   tradeBuy: { backgroundColor: colors.brand, borderColor: colors.brand },
-  tradeText: { color: colors.ink, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
+  tradeText: { color: colors.ink, fontFamily: font.body, fontSize: 11, fontWeight: '600' },
   tradeBuyText: { color: colors.page },
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
