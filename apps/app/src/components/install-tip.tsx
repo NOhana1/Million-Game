@@ -73,7 +73,7 @@ export function InstallTip() {
       <LogoMark height={20} />
       <Text style={styles.text}>
         {install
-          ? 'Add Portfolio League to your home screen.'
+          ? 'Add Bull Run to your home screen.'
           : 'Add to your home screen: tap Share, then “Add to Home Screen”.'}
       </Text>
       {install ? (

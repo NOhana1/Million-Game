@@ -19,7 +19,7 @@ import { BADGES } from "./division-badge";
 import { Button, colors, font, hover } from "./ui";
 
 const SIZE = 1080;
-const FILE_NAME = "portfolio-league.png";
+const FILE_NAME = "bull-run.png";
 
 export type WeekCard = {
   name: string;
@@ -59,15 +59,27 @@ async function drawCard(card: WeekCard): Promise<string> {
   g.strokeRect(40, 40, SIZE - 80, SIZE - 80);
 
   // The game's mark and name.
+  // The shield from logo-mark.tsx, in its own drawing units.
   g.save();
-  g.translate(130, 140);
-  g.rotate(Math.PI / 4);
-  g.fillStyle = colors.brand;
-  g.fillRect(-22, -22, 44, 44);
+  g.translate(130, 136);
+  g.scale(0.55, 0.55);
+  g.translate(-90, -103);
+  g.strokeStyle = colors.brand;
+  g.lineWidth = 9;
+  g.lineJoin = "round";
+  g.stroke(new Path2D("M90 50 L138 64 L138 104 Q138 138 90 156 Q42 138 42 104 L42 64 Z"));
+  for (const [x, top, height, color] of [
+    [69, 102, 20, colors.down],
+    [90, 89, 28, colors.up],
+    [111, 76, 32, colors.up],
+  ] as const) {
+    g.fillStyle = color;
+    g.fillRect(x - 5, top, 10, height);
+  }
   g.restore();
   g.fillStyle = colors.brand;
   g.font = `600 34px ${font.body}`;
-  g.fillText("PORTFOLIO LEAGUE", 180, 152);
+  g.fillText("BULL RUN", 180, 152);
 
   g.drawImage(await loadImage(BADGES[card.division]), SIZE - 330, 90, 220, 220);
 
@@ -110,7 +122,7 @@ async function drawCard(card: WeekCard): Promise<string> {
 }
 
 const shareText = (card: WeekCard) =>
-  `I'm #${card.rank} of ${card.total} in the ${DIVISION_LABEL[card.division]} division of Portfolio League this week. Join me: ${joinLink()}`;
+  `I'm #${card.rank} of ${card.total} in the ${DIVISION_LABEL[card.division]} division of Bull Run this week. Join me: ${joinLink()}`;
 
 /** A button that opens the card, with ways to send or save it. Web only. */
 export function ShareWeek({ card }: { card: WeekCard }) {

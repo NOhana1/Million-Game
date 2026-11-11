@@ -114,7 +114,7 @@ export default function GuideScreen() {
   return (
     <Page maxWidth={880}>
       <View style={styles.head}>
-        <Eyebrow>Portfolio League</Eyebrow>
+        <Eyebrow>Bull Run</Eyebrow>
         <Text style={styles.heading}>Rules and guide</Text>
       </View>
       <Section title="How to play">
