@@ -1,4 +1,4 @@
-# Portfolio League
+# Bull Run
 
 A weekly virtual trading game. Each player gets ₪1,000,000, buys and sells 20 Tel Aviv and US securities, and competes for a place on the weekly table.
 

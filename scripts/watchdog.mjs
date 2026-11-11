@@ -52,7 +52,7 @@ export const CHECKS = [
     async run() {
       const page = await read('/');
       if (page.status !== 200) return `The home page answered ${page.status}.`;
-      if (!page.text.includes('<title>Portfolio League</title>')) return 'The home page loaded, but it isn’t the game.';
+      if (!page.text.includes('<title>Bull Run</title>')) return 'The home page loaded, but it isn’t the game.';
       return null;
     },
   },

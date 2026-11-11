@@ -51,7 +51,7 @@ export function Brand() {
   return (
     <View style={styles.brandBox}>
       <LogoMark height={26} />
-      <Text style={styles.brand}>Portfolio League</Text>
+      <Text style={styles.brand}>Bull Run</Text>
     </View>
   );
 }

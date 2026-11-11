@@ -79,7 +79,7 @@ export function Welcome() {
     <Modal transparent animationType="fade" visible onRequestClose={close}>
       <View style={styles.backdrop}>
         <Card style={styles.card}>
-          <Text style={styles.title}>Welcome to Portfolio League</Text>
+          <Text style={styles.title}>Welcome to Bull Run</Text>
           <Steps />
           <Button label="Start playing" onPress={close} />
           <Button label="Read the full rules" variant="quiet" onPress={readRules} />
