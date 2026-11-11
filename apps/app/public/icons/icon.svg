@@ -1,14 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
   <!-- Portfolio League: a crowned shield with three rising candles. Kept inside the maskable safe zone. -->
   <rect width="512" height="512" fill="#25282B"/>
-  <g transform="translate(256 256) scale(2.6) translate(-90 -90)">
-    <path d="M66 46 L66 24 L78 36 L90 18 L102 36 L114 24 L114 46 Z" fill="#D9B56A" stroke="#D9B56A" stroke-width="2" stroke-linejoin="round"/>
-    <path d="M90 56 L138 70 L138 110 Q138 144 90 162 Q42 144 42 110 L42 70 Z" fill="none" stroke="#D9B56A" stroke-width="6" stroke-linejoin="round"/>
-    <line x1="69" y1="100" x2="69" y2="134" stroke="#F2917F" stroke-width="2" stroke-linecap="round"/>
-    <rect x="64" y="106" width="10" height="20" rx="2" fill="#F2917F"/>
-    <line x1="90" y1="86" x2="90" y2="128" stroke="#62D3A2" stroke-width="2" stroke-linecap="round"/>
-    <rect x="85" y="93" width="10" height="28" rx="2" fill="#62D3A2"/>
-    <line x1="111" y1="74" x2="111" y2="118" stroke="#62D3A2" stroke-width="2" stroke-linecap="round"/>
-    <rect x="106" y="80" width="10" height="32" rx="2" fill="#62D3A2"/>
+  <g transform="translate(256 256) scale(2.85) translate(-90 -92)">
+    <path d="M68 56.4 L68 34 L79 44 L90 26 L101 44 L112 34 L112 56.4 L90 50 Z" fill="#D9B56A" stroke="#D9B56A" stroke-width="2" stroke-linejoin="round"/>
+    <path d="M90 50 L138 64 L138 104 Q138 138 90 156 Q42 138 42 104 L42 64 Z" fill="none" stroke="#D9B56A" stroke-width="7" stroke-linejoin="round"/>
+    <line x1="69" y1="96" x2="69" y2="130" stroke="#F2917F" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="64" y="102" width="10" height="20" rx="2" fill="#F2917F"/>
+    <line x1="90" y1="82" x2="90" y2="124" stroke="#62D3A2" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="85" y="89" width="10" height="28" rx="2" fill="#62D3A2"/>
+    <line x1="111" y1="70" x2="111" y2="114" stroke="#62D3A2" stroke-width="2.5" stroke-linecap="round"/>
+    <rect x="106" y="76" width="10" height="32" rx="2" fill="#62D3A2"/>
   </g>
 </svg>

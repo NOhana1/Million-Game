@@ -6,25 +6,25 @@ import Svg, { Line, Path, Rect } from 'react-native-svg';
 import { colors } from './palette';
 
 const CANDLES = [
-  { x: 69, wick: [100, 134], body: [106, 20], color: colors.down },
-  { x: 90, wick: [86, 128], body: [93, 28], color: colors.up },
-  { x: 111, wick: [74, 118], body: [80, 32], color: colors.up },
+  { x: 69, wick: [96, 130], body: [102, 20], color: colors.down },
+  { x: 90, wick: [82, 124], body: [89, 28], color: colors.up },
+  { x: 111, wick: [70, 114], body: [76, 32], color: colors.up },
 ];
 
 /** The logo mark with no background. Small sizes get a thicker shield so it stays visible. */
 export function LogoMark({ height = 24 }: { height?: number }) {
-  const shield = height < 40 ? 9 : 6;
+  const shield = height < 40 ? 9 : 7;
   return (
-    <Svg width={(height * 108) / 156} height={height} viewBox="36 12 108 156" accessibilityElementsHidden>
+    <Svg width={(height * 108) / 140} height={height} viewBox="36 22 108 140" accessibilityElementsHidden>
       <Path
-        d="M66 46 L66 24 L78 36 L90 18 L102 36 L114 24 L114 46 Z"
+        d="M68 56.4 L68 34 L79 44 L90 26 L101 44 L112 34 L112 56.4 L90 50 Z"
         fill={colors.brand}
         stroke={colors.brand}
         strokeWidth={2}
         strokeLinejoin="round"
       />
       <Path
-        d="M90 56 L138 70 L138 110 Q138 144 90 162 Q42 144 42 110 L42 70 Z"
+        d="M90 50 L138 64 L138 104 Q138 138 90 156 Q42 138 42 104 L42 64 Z"
         fill="none"
         stroke={colors.brand}
         strokeWidth={shield}
@@ -38,7 +38,7 @@ export function LogoMark({ height = 24 }: { height?: number }) {
           x2={c.x}
           y2={c.wick[1]}
           stroke={c.color}
-          strokeWidth={2}
+          strokeWidth={2.5}
           strokeLinecap="round"
         />
       ))}
