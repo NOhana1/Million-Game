@@ -1,10 +1,12 @@
-import type { Order } from '@portfolio-league/engine';
+import type { Order, Side } from '@portfolio-league/engine';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import type { MarketRow } from '@/api/client';
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
 import { SLICE_COLORS } from '@/components/palette';
+import { OrderTicket } from '@/components/order-ticket';
 import { PortfolioChart } from '@/components/portfolio-chart';
 import {
   Card,
@@ -77,6 +79,7 @@ export default function PortfolioScreen() {
   const wide = useWide();
   const [active, setActive] = useState<string | null>(null);
   const [view, setView] = useState<PieView>('stocks');
+  const [ticket, setTicket] = useState<{ row: MarketRow; side: Side } | null>(null);
 
   if (!me || !market) return <ActivityIndicator style={styles.page} color={colors.brand} />;
 
@@ -167,6 +170,28 @@ export default function PortfolioScreen() {
                         {' · now '}
                         {money(displayPrice(row.price), row.market === 'US' ? '$' : '₪')}
                       </Text>
+                    ) : null}
+                    {row && position ? (
+                      <View style={styles.trade}>
+                        {(['buy', 'sell'] as const).map((tradeSide) => (
+                          <Pressable
+                            key={tradeSide}
+                            accessibilityRole="button"
+                            accessibilityLabel={`${tradeSide === 'buy' ? 'Buy' : 'Sell'} ${row.name}`}
+                            onPress={(event) => {
+                              // Only the button: the row itself opens the stock's page.
+                              event.stopPropagation();
+                              setTicket({ row, side: tradeSide });
+                            }}
+                            {...hover('lift')}
+                            style={[styles.tradeButton, tradeSide === 'buy' && styles.tradeBuy]}
+                          >
+                            <Text style={[styles.tradeText, tradeSide === 'buy' && styles.tradeBuyText]}>
+                              {tradeSide === 'buy' ? 'Buy' : 'Sell'}
+                            </Text>
+                          </Pressable>
+                        ))}
+                      </View>
                     ) : null}
                   </View>
                   <View style={styles.values}>
@@ -268,6 +293,9 @@ export default function PortfolioScreen() {
           {orderLists}
         </View>
       </Page>
+      {ticket ? (
+        <OrderTicket security={ticket.row} startSide={ticket.side} onClose={() => setTicket(null)} />
+      ) : null}
     </>
   );
 }
@@ -292,6 +320,20 @@ const styles = StyleSheet.create({
   tabText: { color: colors.muted, fontFamily: font.body, fontSize: 14, fontWeight: '600' },
   tabTextOn: { color: colors.page },
   values: { alignItems: 'flex-end' },
+  trade: { flexDirection: 'row', gap: 8, marginTop: 8 },
+  tradeButton: {
+    alignItems: 'center',
+    borderColor: colors.line,
+    borderRadius: 3,
+    borderWidth: 1,
+    justifyContent: 'center',
+    minHeight: 32,
+    minWidth: 64,
+    paddingHorizontal: 12,
+  },
+  tradeBuy: { backgroundColor: colors.brand, borderColor: colors.brand },
+  tradeText: { color: colors.ink, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
+  tradeBuyText: { color: colors.page },
   page: { backgroundColor: colors.page, flex: 1 },
   flex: { flex: 1 },
   hero: { gap: 2 },
