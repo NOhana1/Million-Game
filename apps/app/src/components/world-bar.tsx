@@ -4,6 +4,7 @@ import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { signedInEmail } from '@/api/session';
 import { Avatar } from '@/components/avatar';
+import { LogoMark } from '@/components/logo-mark';
 import { useGame, useLiveWorldTime } from '@/game/store';
 import { formatWorldTime, marketsText } from '@/game/view';
 
@@ -49,7 +50,7 @@ export function TradingNotice() {
 export function Brand() {
   return (
     <View style={styles.brandBox}>
-      <View style={styles.mark} />
+      <LogoMark height={26} />
       <Text style={styles.brand}>Portfolio League</Text>
     </View>
   );
@@ -195,7 +196,6 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   brandBox: { alignItems: 'center', flexDirection: 'row', gap: 10, marginRight: 20 },
-  mark: { backgroundColor: colors.brass, height: 11, transform: [{ rotate: '45deg' }], width: 11 },
   brand: { color: colors.ink, fontFamily: font.display, fontSize: 21, fontWeight: '500' },
   time: {
     color: colors.onDeep,

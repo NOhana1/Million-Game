@@ -4,6 +4,7 @@
 import { useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { LogoMark } from './logo-mark';
 import { colors, font, hover, useWide } from './ui';
 
 const CLOSED_KEY = 'install-tip-closed';
@@ -69,7 +70,7 @@ export function InstallTip() {
 
   return (
     <View style={styles.tip}>
-      <View style={styles.mark} />
+      <LogoMark height={20} />
       <Text style={styles.text}>
         {install
           ? 'Add Portfolio League to your home screen.'
@@ -102,7 +103,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
-  mark: { backgroundColor: colors.brand, height: 10, transform: [{ rotate: '45deg' }], width: 10 },
   text: { color: colors.ink, flex: 1, fontFamily: font.body, fontSize: 13 },
   button: { backgroundColor: colors.brand, borderRadius: 3, paddingHorizontal: 12, paddingVertical: 5 },
   buttonText: { color: colors.onBrand, fontFamily: font.body, fontSize: 13, fontWeight: '600' },
