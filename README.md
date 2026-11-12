@@ -111,7 +111,9 @@ The Daily Recap stays too, as the first thing on the Market screen: your last da
 - **The chat looks like WhatsApp.** Your messages sit on the right, with your photo. Each friend sits on the left with their own color, given in the order they joined, so no two share one.
 - **The portfolio chart is rebuilt** from a player's fills and the game's prices, so it adds no database writes. It starts at their first order, never earlier, and shows the whole account (cash plus holdings), so each holding counts by its weight. Ranges longer than the player's history are turned off.
 - **Buy by money or by shares.** The order window lets you type an amount in the security's own currency (dollars for US, shekels for Tel Aviv) or a number of shares, and shows the sum: "10 × ₪100 = ₪1,000", or "₪150 ÷ ₪200 = about 0.75 shares", which is 75% of one share and allowed. A US order also shows the shekels it takes from your cash at today's rate. The order sent is still a shekel amount, as the brief asks, so the engine didn't change. The price and the rate are set at the fill, so the window says the final number of shares may differ a little. Holdings show how many shares you own, and US holdings show their dollar value too. A switch above the holdings pie shows it **by stock** or **by currency** (Tel Aviv stocks in shekels, US stocks in dollars, and cash), so you can see how much of your money rides on the dollar. Each holding has small Buy and Sell buttons that open the order window for it, so adding to a position takes one tap.
-- **Average buy price per holding** is worked out from the same remembered fills: each buy is weighted by its units, a sale keeps the average, and selling everything starts it again. It's in the security's own currency, next to today's price. It's only read while the player holds something.
+- **Average buy price per holding** is worked out from the same remembered fills: each buy is weighted by its units, a sale keeps the average, and selling everything starts it again. It's in the security's own currency, next to today's price. The order list is only read once the player has traded, and it's remembered until they change.
+- **How each stock is doing.** A table on the portfolio page shows, for each holding, the average price paid, the price now, today's move, and the profit since buying in shekels and percent. A US stock's profit is split into the stock's own move and the dollar's. The profit uses the shekels actually paid, so the table adds up to the whole account.
+- **Taxes on your sales, for show only.** A closed panel shows 25% of each year's net gain from sales (losses offset gains in the same year), with each year's sales listed. The game never takes it from cash. Details in [`RULES.md`](packages/engine/RULES.md) (T1 to T4).
 - **The dollar's own page.** Tapping the rate on the Market screen opens a chart of the game's dollar, with the same line, candles and ranges as a stock. The rate already moved like a stock (only while a market trades, tending to rise when Tel Aviv falls); now you can see it. Ranges stop at the game's start, because the dollar has no made-up past.
 - **Charts show game time, as a line or as candles.** Every chart says its dates are game time (the clock runs faster than real time, so game dates run ahead of the calendar). A switch shows candles instead of the line: each candle groups neighbouring prices into open, high, low and close.
 - **Sign in comes first.** Most visits are players coming back. New players use "Create an account" at the bottom, or arrive on the sign-up form from **Join free** while looking around.
@@ -195,14 +197,14 @@ The main decisions are below. All of them, with code references, are in [`packag
 | Other developers shipping daily | `main` is protected: a PR is required, and tests, type checks, the build and emulator tests must all pass. Every PR gets a preview. A failing test and a direct push to `main` were both tried and refused |
 | Double execution | A lease keeps alarm runs apart, each fill works on the latest stored player, and a retry after a crash rebuilds the same result. Division moves save in the same write as the table, so a retry can't move anyone twice |
 | Missed runs | A stored cursor means a late alarm settles every missed market open and close, oldest first |
-| Money bugs | 211 engine tests and 259 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
+| Money bugs | 225 engine tests and 261 API tests. I also broke engine rules on purpose in a copy, to prove the tests catch it |
 | Database security | Rules allow reading only your own data and deny all browser writes. They're attacked in tests on the Firebase emulator |
 | Secrets | Separate dev and production Firebase projects, with separate secrets. The server refuses to start if one is missing |
-| Dependencies | I reviewed all 13 `npm audit` warnings. None reaches a player or the running server. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
+| Dependencies | `npm audit` lists 12 warnings in what ships (8 moderate, 4 high). The 4 high ones are one gRPC issue inside the Firebase browser SDK, which the browser never uses (the app reads everything through the API). The moderate ones are in file-matching helpers (`glob`, `minimatch`, `rimraf`) used by Expo's build tools and Google's server libraries. I found no way for a player's request to reach them. The automatic fix would downgrade Firebase and Expo, so I didn't apply it |
 
 **Emergency brake:** the admin page can pause trading for everyone with the admin code. New orders are refused, while time, prices, fills and the table go on, and every player sees a notice.
 
-**Watchdog:** about every 15 minutes, GitHub checks that the game is up and that orders fill on time, and emails an alert if not. See [watchdog](#watchdog).
+**Watchdog:** GitHub checks that the game is up and that orders fill on time, and emails an alert if not. It's asked to run every 15 minutes, but GitHub's timer is best effort: from 8 to 11 November it actually ran every 3.5 to 10 hours. See [watchdog](#watchdog).
 
 **Undoing a bad release:** see [rolling back](#rolling-back).
 
@@ -265,12 +267,13 @@ Every request to the server falls into one category, and each category allows a 
 
 - **One abuser** with an account can still spend about 1,000 reads a minute on the order list (20 requests × 50 orders), which empties the day's reads in under an hour. Before the costly category, it was about 15,000 a minute.
 - **Many accounts** on one address share 150 costly requests a minute, so opening more accounts doesn't multiply the damage. Many addresses would.
+- **No account is needed for some reads.** A few public routes read the database on each request the CDN doesn't answer: checking a name (`/players/name`), a profile with an id that isn't cached, a past week by its date, and any cached route with a made-up query string, which the CDN treats as new. Each costs about 1 read, under the per-address read limit of 1,500 a minute. So one address sending as fast as allowed could use up the day's 50,000 reads in roughly 35 minutes, and the game would stop until the quota resets at midnight Pacific time. A smaller limit for those routes, or a daily allowance per address kept in the database, would close it.
 - **Real growth** hits the same wall. At about 60 reads a minute, a few hundred player-hours a day is enough to reach 50,000.
 - **What would fix it:** a daily allowance per player kept in the database, an alert at 80% of the quota, and the paid Blaze plan, where the quota becomes a bill instead of an outage. Firebase has no hard spending cap, so that needs a budget alert too. I left these out because they need a credit card or another stored counter, and the brief asks for neither.
 
 ## Watchdog
 
-A GitHub job, [`watchdog.yml`](.github/workflows/watchdog.yml), runs [`scripts/watchdog.mjs`](scripts/watchdog.mjs) about every 15 minutes against the live game. It's free and needs no outside service.
+A GitHub job, [`watchdog.yml`](.github/workflows/watchdog.yml), runs [`scripts/watchdog.mjs`](scripts/watchdog.mjs) against the live game. It's set to every 15 minutes, but in practice GitHub has run it every 3.5 to 10 hours (see Limits). It's free and needs no outside service.
 
 **What it checks.** It only reads: every request is a GET, so it can't place orders, move money or touch the clock.
 
