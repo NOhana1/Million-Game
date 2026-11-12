@@ -5,6 +5,9 @@ import * as engine from './index.ts';
 import {
   type Account,
   averageBuyPrices,
+  paidForHoldings,
+  salesOf,
+  taxYears,
   fillOrder,
   FX_SCALE,
   holdingValue,
@@ -160,7 +163,10 @@ describe('fillOrder', () => {
   it('changes nothing for an order that is already filled', () => {
     const { account, order } = place(newAccount(), request('buy', 100_000));
     const filled = fillOrder(account, order.id, tenEach);
-    assert.equal(fillOrder(filled, order.id, () => ({ price: 1, fx: 1 })), filled);
+    assert.equal(
+      fillOrder(filled, order.id, () => ({ price: 1, fx: 1 })),
+      filled,
+    );
   });
 
   it('throws for an unknown order', () => {
@@ -336,8 +342,14 @@ describe('rule 5: US securities', () => {
 
   it('values holdings at the current rate', () => {
     const account: Account = { cash: 0, holdings: { US1: 1_000_000 }, orders: [] };
-    assert.equal(portfolioValue(account, () => ({ price: 100_000, fx: 34_200 })), 3_420);
-    assert.equal(portfolioValue(account, () => ({ price: 100_000, fx: 30_000 })), 3_000);
+    assert.equal(
+      portfolioValue(account, () => ({ price: 100_000, fx: 34_200 })),
+      3_420,
+    );
+    assert.equal(
+      portfolioValue(account, () => ({ price: 100_000, fx: 30_000 })),
+      3_000,
+    );
   });
 });
 
@@ -565,6 +577,32 @@ describe('averageBuyPrices', () => {
     status: 'filled',
     fill: { units, price, fx: FX_SCALE, value: 0, refund: 0, at },
   });
+  const paidFill = (id: string, side: Side, units: number, value: number, at: number): engine.Order => {
+    const order = filled(id, side, units, 1, at);
+    return { ...order, fill: { ...order.fill!, value } };
+  };
+
+  it('counts the shekels paid for what is still held, on the same average', () => {
+    const orders = [
+      paidFill('a', 'buy', 1_000_000, 10_000, 1),
+      paidFill('b', 'buy', 3_000_000, 50_000, 2),
+      paidFill('c', 'sell', 2_000_000, 99_999, 3), // what a sale brings in doesn't change the cost
+    ];
+    assert.deepEqual(paidForHoldings(orders), { TASE1: 30_000 });
+    assert.deepEqual(paidForHoldings([...orders, paidFill('d', 'sell', 2_000_000, 1, 4)]), {});
+  });
+
+  it('pays for a US holding at the dollar rate of the buy, so a dollar move shows as profit', () => {
+    const atBuy: QuoteSource = () => ({ price: 100_000, fx: 4 * FX_SCALE });
+    const later: QuoteSource = () => ({ price: 100_000, fx: 4.4 * FX_SCALE }); // same price, dollar +10%
+    const { account, order } = place(newAccount(), request('buy', 40_000_00, us), atBuy);
+    const bought = fillOrder(account, order.id, atBuy);
+    const paid = paidForHoldings(bought.orders).US1;
+    assert.equal(paid, 40_000_00);
+    assert.equal(holdingValue(bought, 'US1', later) - paid, 4_000_00);
+    // Profit on what is held, plus profit on what was sold, is the whole change since the start.
+    assert.equal(portfolioValue(bought, later) - START_CASH, holdingValue(bought, 'US1', later) - paid);
+  });
 
   it('weighs each buy by its units, and selling keeps the average', () => {
     const orders = [
@@ -590,5 +628,51 @@ describe('averageBuyPrices', () => {
   it('matches a real fill', () => {
     const account = holdingOf(10_000_000);
     assert.deepEqual(averageBuyPrices(account.orders), { TASE1: TEN.price });
+  });
+});
+
+describe('salesOf and taxYears (shown only, never taken)', () => {
+  const fill = (id: string, side: Side, units: number, value: number, at: number): engine.Order => ({
+    id,
+    securityId: 'TASE1',
+    side,
+    amount: 0,
+    placedAt: at,
+    execution: { at } as engine.Order['execution'],
+    status: 'filled',
+    fill: { units, price: 1, fx: FX_SCALE, value, refund: 0, at },
+  });
+  const Y2025 = Date.UTC(2025, 5, 1);
+  const Y2026 = Date.UTC(2026, 5, 1);
+  const year = (at: number) => new Date(at).getUTCFullYear();
+
+  it("costs each sale at the average paid, and taxes 25% of a year's net gain", () => {
+    const orders = [
+      fill('a', 'buy', 2_000_000, 100_000, Y2025), // ₪1,000 for 2 units
+      fill('b', 'sell', 1_000_000, 70_000, Y2025 + 1), // cost ₪500, profit ₪200
+      fill('c', 'sell', 1_000_000, 40_000, Y2025 + 2), // cost ₪500, loss ₪100
+      fill('d', 'buy', 1_000_000, 100_000, Y2026),
+      fill('e', 'sell', 1_000_000, 80_000, Y2026 + 1), // loss ₪200
+    ];
+    const sales = salesOf(orders);
+    assert.deepEqual(
+      sales.map((s) => [s.orderId, s.proceeds, s.cost]),
+      [
+        ['b', 70_000, 50_000],
+        ['c', 40_000, 50_000],
+        ['e', 80_000, 100_000],
+      ],
+    );
+    assert.deepEqual(taxYears(sales, year), [
+      { year: 2026, sales: 1, gains: 0, losses: 20_000, net: -20_000, tax: 0 },
+      { year: 2025, sales: 2, gains: 20_000, losses: 10_000, net: 10_000, tax: 2_500 },
+    ]);
+  });
+
+  it('leaves out a sale with no buy on record', () => {
+    const sales = salesOf([fill('a', 'sell', 1_000_000, 50_000, Y2025)]);
+    assert.equal(sales.length, 1);
+    assert.equal(sales[0]?.cost, null);
+    assert.deepEqual(taxYears(sales, year), []);
   });
 });

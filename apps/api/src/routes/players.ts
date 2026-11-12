@@ -1,5 +1,8 @@
 import {
   averageBuyPrices,
+  paidForHoldings,
+  salesOf,
+  START_CASH,
   holdingValue,
   newAccount,
   portfolioValue,
@@ -24,7 +27,12 @@ import type { Player, Store } from '../store/types.ts';
 
 const NewPlayer = z.object({
   // No control characters: the name is shown to every other player.
-  name: z.string().trim().min(2).max(24).regex(/^[^\p{Cc}]+$/u),
+  name: z
+    .string()
+    .trim()
+    .min(2)
+    .max(24)
+    .regex(/^[^\p{Cc}]+$/u),
 });
 
 const MAX_GOAL = 100_000_000_000; // ₪1,000,000,000 in agorot
@@ -47,7 +55,11 @@ const jpeg = (most: number) =>
 const Photo = z.object({
   photo: jpeg(MOST_PHOTO_LETTERS),
   original: jpeg(MOST_ORIGINAL_LETTERS),
-  crop: z.object({ zoom: z.number().min(1).max(4), x: z.number().min(-2).max(2), y: z.number().min(-2).max(2) }),
+  crop: z.object({
+    zoom: z.number().min(1).max(4),
+    x: z.number().min(-2).max(2),
+    y: z.number().min(-2).max(2),
+  }),
 });
 const Watchlist = z.object({ ids: z.array(z.string().max(10)).max(MOST_WATCHED) });
 
@@ -130,7 +142,8 @@ export function playerRoutes(deps: Deps) {
     if (account.confirmed || (await deps.store.getPlayer(account.uid))) {
       return c.json({ freed: false, reason: 'in-use' });
     }
-    if (deps.now() - account.createdAt < ABANDONED_AFTER_MS) return c.json({ freed: false, reason: 'recent' });
+    if (deps.now() - account.createdAt < ABANDONED_AFTER_MS)
+      return c.json({ freed: false, reason: 'recent' });
     await deps.deleteAccount?.(account.uid);
     return c.json({ freed: true, reason: null });
   });
@@ -160,9 +173,7 @@ export function playerRoutes(deps: Deps) {
     }
     const realNow = deps.now();
     const world = worldTime(await deps.store.getClock(realNow), realNow);
-    const { player, created } = await deps.store.createPlayer(
-      newPlayer(c.get('uid'), name, realNow, world),
-    );
+    const { player, created } = await deps.store.createPlayer(newPlayer(c.get('uid'), name, realNow, world));
     return c.json(player, created ? 201 : 200);
   });
 
@@ -172,8 +183,11 @@ export function playerRoutes(deps: Deps) {
     const world = worldTime(await deps.store.getClock(deps.now()), deps.now());
     const quotes = quotesAt(deps.feed, world);
     const account = toAccount(player);
-    // Read only while holding something; the order list is remembered until the player changes.
-    const paid = Object.keys(player.holdings).length ? averageBuyPrices(await ordersOf(player)) : {};
+    // Read only once something was traded; the order list is remembered until the player changes.
+    const traded = Object.keys(player.holdings).length > 0 || player.cash !== START_CASH;
+    const history = traded ? await ordersOf(player) : [];
+    const average = averageBuyPrices(history);
+    const paid = paidForHoldings(history);
     return c.json({
       ...player,
       worldTime: world,
@@ -183,8 +197,10 @@ export function playerRoutes(deps: Deps) {
         securityId,
         units,
         value: holdingValue(account, securityId, quotes),
-        averagePrice: paid[securityId] ?? null,
+        averagePrice: average[securityId] ?? null,
+        paid: paid[securityId] ?? null,
       })),
+      sales: salesOf(history),
     });
   });
 

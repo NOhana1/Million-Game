@@ -5,6 +5,8 @@ import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-nati
 
 import type { MarketRow } from '@/api/client';
 import { HoldingsPie, type Slice } from '@/components/holdings-pie';
+import { HoldingsTable, stocksToday } from '@/components/holdings-table';
+import { TaxPanel } from '@/components/tax-panel';
 import { SLICE_COLORS } from '@/components/palette';
 import { OrderTicket } from '@/components/order-ticket';
 import { PortfolioChart } from '@/components/portfolio-chart';
@@ -26,7 +28,6 @@ import {
 } from '@/components/ui';
 import { useGame } from '@/game/store';
 import {
-  displayPrice,
   findRow,
   formatWorldTime,
   orderAmount,
@@ -92,6 +93,7 @@ export default function PortfolioScreen() {
   const side = [styles.column, wide && styles.flex];
 
   const holdings = [...me.positions].sort((a, b) => b.value - a.value);
+  const today = stocksToday(market, holdings);
   const slices: Slice[] = holdings.map(({ securityId, value }, index) => ({
     id: securityId,
     label: findRow(market, securityId)?.name ?? securityId,
@@ -163,14 +165,6 @@ export default function PortfolioScreen() {
                         : ''}
                       {((slice.value / total) * 100).toFixed(1)}% of portfolio
                     </Text>
-                    {position?.averagePrice && row ? (
-                      <Text style={styles.meta}>
-                        Avg. buy price{' '}
-                        {money(displayPrice(position.averagePrice), row.market === 'US' ? '$' : '₪')}
-                        {' · now '}
-                        {money(displayPrice(row.price), row.market === 'US' ? '$' : '₪')}
-                      </Text>
-                    ) : null}
                   </View>
                   <View style={styles.values}>
                     <Text style={styles.number}>{ils(slice.value)}</Text>
@@ -269,6 +263,12 @@ export default function PortfolioScreen() {
           <Text style={[styles.change, { color: changeColorOnDeep(change) }]}>
             {percent(change)} since you started
           </Text>
+          {holdings.length > 0 ? (
+            <Text style={[styles.change, { color: changeColorOnDeep(today.percent) }]}>
+              {percent(today.percent)} ({today.ils < 0 ? '−' : '+'}
+              {ils(Math.abs(today.ils))}) today on your stocks
+            </Text>
+          ) : null}
 
           <View style={styles.split}>
             <View style={styles.stat}>
@@ -287,6 +287,15 @@ export default function PortfolioScreen() {
         </Hero>
 
         <PortfolioChart />
+
+        {holdings.length > 0 ? (
+          <View style={styles.column}>
+            <SectionTitle>How each stock is doing</SectionTitle>
+            <HoldingsTable market={market} positions={holdings} total={total} />
+          </View>
+        ) : null}
+
+        <TaxPanel market={market} sales={me.sales ?? []} />
 
         <View style={wide ? styles.columns : styles.column}>
           {holdingsCard}
