@@ -225,9 +225,6 @@ export function HoldingsTable({
               {signedIls(sinceStart)} ({percent(pct(sinceStart, START_SHEKELS))})
             </Text>
           </View>
-          <Text style={styles.small}>
-            Same as the top. The % is out of your ₪{START_SHEKELS.toLocaleString('en-US')} start.
-          </Text>
         </View>
       ) : null}
     </Card>
