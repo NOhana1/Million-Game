@@ -110,7 +110,7 @@ The repo is public, so the generator's code can be read by anyone. The secret is
 
 - **The server must use `secureNoise`** from `@portfolio-league/engine/secure-noise`, with `WORLD_SEED` as the secret. It uses HMAC-SHA256, so past prices can't reveal the seed. A simple random generator could be worked out from watching prices.
 - **`createWorld` can answer for the future,** so it must only be called with times up to the world clock.
-- **The browser preview uses `demoNoise`,** which isn't secret. That's fine only until the site reads prices from the API.
+- **The browser never generates prices.** It reads them from the API, which only answers up to the world clock.
 - **History is pinned.** A test fixes the exact prices of the first week. Changing the generator would rewrite history, so it fails that test on purpose and needs a new `WORLD_VERSION`.
 
 Prices are worked out step by step from the start of the world and kept in memory. A year took about 10 seconds to generate on this Mac, so a server starting cold pays roughly 0.2 seconds per game week.
@@ -152,7 +152,22 @@ These don't change the score. They add a rank that lasts between weeks.
 - All-cash scores perfectly on stability. A26 only removes players who held nothing all week, so banking a win and sitting in cash still works.
 - Divisions reward big bets, because return carries 85% of the score.
 
-## Not in the engine yet
+## Shown only: average price and taxes
 
-- **The shared clock (Stage 6).** The engine receives times, and never reads the clock.
-- **Running the batches (backend).** At each market open and close: run `replaySteps` for the steps since the last check, then `settleDueOrders`, then `recordValue` with the value after fills. At the week's end, run `nextWeek`.
+These describe the past and never change cash, a fill or a score.
+
+| # | Choice | Why |
+|---|---|---|
+| T1 | The average buy price weights each buy by its units. A sale keeps the average, and selling everything starts it again with the next buy | The usual way a broker shows it |
+| T2 | "Paid" is the shekels actually spent, at each buy's dollar rate. Value now minus paid is the profit, so the holdings table adds up to the whole account | A US stock's profit includes the dollar's move, as the portfolio value does |
+| T3 | Each sale is costed at the average paid for the units sold. A sale with no buy on record has no cost and is left out of taxes | Never guesses a number |
+| T4 | Tax is 25% of each Israeli calendar year's net gain (gains minus losses), and 0 for a year that lost money. Years follow game time | Israel's capital gains rate, with losses offsetting gains in the same year. It's a lesson, not a charge |
+
+Code: `averageBuyPrices`, `paidForHoldings`, `salesOf` and `taxYears` in `orders.ts`.
+
+## Where the engine is used
+
+The engine receives times and prices, and never reads the clock or the database. The API does that:
+
+- **The shared clock:** `apps/api/src/clock.ts`.
+- **The batches at each market open and close:** `apps/api/src/services/settlement.ts` and `league.ts`. They run `replaySteps` for the steps since the last open or close, then `settleDueOrders`, then `recordValue` with the value after fills, and `nextWeek` when the week ends.
